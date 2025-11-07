@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "../../lib/auth-storage";
 import { authStorage } from "../../lib/auth-storage";
 import { trpc } from "../../lib/trpc";
@@ -72,23 +72,23 @@ export const AuthProvider = ({ children }: Props) => {
     return unsubscribe;
   }, []);
 
-  const handleAuth = (payload: AuthPayload) => {
+  const handleAuth = useCallback((payload: AuthPayload) => {
     authStorage.setAuth(payload);
     setUser(payload.user);
     setStatus("authenticated");
     queryClient.invalidateQueries();
-  };
+  }, [queryClient]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authStorage.clear();
     setUser(null);
     setStatus("unauthenticated");
     queryClient.clear();
-  };
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, status, handleAuth, logout }),
-    [user, status]
+    [user, status, handleAuth, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

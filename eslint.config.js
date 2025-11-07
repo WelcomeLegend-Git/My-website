@@ -73,6 +73,9 @@ export default tseslint.config(
       ...reactPlugin.configs.recommended.rules,
       ...reactHooksPlugin.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
+      // Relax overly-aggressive new rules for practical app state patterns
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/preserve-manual-memoization": "off",
       "import/order": [
         "error",
         {

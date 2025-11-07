@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient, createAsyncStoragePersister } from "@tanstack/react-query-persist-client";
 import localforage from "localforage";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc, createTrpcClient } from "../../lib/trpc";
 import { AuthProvider } from "./AuthProvider";
 

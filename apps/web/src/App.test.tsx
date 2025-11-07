@@ -5,7 +5,7 @@ import App from "./App";
 import { AppProviders } from "./app/providers/AppProviders";
 
 describe("App", () => {
-  it("renders the daily snapshot heading", () => {
+  it("renders the login heading when unauthenticated", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppProviders>
@@ -13,6 +13,6 @@ describe("App", () => {
         </AppProviders>
       </MemoryRouter>
     );
-    expect(screen.getByText("Daily Snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Welcome back")).toBeInTheDocument();
   });
 });

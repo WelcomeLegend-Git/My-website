@@ -1,0 +1,14 @@
+{
+  "name": "@jee/shared",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1"
+  }
+}

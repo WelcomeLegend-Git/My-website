@@ -1,0 +1,447 @@
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useShellContext } from "../../app/layouts/useShellContext";
+import { FormulaCard } from "../../features/formulas/components/FormulaCard";
+import {
+  FormulaFormDialog,
+  type FormulaDraft,
+} from "../../features/formulas/components/FormulaFormDialog";
+import { trpc } from "../../lib/trpc";
+import type { RouterInputs, RouterOutputs } from "../../types/trpc";
+
+type Formula = RouterOutputs["formulas"]["list"][number];
+type Subject = RouterOutputs["subjects"]["list"][number];
+type FormulaCreateInput = RouterInputs["formulas"]["create"];
+type FormulaUpdateInput = RouterInputs["formulas"]["update"];
+
+type FormState =
+  | { mode: "create" }
+  | {
+      mode: "edit";
+      formula: Formula;
+    };
+
+type FormulaFilters = {
+  subjectId?: string;
+  chapterId?: string;
+  search?: string;
+};
+
+const toAiContext = (formula: Formula) => ({
+  entity: "formula",
+  id: formula.id,
+  title: formula.title,
+  expression: formula.expression,
+  difficulty: formula.difficulty,
+  subject: formula.subject.name,
+  chapter: formula.chapter.title,
+  tags: formula.tags,
+  explanation: formula.explanation,
+});
+
+const ensureChapterOptions = (subjectId: string | undefined, subjects?: Subject[]) => {
+  if (!subjectId) {
+    return [];
+  }
+  return subjects?.find((subject) => subject.id === subjectId)?.chapters ?? [];
+};
+
+const buildDraftFromFormula = (formula: Formula): FormulaDraft => ({
+  subjectId: formula.subjectId,
+  chapterId: formula.chapterId,
+  title: formula.title,
+  expression: formula.expression,
+  explanation: formula.explanation ?? undefined,
+  difficulty: formula.difficulty,
+  tags: (formula.tags as string[]) ?? [],
+  derivationSteps: formula.derivationSteps ?? [],
+});
+
+export const FormulaLibraryPage = () => {
+  const { setAiSection, setAiContext, openAi } = useShellContext();
+  const utils = trpc.useUtils();
+
+  const { data: subjects, isLoading: subjectsLoading } = trpc.subjects.list.useQuery();
+
+  const [subjectId, setSubjectId] = useState<string | undefined>();
+  const [chapterId, setChapterId] = useState<string | undefined>();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
+  const [formState, setFormState] = useState<FormState | null>(null);
+  const [pendingFormulaId, setPendingFormulaId] = useState<string | null>(null);
+
+  const deferredSearch = useDeferredValue(searchTerm);
+
+  const filters = useMemo<FormulaFilters | undefined>(() => {
+    const trimmed = deferredSearch.trim();
+    const active: FormulaFilters = {
+      subjectId,
+      chapterId,
+      search: trimmed ? trimmed : undefined,
+    };
+    if (!active.subjectId && !active.chapterId && !active.search) {
+      return undefined;
+    }
+    return active;
+  }, [chapterId, deferredSearch, subjectId]);
+
+  const {
+    data: formulas,
+    isLoading: formulasLoading,
+    isFetching: formulasFetching,
+  } = trpc.formulas.list.useQuery(filters, {
+    keepPreviousData: true,
+  });
+
+  const createMutation = trpc.formulas.create.useMutation();
+  const updateMutation = trpc.formulas.update.useMutation();
+  const deleteMutation = trpc.formulas.remove.useMutation();
+
+  useEffect(() => {
+    setAiSection("formulas");
+    return () => {
+      setAiContext(undefined);
+    };
+  }, [setAiContext, setAiSection]);
+
+  useEffect(() => {
+    if (selectedFormula) {
+      setAiContext(toAiContext(selectedFormula));
+    } else {
+      setAiContext(undefined);
+    }
+  }, [selectedFormula, setAiContext]);
+
+  useEffect(() => {
+    if (!formulas || formulas.length === 0) {
+      if (selectedFormula !== null) {
+        setSelectedFormula(null);
+      }
+      return;
+    }
+
+    const desired =
+      (pendingFormulaId ? formulas.find((formula) => formula.id === pendingFormulaId) : undefined) ??
+      (selectedFormula ? formulas.find((formula) => formula.id === selectedFormula.id) : undefined) ??
+      formulas[0];
+
+    if (!desired) {
+      if (selectedFormula !== null) {
+        setSelectedFormula(null);
+      }
+      return;
+    }
+
+    if (
+      !selectedFormula ||
+      selectedFormula.id !== desired.id ||
+      selectedFormula.updatedAt !== desired.updatedAt
+    ) {
+      setSelectedFormula(desired);
+    }
+
+    if (pendingFormulaId && formulas.some((formula) => formula.id === pendingFormulaId)) {
+      setPendingFormulaId(null);
+    }
+  }, [formulas, pendingFormulaId, selectedFormula]);
+
+  useEffect(() => {
+    if (!subjectId) {
+      setChapterId(undefined);
+      return;
+    }
+    const chapters = ensureChapterOptions(subjectId, subjects);
+    if (!chapters.length) {
+      setChapterId(undefined);
+      return;
+    }
+    if (chapterId && !chapters.some((chapter) => chapter.id === chapterId)) {
+      setChapterId(undefined);
+    }
+  }, [chapterId, subjectId, subjects]);
+
+  const handleDelete = async (formula: Formula) => {
+    if (deleteMutation.isPending) {
+      return;
+    }
+    const confirmed = typeof window !== "undefined" ? window.confirm("Delete this formula? This cannot be undone.") : true;
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteMutation.mutateAsync({ id: formula.id });
+      await utils.formulas.list.invalidate();
+      setSelectedFormula((current) => (current?.id === formula.id ? null : current));
+    } catch {
+      // Error surfaces via mutation state.
+    }
+  };
+
+  const handleFormSubmit = async (draft: FormulaDraft) => {
+    const payload: FormulaCreateInput = {
+      subjectId: draft.subjectId,
+      chapterId: draft.chapterId,
+      title: draft.title,
+      expression: draft.expression,
+      explanation: draft.explanation,
+      difficulty: draft.difficulty,
+      derivationSteps: draft.derivationSteps,
+      tags: draft.tags,
+      attachments: [],
+    };
+
+    try {
+      if (formState?.mode === "edit") {
+        const updatePayload: FormulaUpdateInput = { id: formState.formula.id, ...payload };
+        await updateMutation.mutateAsync(updatePayload);
+      } else {
+        setSubjectId(draft.subjectId);
+        setChapterId(draft.chapterId);
+        const created = await createMutation.mutateAsync(payload);
+        setPendingFormulaId(created.id);
+      }
+      await utils.formulas.list.invalidate();
+      setFormState(null);
+    } catch {
+      // handled by mutation errors
+    }
+  };
+
+  const closeForm = () => {
+    setFormState(null);
+    createMutation.reset();
+    updateMutation.reset();
+  };
+
+  const openCreateForm = () => {
+    setFormState({ mode: "create" });
+    createMutation.reset();
+  };
+
+  const openEditForm = (formula: Formula) => {
+    setFormState({ mode: "edit", formula });
+    updateMutation.reset();
+  };
+
+  const chapterOptions = ensureChapterOptions(subjectId, subjects);
+  const isEmpty = !formulasLoading && (!formulas || formulas.length === 0);
+
+  const currentFormDefaults: FormulaDraft | undefined = formState
+    ? formState.mode === "edit"
+      ? buildDraftFromFormula(formState.formula)
+      : {
+          subjectId:
+            subjectId ?? subjects?.[0]?.id ?? "",
+          chapterId:
+            chapterId ?? ensureChapterOptions(subjectId ?? subjects?.[0]?.id, subjects)[0]?.id ?? "",
+          title: "",
+          expression: "",
+          explanation: "",
+          difficulty: "medium",
+          tags: [],
+          derivationSteps: [],
+        }
+    : undefined;
+
+  const formError = formState?.mode === "edit" ? updateMutation.error?.message : createMutation.error?.message;
+  const isSaving = formState?.mode === "edit" ? updateMutation.isPending : createMutation.isPending;
+
+  return (
+    <section className="space-y-6">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula studio</p>
+          <h2 className="text-3xl font-semibold text-slate-100">Archive your derivations</h2>
+          <p className="text-sm text-slate-400">Filter by subject, dissect with AI, and keep every insight searchable.</p>
+        </div>
+        <button
+          type="button"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+          onClick={openCreateForm}
+        >
+          Add formula
+        </button>
+      </header>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
+            <select
+              value={subjectId ?? ""}
+              onChange={(event) => setSubjectId(event.target.value || undefined)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+            >
+              <option value="">All subjects</option>
+              {subjects?.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
+            <select
+              value={chapterId ?? ""}
+              onChange={(event) => setChapterId(event.target.value || undefined)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              disabled={!subjectId || !chapterOptions.length}
+            >
+              <option value="">{subjectId ? "All chapters" : "Select a subject"}</option>
+              {chapterOptions.map((chapter) => (
+                <option key={chapter.id} value={chapter.id}>
+                  {chapter.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 space-y-2">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Search</label>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Title, expression, explanation keywords"
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          {(subjectId || chapterId || searchTerm) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSubjectId(undefined);
+                setChapterId(undefined);
+                setSearchTerm("");
+              }}
+              className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_minmax(0,1fr)]">
+        <div className="space-y-3">
+          {subjectsLoading || formulasLoading ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40" />
+              ))}
+            </div>
+          ) : isEmpty ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-sm text-slate-400">
+              No formulas yet. Capture your first derivation to unlock AI powered insights.
+            </div>
+          ) : (
+            formulas?.map((formula) => (
+              <FormulaCard
+                key={formula.id}
+                formula={formula}
+                isActive={selectedFormula?.id === formula.id}
+                onSelect={setSelectedFormula}
+                onEdit={openEditForm}
+                onDelete={handleDelete}
+              />
+            ))
+          )}
+          {formulasFetching && formulas && formulas.length > 0 && (
+            <p className="text-center text-xs text-slate-500">Refreshing...</p>
+          )}
+        </div>
+
+        <aside className="space-y-4">
+          {selectedFormula ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Active formula</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-100">{selectedFormula.title}</h3>
+                </div>
+                <span className="rounded-full border border-slate-800 bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-wide text-slate-400">
+                  {selectedFormula.difficulty}
+                </span>
+              </div>
+              <p className="mt-4 whitespace-pre-wrap font-mono text-sm text-slate-200">{selectedFormula.expression}</p>
+              {selectedFormula.explanation && (
+                <p className="mt-4 text-sm leading-relaxed text-slate-300">{selectedFormula.explanation}</p>
+              )}
+              {selectedFormula.derivationSteps?.length ? (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Derivation steps</p>
+                  <ol className="space-y-2 text-sm text-slate-300">
+                    {selectedFormula.derivationSteps.map((step, index) => (
+                      <li key={index} className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
+                        <span className="mr-2 text-xs text-slate-500">{index + 1}.</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+              {selectedFormula.tags?.length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedFormula.tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wide text-primary">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                  onClick={() => openEditForm(selectedFormula)}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl border border-rose-600/40 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-300 hover:border-rose-500 hover:text-rose-200"
+                  onClick={() => handleDelete(selectedFormula)}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl bg-primary/80 px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary"
+                  onClick={() => {
+                    setAiContext(toAiContext(selectedFormula));
+                    openAi();
+                  }}
+                >
+                  Ask mentor about this
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">
+              Select a formula to surface derivations, context, and AI prompts.
+            </div>
+          )}
+          {deleteMutation.error && (
+            <p className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+              {deleteMutation.error.message}
+            </p>
+          )}
+        </aside>
+      </div>
+
+      <FormulaFormDialog
+        open={Boolean(formState)}
+        mode={formState?.mode ?? "create"}
+        subjects={subjects}
+        defaultValues={currentFormDefaults}
+        isSubmitting={isSaving}
+        errorMessage={formError ?? null}
+        onClose={closeForm}
+        onSubmit={handleFormSubmit}
+      />
+    </section>
+  );
+};

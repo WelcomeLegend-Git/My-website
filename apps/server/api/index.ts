@@ -47,6 +47,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           ok: false,
           error: "APP_INIT_FAILED",
           message: error?.message ?? "Unknown error",
+          stack: error?.stack ?? null,
         })
       );
       return;

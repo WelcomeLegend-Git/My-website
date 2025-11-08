@@ -1,7 +1,6 @@
 import type { AppRouter } from "@jee/server/trpc/root";
 import { httpBatchLink, loggerLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
-import superjson from "superjson";
 import { authStorage } from "./auth-storage";
 import { getApiBaseUrl } from "./env";
 
@@ -117,7 +116,6 @@ export const createTrpcClient = () =>
       httpBatchLink({
         url: apiUrl,
         fetch: customFetch,
-        transformer: superjson,
         headers() {
           const token = authStorage.getAccessToken();
           return token ? { Authorization: `Bearer ${token}` } : {};

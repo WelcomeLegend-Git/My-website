@@ -1,5 +1,6 @@
 import "dotenv/config";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+// Updated to use Supavisor pooler
 
 let app: any;
 

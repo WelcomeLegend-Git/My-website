@@ -4,6 +4,7 @@ import { createApp } from "../src/app";
 
 const app = createApp();
 
+// CORS Configuration - Updated for Vercel deployment
 // Allowed origins
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",

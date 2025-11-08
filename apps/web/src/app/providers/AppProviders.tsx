@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { persistQueryClient, createAsyncStoragePersister } from "@tanstack/react-query-persist-client";
+import { persistQueryClient, type Persister, type PersistedClient } from "@tanstack/react-query-persist-client";
 import localforage from "localforage";
 import { useEffect, useState } from "react";
 import { trpc, createTrpcClient } from "../../lib/trpc";
@@ -10,15 +10,18 @@ type Props = {
 };
 
 // Create persister lazily to avoid test/runtime import mismatches
-const createPersister = () =>
-  createAsyncStoragePersister({
-    storage: {
-      getItem: (key) => localforage.getItem<string>(key),
-      setItem: (key, value) => localforage.setItem(key, value),
-      removeItem: (key) => localforage.removeItem(key),
-    },
-    throttleTime: 1000,
-  });
+const createPersister = (): Persister => ({
+  persistClient: async (client: PersistedClient) => {
+    await localforage.setItem("REACT_QUERY_CACHE", client);
+  },
+  restoreClient: async () => {
+    const result = await localforage.getItem<PersistedClient>("REACT_QUERY_CACHE");
+    return result ?? undefined;
+  },
+  removeClient: async () => {
+    await localforage.removeItem("REACT_QUERY_CACHE");
+  },
+});
 
 export const AppProviders = ({ children }: Props) => {
   const [queryClient] = useState(
@@ -41,22 +44,17 @@ export const AppProviders = ({ children }: Props) => {
   const [trpcClient] = useState(() => createTrpcClient());
 
   useEffect(() => {
-    const canPersist = typeof window !== "undefined" && typeof createAsyncStoragePersister === "function";
-    if (!canPersist) return;
+    if (typeof window === "undefined") return;
 
     const persister = createPersister();
-    persistQueryClient({ queryClient, persister, maxAge: 1000 * 60 * 60 * 24 }).catch((error) => {
+    const [unsubscribe, promise] = persistQueryClient({ queryClient, persister, maxAge: 1000 * 60 * 60 * 24 });
+    
+    promise.catch((error: unknown) => {
       console.warn("Failed to hydrate persisted queries", error);
     });
 
     return () => {
-      try {
-        const p = createPersister();
-        // @ts-expect-error removeClient may not exist depending on version typings
-        p.removeClient?.();
-      } catch {
-        // ignore
-      }
+      unsubscribe();
     };
   }, [queryClient]);
 

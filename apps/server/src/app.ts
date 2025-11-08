@@ -6,27 +6,56 @@ import express from "express";
 import helmet from "helmet";
 
 import { optionalAuth } from "./auth/middleware";
-import { env } from "./env";
 import { logger } from "./logger";
-import { persistFile, uploadMiddleware } from "./storage/local";
+import { persistFile, uploadMiddleware } from "./storage/supabase";
 import { createContext } from "./trpc/context";
 import { appRouter } from "./trpc/root";
 
 export const createApp = () => {
   const app = express();
 
-  app.use(helmet());
-  app.use(
-    cors({
-      origin: true,
+  // Disable helmet in Vercel as we handle CORS manually in api/index.ts
+  const isVercel = process.env.VERCEL === '1';
+  
+  if (!isVercel) {
+    app.use(helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" }
+    }));
+  }
+  
+  // Only apply CORS middleware when not on Vercel
+  // On Vercel, CORS is handled in api/index.ts
+  if (!isVercel) {
+    // Handle preflight requests
+    app.options("*", cors({
+      origin: [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        /\.vercel\.app$/,
+      ],
       credentials: true,
-    })
-  );
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    }));
+    
+    app.use(
+      cors({
+        origin: [
+          "http://localhost:3000",
+          "http://localhost:5173",
+          /\.vercel\.app$/,
+        ],
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+      })
+    );
+  }
+  
   app.use(cookieParser());
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use(compression());
-  app.use("/uploads", express.static(env.UPLOAD_DIR));
   app.use(optionalAuth);
 
   app.post(

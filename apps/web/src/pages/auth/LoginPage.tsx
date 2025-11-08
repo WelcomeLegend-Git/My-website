@@ -36,12 +36,14 @@ export const LoginPage = () => {
     setFocus("email");
   }, [setFocus]);
 
-  const mutation = trpc.auth.login.useMutation({
-    onSuccess: (data) => {
-      handleAuth(data);
+  const mutation = trpc.auth.login.useMutation();
+
+  useEffect(() => {
+    if (mutation.isSuccess && mutation.data) {
+      handleAuth(mutation.data);
       navigate(from, { replace: true });
-    },
-  });
+    }
+  }, [mutation.isSuccess, mutation.data, handleAuth, navigate, from]);
 
   const onSubmit = (values: LoginForm) => {
     mutation.mutate(values);

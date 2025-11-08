@@ -89,7 +89,7 @@ export const FormulaLibraryPage = () => {
     isLoading: formulasLoading,
     isFetching: formulasFetching,
   } = trpc.formulas.list.useQuery(filters, {
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const createMutation = trpc.formulas.create.useMutation();

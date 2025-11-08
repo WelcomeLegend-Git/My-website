@@ -21,6 +21,7 @@ export default tseslint.config(
       "apps/web/vite.config.ts",
       "apps/web/vitest.config.ts",
       "apps/web/vitest.setup.ts",
+      "apps/web/tailwind.config.ts",
     ],
   },
   {

@@ -43,22 +43,24 @@ export const AuthProvider = ({ children }: Props) => {
 
   const hasTokens = Boolean(authStorage.getAccessToken());
 
-  trpc.auth.me.useQuery(undefined, {
+  const meQuery = trpc.auth.me.useQuery(undefined, {
     enabled: hasTokens,
     retry: 1,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    onSuccess: (data) => {
-      setUser(data);
-      authStorage.setUser(data);
+  });
+
+  useEffect(() => {
+    if (meQuery.isSuccess && meQuery.data) {
+      setUser(meQuery.data);
+      authStorage.setUser(meQuery.data);
       setStatus("authenticated");
-    },
-    onError: () => {
+    } else if (meQuery.isError) {
       authStorage.clear();
       setUser(null);
       setStatus("unauthenticated");
-    },
-  });
+    }
+  }, [meQuery.isSuccess, meQuery.isError, meQuery.data]);
 
   useEffect(() => {
     const unsubscribe = authStorage.subscribe((next) => {
@@ -69,7 +71,9 @@ export const AuthProvider = ({ children }: Props) => {
         setStatus("unauthenticated");
       }
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleAuth = useCallback((payload: AuthPayload) => {

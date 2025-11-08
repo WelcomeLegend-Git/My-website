@@ -48,12 +48,14 @@ export const RegisterPage = () => {
     setFocus("name");
   }, [setFocus]);
 
-  const mutation = trpc.auth.register.useMutation({
-    onSuccess: (data) => {
-      handleAuth(data);
+  const mutation = trpc.auth.register.useMutation();
+
+  useEffect(() => {
+    if (mutation.isSuccess && mutation.data) {
+      handleAuth(mutation.data);
       navigate("/", { replace: true });
-    },
-  });
+    }
+  }, [mutation.isSuccess, mutation.data, handleAuth, navigate]);
 
   const onSubmit = (values: RegisterForm) => {
     mutation.mutate({ name: values.name, email: values.email, password: values.password });

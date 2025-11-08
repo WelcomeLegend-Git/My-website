@@ -1,10 +1,9 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["jsonProtocol"]
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -50,15 +49,16 @@ enum MistakeAssetKind {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
+  id           String        @id @default(uuid())
+  email        String        @unique
   name         String
   passwordHash String
   subjects     Subject[]
   formulas     Formula[]
   mistakes     Mistake[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  quizSessions QuizSession[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Subject {
@@ -156,4 +156,45 @@ model MistakeAsset {
   url        String
   caption    String?
   createdAt  DateTime         @default(now())
+}
+
+enum QuizType {
+  formula_based
+  mistake_review
+  mixed
+}
+
+model QuizSession {
+  id          String      @id @default(uuid())
+  title       String
+  type        QuizType
+  subjectId   String?
+  chapterId   String?
+  totalQuestions Int
+  correctAnswers Int       @default(0)
+  completedAt DateTime?
+  ownerId     String
+  owner       User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  questions   QuizQuestion[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([ownerId])
+}
+
+model QuizQuestion {
+  id              String       @id @default(uuid())
+  sessionId       String
+  session         QuizSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionText    String
+  options         Json         // Array of options
+  correctAnswer   Int          // Index of correct option
+  explanation     String?
+  userAnswer      Int?         // User's selected answer index
+  isCorrect       Boolean?
+  formulaId       String?      // Reference to formula if generated from formula
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([sessionId])
 }

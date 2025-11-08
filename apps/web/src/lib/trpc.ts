@@ -112,12 +112,12 @@ export const trpc = createTRPCReact<AppRouter>();
 
 export const createTrpcClient = () =>
   trpc.createClient({
-    transformer: superjson,
     links: [
       loggerLink({ enabled: () => import.meta.env.DEV }),
       httpBatchLink({
         url: apiUrl,
         fetch: customFetch,
+        transformer: superjson,
         headers() {
           const token = authStorage.getAccessToken();
           return token ? { Authorization: `Bearer ${token}` } : {};

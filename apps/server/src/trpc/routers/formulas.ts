@@ -8,17 +8,17 @@ type MindMapNodeInput = {
   id: string;
   label: string;
   detail?: string | null;
-  children?: MindMapNodeInput[];
+  children: MindMapNodeInput[];
 };
 
-const mindMapNodeInput: z.ZodType<MindMapNodeInput> = z.lazy(() =>
+const mindMapNodeInput: z.ZodType<MindMapNodeInput, z.ZodTypeDef, any> = z.lazy(() =>
   z.object({
     id: z.string().min(1),
     label: z.string().min(1),
     detail: z.string().optional().nullable(),
     children: z.array(mindMapNodeInput).default([]),
   })
-);
+) as any;
 
 const mindMapInput = z.object({
   root: mindMapNodeInput,

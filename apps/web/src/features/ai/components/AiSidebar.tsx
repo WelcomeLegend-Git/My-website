@@ -1,5 +1,26 @@
 import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { trpc } from "../../../lib/trpc";
+import { QuizConfigForm, type QuizConfig } from '../../quiz/components/QuizConfigForm';
+
+// Helper to ensure LaTeX delimiters are correct
+const ensureMathDelimiters = (text: string): string => {
+  if (!text) return text;
+  
+  let processed = text;
+  
+  // Convert \(...\) to $...$  (inline math)
+  processed = processed.replace(/\\\((.+?)\\\)/g, (match, p1) => `$${p1}$`);
+  
+  // Convert \[...\] to $$...$$ (display math)
+  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => `$$${p1}$$`);
+  
+  return processed;
+};
 
 type Message = {
   id: string;
@@ -21,13 +42,32 @@ const createId = () => {
 };
 
 export const AiSidebar = ({ open, section, context }: Props) => {
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [showQuizConfig, setShowQuizConfig] = useState(false);
   const mutation = trpc.studyApi.contextualAssistant.useMutation({
     onSuccess: (data) => {
       setMessages((prev) => [
         ...prev,
         { id: createId(), role: "assistant", content: data.reply },
+      ]);
+    },
+  });
+
+  const quizMutation = trpc.quiz.generateQuiz.useMutation({
+    onSuccess: (data) => {
+      // Navigate to quiz page
+      navigate(`/quiz/${data.quizId}`);
+    },
+    onError: (error) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          content: `Failed to generate quiz: ${error.message}`,
+        },
       ]);
     },
   });
@@ -38,6 +78,28 @@ export const AiSidebar = ({ open, section, context }: Props) => {
       return;
     }
     const content = input.trim();
+    
+    // Detect if user wants to practice
+    const practiceKeywords = ['practice', 'quiz', 'test', 'questions', 'exam', 'solve'];
+    const wantsPractice = practiceKeywords.some(keyword => 
+      content.toLowerCase().includes(keyword)
+    );
+    
+    if (wantsPractice && section === 'formulas') {
+      setShowQuizConfig(true);
+      setMessages((prev) => [
+        ...prev,
+        { id: createId(), role: "user", content },
+        {
+          id: createId(),
+          role: "assistant",
+          content: "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+        },
+      ]);
+      setInput("");
+      return;
+    }
+    
     const message: Message = { id: createId(), role: "user", content };
     setMessages((prev) => [...prev, message]);
     setInput("");
@@ -52,6 +114,27 @@ export const AiSidebar = ({ open, section, context }: Props) => {
           content: error instanceof Error ? error.message : "Something went wrong. Try again.",
         },
       ]);
+    }
+  };
+
+  const handleQuizSubmit = async (config: QuizConfig) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: createId(),
+        role: "assistant",
+        content: `Perfect! Generating ${config.questionCount} ${config.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'} questions with ${config.answerType} correct answers. This will take a moment...`,
+      },
+    ]);
+    setShowQuizConfig(false);
+    
+    try {
+      await quizMutation.mutateAsync({
+        ...config,
+        context: context as any,
+      });
+    } catch (error) {
+      // Error handled by mutation
     }
   };
 
@@ -128,9 +211,51 @@ export const AiSidebar = ({ open, section, context }: Props) => {
                   </>
                 )}
               </div>
-              <p className="whitespace-pre-wrap text-slate-200 leading-relaxed">{message.content}</p>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
+                  rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
+                  className="text-slate-200 leading-relaxed"
+                  components={{
+                    // Style headings
+                    h1: ({node, ...props}) => <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />,
+                    // Style lists
+                    ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
+                    li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
+                    // Style code
+                    code: ({node, inline, ...props}) => 
+                      inline 
+                        ? <code className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono" {...props} />
+                        : <code className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto" {...props} />,
+                    // Style paragraphs
+                    p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
+                    // Style strong/bold
+                    strong: ({node, ...props}) => <strong className="font-bold text-emerald-300" {...props} />,
+                    // Style emphasis/italic
+                    em: ({node, ...props}) => <em className="italic text-slate-300" {...props} />,
+                    // Style horizontal rules
+                    hr: ({node, ...props}) => <hr className="my-4 border-slate-700" {...props} />,
+                  }}
+                >
+                  {ensureMathDelimiters(message.content)}
+                </ReactMarkdown>
+              </div>
             </div>
           ))
+        )}
+        
+        {/* Quiz Configuration Form */}
+        {showQuizConfig && (
+          <div className="stagger-item">
+            <QuizConfigForm
+              onSubmit={handleQuizSubmit}
+              onCancel={() => setShowQuizConfig(false)}
+              isLoading={quizMutation.isPending}
+            />
+          </div>
         )}
       </div>
 

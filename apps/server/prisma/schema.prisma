@@ -50,45 +50,77 @@ enum MistakeAssetKind {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  name         String
-  passwordHash String
-  subjects     Subject[]
-  formulas     Formula[]
-  mistakes     Mistake[]
-  quizSessions QuizSession[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  name               String
+  passwordHash       String
+  subjects           Subject[]
+  formulas           Formula[]
+  mistakes           Mistake[]
+  quizSessions       QuizSession[]
+  formulaCollections FormulaCollection[]
+  practiceQuizzes    PracticeQuiz[]
+  practiceAttempts   PracticeAttempt[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model Subject {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  ownerId     String
-  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  chapters    Chapter[]
-  formulas    Formula[]
-  mistakes    Mistake[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String              @id @default(uuid())
+  name               String
+  description        String?
+  ownerId            String
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  chapters           Chapter[]
+  formulas           Formula[]
+  mistakes           Mistake[]
+  formulaCollections FormulaCollection[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([ownerId, name])
 }
 
 model Chapter {
-  id        String    @id @default(uuid())
-  title     String
-  description String?
-  subjectId String
-  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  formulas  Formula[]
-  mistakes  Mistake[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                 String              @id @default(uuid())
+  title              String
+  description        String?
+  subjectId          String
+  subject            Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  formulas           Formula[]
+  mistakes           Mistake[]
+  formulaCollections FormulaCollection[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([subjectId, title])
+}
+
+model FormulaCollection {
+  id          String   @id @default(uuid())
+  title       String // e.g., "Kinematics Formulas - Bulk Extract"
+  description String? // Optional user description
+  
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  formulas Formula[]
+
+  deletedAt DateTime? // Soft delete - moved to trash
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectId])
+  @@index([chapterId])
+  @@index([ownerId])
+  @@index([deletedAt])
 }
 
 model Formula {
@@ -100,6 +132,14 @@ model Formula {
   tags            Json
   difficulty      FormulaDifficulty @default(medium)
   mindMap         Json?
+  // Enhanced learning fields
+  applications    String?           // Where this formula is applied
+  examples        Json              @default("[]") // Array of worked examples
+  prerequisites   Json              @default("[]") // Required concepts
+  relatedFormulas Json              @default("[]") // Related formula IDs/titles
+  commonMistakes  Json              @default("[]") // Common errors students make
+  practiceHistory Json              @default("[]") // Practice session summaries
+  
   ownerId         String
   owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   subjectId       String
@@ -107,12 +147,16 @@ model Formula {
   chapterId       String
   chapter         Chapter           @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   assets          FormulaAsset[]
+  quizQuestions   QuizQuestion[]
+  collectionId    String?
+  collection      FormulaCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([ownerId])
   @@index([subjectId])
   @@index([chapterId])
+  @@index([collectionId])
 }
 
 model FormulaAsset {
@@ -174,6 +218,15 @@ model QuizSession {
   totalQuestions Int
   correctAnswers Int       @default(0)
   completedAt DateTime?
+  // Enhanced exam fields
+  examType    String?     // 'jee_mains', 'jee_advanced', 'practice'
+  questionType String?    // 'single_correct', 'multi_correct', 'mixed'
+  timeLimit   Int?        // in seconds
+  timeTaken   Int?        // in seconds
+  scope       String?     // 'single_formula', 'chapter', 'cross_chapter'
+  formulaIds  Json        @default("[]") // Array of formula IDs used
+  analysis    Json?       // Detailed performance analysis
+  
   ownerId     String
   owner       User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   questions   QuizQuestion[]
@@ -189,13 +242,81 @@ model QuizQuestion {
   session         QuizSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   questionText    String
   options         Json         // Array of options
-  correctAnswer   Int          // Index of correct option
+  correctAnswer   Int          // Index of correct option (single-correct)
+  correctAnswers  Json?        // Array of indices (multi-correct)
   explanation     String?
-  userAnswer      Int?         // User's selected answer index
+  userAnswer      Int?         // User's selected answer index (single-correct)
+  userAnswers     Json?        // Array of user-selected indices (multi-correct)
   isCorrect       Boolean?
+  conceptTags     Json         @default("[]") // Tags for adaptive learning
   formulaId       String?      // Reference to formula if generated from formula
+  formula         Formula?     @relation(fields: [formulaId], references: [id], onDelete: SetNull)
+  timeTaken       Int?         // Time taken for this question in seconds
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   @@index([sessionId])
+  @@index([formulaId])
+}
+
+model PracticeQuiz {
+  id            String            @id @default(uuid())
+  title         String
+  examType      String            // "mains" or "advanced"
+  questionCount Int
+  answerType    String            // "single" or "multiple"
+  includeTimer  Boolean           @default(false)
+  timeMinutes   Int?
+  scope         String            // "current", "all", "cross-chapter"
+  ownerId       String
+  owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  questions     PracticeQuestion[]
+  attempts      PracticeAttempt[]
+  completedAt   DateTime?
+  score         Float?
+  accuracy      Int?
+  timeSpent     Int?              // Time spent in seconds
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([ownerId])
+  @@index([createdAt])
+}
+
+model PracticeQuestion {
+  id             String        @id @default(uuid())
+  quizId         String
+  quiz           PracticeQuiz  @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionNumber Int
+  questionText   String        @db.Text
+  options        Json          // Array of strings
+  correctAnswers Json          // Array of indices (0-3)
+  explanation    String        @db.Text
+  difficulty     String        // "easy", "medium", "hard"
+  topic          String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([quizId])
+}
+
+model PracticeAttempt {
+  id              String        @id @default(uuid())
+  quizId          String
+  quiz            PracticeQuiz  @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score           Float
+  accuracy        Int
+  timeSpent       Int           // Time spent in seconds
+  answers         Json          // Record of questionId -> selected options
+  detailedResults Json          // Detailed analysis per question
+  correctCount    Int
+  partialCount    Int
+  attemptedCount  Int
+  createdAt       DateTime      @default(now())
+
+  @@index([quizId])
+  @@index([userId])
+  @@index([createdAt])
 }

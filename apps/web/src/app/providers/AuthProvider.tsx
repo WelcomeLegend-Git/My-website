@@ -42,15 +42,23 @@ export const AuthProvider = ({ children }: Props) => {
   const queryClient = useQueryClient();
 
   const hasTokens = Boolean(authStorage.getAccessToken());
+  const isGuest = user?.isGuest === true;
 
   const meQuery = trpc.authApi.me.useQuery(undefined, {
-    enabled: hasTokens,
+    enabled: hasTokens && !isGuest,
     retry: 1,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
+    // For guest users, skip backend validation entirely
+    if (isGuest) {
+      setStatus("authenticated");
+      return;
+    }
+
+    // For regular users, validate with backend
     if (meQuery.isSuccess && meQuery.data) {
       setUser(meQuery.data);
       authStorage.setUser(meQuery.data);
@@ -60,7 +68,7 @@ export const AuthProvider = ({ children }: Props) => {
       setUser(null);
       setStatus("unauthenticated");
     }
-  }, [meQuery.isSuccess, meQuery.isError, meQuery.data]);
+  }, [meQuery.isSuccess, meQuery.isError, meQuery.data, isGuest]);
 
   useEffect(() => {
     const unsubscribe = authStorage.subscribe((next) => {

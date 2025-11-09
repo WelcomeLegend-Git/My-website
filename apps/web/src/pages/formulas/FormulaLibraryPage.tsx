@@ -314,16 +314,24 @@ export const FormulaLibraryPage = () => {
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula studio</p>
-          <h2 className="text-3xl font-semibold text-slate-100">Archive your derivations</h2>
-          <p className="text-sm text-slate-400">Filter by subject, dissect with AI, and keep every insight searchable.</p>
+          <h2 className="text-3xl font-semibold text-slate-100">Add Formula</h2>
+          <p className="text-sm text-slate-400">Create a new formula or use AI bulk extraction</p>
         </div>
-        <button
-          type="button"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
-          onClick={openCreateForm}
-        >
-          Add formula
-        </button>
+        <div className="flex gap-2">
+          <a
+            href="/formulas"
+            className="rounded-xl bg-slate-700/50 border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+          >
+            ← Back to Formulas
+          </a>
+          <button
+            type="button"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+            onClick={openCreateForm}
+          >
+            Add formula
+          </button>
+        </div>
       </header>
 
       <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">

@@ -1,0 +1,603 @@
+import { useState } from 'react';
+import { useShellContext } from '../../../app/layouts/useShellContext';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+
+// Add custom styles for better math rendering
+const mathStyles = `
+  .katex { font-size: 1.1em; }
+  .katex-display { 
+    font-size: 1.3em; 
+    padding: 0.5rem 0;
+  }
+  .katex .mord { color: inherit; }
+  .katex .mbin, .katex .mrel { color: inherit; }
+`;
+
+// Helper to ensure LaTeX is wrapped in proper delimiters
+const ensureMathDelimiters = (text: string): string => {
+  if (!text) return text;
+  
+  // Convert LaTeX delimiters to KaTeX format
+  let converted = text
+    // Convert \[ ... \] to $$ ... $$
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$1$$')
+    // Convert \( ... \) to $ ... $
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+  
+  // If already has $ delimiters after conversion, return
+  if (converted.includes('$')) return converted;
+  
+  // If text has LaTeX commands but no delimiters, wrap in $
+  if (converted.match(/\\[a-zA-Z]+/)) {
+    // For short expressions (likely inline), use single $
+    if (converted.length < 100 && !converted.includes('\n')) {
+      return `$${converted}$`;
+    }
+    // For longer expressions, use display math
+    return `$$${converted}$$`;
+  }
+  
+  return converted;
+};
+
+type FormulaExample = {
+  problem: string;
+  solution: string;
+  answer: string;
+};
+
+type CommonMistake = {
+  mistake: string;
+  correction: string;
+};
+
+type Formula = {
+  id: string;
+  title: string;
+  expression: string;
+  explanation?: string | null;
+  difficulty: string;
+  applications?: string | null;
+  examples?: FormulaExample[];
+  derivationSteps?: string[];
+  prerequisites?: string[];
+  relatedFormulas?: string[];
+  commonMistakes?: CommonMistake[];
+  tags?: string[];
+};
+
+type Collection = {
+  id: string;
+  title: string;
+  description?: string | null;
+  subject: { name: string };
+  chapter: { title: string };
+  formulas: Formula[];
+  createdAt: string;
+};
+
+type Props = {
+  collection: Collection;
+};
+
+export const FormulaCollectionView = ({ collection }: Props) => {
+  const { openAi } = useShellContext();
+  const [expandedFormulas, setExpandedFormulas] = useState<Set<string>>(new Set([collection.formulas[0]?.id]));
+  const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
+
+  const toggleFormula = (formulaId: string) => {
+    setExpandedFormulas((prev) => {
+      const next = new Set(prev);
+      if (next.has(formulaId)) {
+        next.delete(formulaId);
+      } else {
+        next.add(formulaId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSection = (formulaId: string, section: string) => {
+    setExpandedSections((prev) => {
+      const formulaSections = prev[formulaId] || new Set();
+      const next = new Set(formulaSections);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return { ...prev, [formulaId]: next };
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedFormulas(new Set(collection.formulas.map((f) => f.id)));
+    const allSections: Record<string, Set<string>> = {};
+    collection.formulas.forEach((f) => {
+      allSections[f.id] = new Set(['applications', 'examples', 'derivation', 'prerequisites', 'related', 'mistakes']);
+    });
+    setExpandedSections(allSections);
+  };
+
+  const collapseAll = () => {
+    setExpandedFormulas(new Set());
+    setExpandedSections({});
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'medium':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      case 'hard':
+        return 'bg-red-500/10 text-red-400 border-red-500/30';
+      default:
+        return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+    }
+  };
+
+  const isSectionExpanded = (formulaId: string, section: string) => {
+    return expandedSections[formulaId]?.has(section) || false;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-8 px-4">
+      {/* Inject custom styles for textbook-quality math rendering */}
+      <style>{mathStyles}</style>
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-8 shadow-2xl">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <h1 className="text-3xl font-bold text-slate-100">{collection.title}</h1>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-slate-400 ml-16">
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  {collection.subject.name}
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  {collection.chapter.title}
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {new Date(collection.createdAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  openAi();
+                  // Trigger quiz setup by simulating a practice request
+                  setTimeout(() => {
+                    const aiInput = document.querySelector('textarea[placeholder="Ask the mentor anything..."]') as HTMLTextAreaElement;
+                    const aiForm = aiInput?.closest('form');
+                    if (aiInput && aiForm) {
+                      aiInput.value = 'I want to practice these formulas';
+                      aiInput.focus();
+                      // Trigger form submission
+                      setTimeout(() => {
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        aiForm.dispatchEvent(submitEvent);
+                      }, 100);
+                    }
+                  }, 500);
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Practice Quiz
+              </button>
+              <button
+                onClick={expandAll}
+                className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={collapseAll}
+                className="px-4 py-2 rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
+              >
+                Collapse All
+              </button>
+            </div>
+          </div>
+          {collection.description && (
+            <p className="text-slate-400 ml-16">{collection.description}</p>
+          )}
+          <div className="mt-4 ml-16">
+            <span className="text-sm font-medium text-slate-500">
+              {collection.formulas.length} formula{collection.formulas.length !== 1 ? 's' : ''} extracted
+            </span>
+          </div>
+        </div>
+
+        {/* Formulas */}
+        <div className="space-y-4">
+          {collection.formulas.map((formula, index) => {
+            const isExpanded = expandedFormulas.has(formula.id);
+            
+            return (
+              <div
+                key={formula.id}
+                className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur overflow-hidden shadow-xl hover:shadow-2xl transition-shadow"
+              >
+                {/* Formula Header */}
+                <button
+                  onClick={() => toggleFormula(formula.id)}
+                  className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg bg-gradient-to-br ${
+                      index % 3 === 0 ? 'from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' :
+                      index % 3 === 1 ? 'from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25' :
+                      'from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-xl font-semibold text-slate-100">{formula.title}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${getDifficultyColor(formula.difficulty)}`}>
+                          {formula.difficulty}
+                        </span>
+                        {formula.tags && formula.tags.length > 0 && (
+                          <div className="flex gap-1">
+                            {formula.tags.slice(0, 3).map((tag, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded-md text-xs text-slate-400 bg-slate-800/50">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <svg
+                    className={`w-6 h-6 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Formula Content */}
+                {isExpanded && (
+                  <div className="px-6 pb-6 space-y-4">
+                    {/* Expression */}
+                    <div className="p-6 rounded-xl bg-slate-950/60 border border-slate-700">
+                      <div className="formula-expression text-center text-slate-100">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath, remarkGfm]}
+                          rehypePlugins={[rehypeKatex]}
+                          className="text-3xl"
+                        >
+                          {ensureMathDelimiters(formula.expression)}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {/* Explanation */}
+                    {formula.explanation && (
+                      <div className="prose prose-invert max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath, remarkGfm]}
+                          rehypePlugins={[rehypeKatex]}
+                          className="text-slate-300 leading-relaxed"
+                        >
+                          {ensureMathDelimiters(formula.explanation)}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+
+                    {/* Collapsible Sections */}
+                    <div className="space-y-3">
+                      {/* Applications */}
+                      {formula.applications && (
+                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'applications')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-blue-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              Applications
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-blue-400 transition-transform ${isSectionExpanded(formula.id, 'applications') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'applications') && (
+                            <div className="px-4 pb-4">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkMath, remarkGfm]}
+                                rehypePlugins={[rehypeKatex]}
+                                className="text-slate-300 text-sm leading-relaxed"
+                              >
+                                {ensureMathDelimiters(formula.applications)}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Examples */}
+                      {formula.examples && formula.examples.length > 0 && (
+                        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'examples')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-emerald-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Worked Examples ({formula.examples.length})
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-emerald-400 transition-transform ${isSectionExpanded(formula.id, 'examples') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'examples') && (
+                            <div className="px-4 pb-4 space-y-3">
+                              {formula.examples.map((example, i) => (
+                                <div key={i} className="p-3 rounded-lg bg-slate-900/50 border border-slate-700">
+                                  <div className="mb-2">
+                                    <span className="text-xs font-semibold text-emerald-400">Problem:</span>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMath, remarkGfm]}
+                                      rehypePlugins={[rehypeKatex]}
+                                      className="text-slate-300 text-sm mt-1"
+                                    >
+                                      {ensureMathDelimiters(example.problem)}
+                                    </ReactMarkdown>
+                                  </div>
+                                  <div className="mb-2">
+                                    <span className="text-xs font-semibold text-blue-400">Solution:</span>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMath, remarkGfm]}
+                                      rehypePlugins={[rehypeKatex]}
+                                      className="text-slate-300 text-sm mt-1"
+                                    >
+                                      {ensureMathDelimiters(example.solution)}
+                                    </ReactMarkdown>
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-semibold text-cyan-400">Answer:</span>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMath, remarkGfm]}
+                                      rehypePlugins={[rehypeKatex]}
+                                      className="text-slate-300 text-sm mt-1 font-medium"
+                                    >
+                                      {ensureMathDelimiters(example.answer)}
+                                    </ReactMarkdown>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Derivation Steps */}
+                      {formula.derivationSteps && formula.derivationSteps.length > 0 && (
+                        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'derivation')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-purple-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-purple-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                              </svg>
+                              Derivation ({formula.derivationSteps.length} steps)
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-purple-400 transition-transform ${isSectionExpanded(formula.id, 'derivation') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'derivation') && (
+                            <div className="px-4 pb-4 space-y-2">
+                              {formula.derivationSteps.map((step, i) => (
+                                <div key={i} className="flex items-start gap-3">
+                                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold flex items-center justify-center mt-0.5">
+                                    {i + 1}
+                                  </span>
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkMath, remarkGfm]}
+                                    rehypePlugins={[rehypeKatex]}
+                                    className="text-slate-300 text-sm flex-1"
+                                  >
+                                    {ensureMathDelimiters(step)}
+                                  </ReactMarkdown>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Prerequisites */}
+                      {formula.prerequisites && formula.prerequisites.length > 0 && (
+                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'prerequisites')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-amber-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-amber-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              Prerequisites
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-amber-400 transition-transform ${isSectionExpanded(formula.id, 'prerequisites') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'prerequisites') && (
+                            <div className="px-4 pb-4">
+                              <ul className="space-y-1">
+                                {formula.prerequisites.map((prereq, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
+                                    <span className="text-amber-400 mt-1">•</span>
+                                    <span>{prereq}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Related Formulas */}
+                      {formula.relatedFormulas && formula.relatedFormulas.length > 0 && (
+                        <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'related')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-cyan-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-cyan-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              Related Formulas
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-cyan-400 transition-transform ${isSectionExpanded(formula.id, 'related') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'related') && (
+                            <div className="px-4 pb-4">
+                              <ul className="space-y-1">
+                                {formula.relatedFormulas.map((related, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
+                                    <span className="text-cyan-400 mt-1">→</span>
+                                    <span>{related}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Common Mistakes */}
+                      {formula.commonMistakes && formula.commonMistakes.length > 0 && (
+                        <div className="rounded-xl border border-red-500/20 bg-red-500/5 overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(formula.id, 'mistakes')}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-red-500/10 transition-colors"
+                          >
+                            <span className="flex items-center gap-2 text-red-400 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Common Mistakes
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-red-400 transition-transform ${isSectionExpanded(formula.id, 'mistakes') ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isSectionExpanded(formula.id, 'mistakes') && (
+                            <div className="px-4 pb-4 space-y-3">
+                              {formula.commonMistakes.map((mistake, i) => (
+                                <div key={i} className="p-3 rounded-lg bg-slate-900/50 border border-slate-700">
+                                  <div className="mb-2">
+                                    <span className="text-xs font-semibold text-red-400">❌ Mistake:</span>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMath, remarkGfm]}
+                                      rehypePlugins={[rehypeKatex]}
+                                      className="text-slate-300 text-sm mt-1"
+                                    >
+                                      {ensureMathDelimiters(mistake.mistake)}
+                                    </ReactMarkdown>
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-semibold text-emerald-400">✓ Correction:</span>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMath, remarkGfm]}
+                                      rehypePlugins={[rehypeKatex]}
+                                      className="text-slate-300 text-sm mt-1"
+                                    >
+                                      {ensureMathDelimiters(mistake.correction)}
+                                    </ReactMarkdown>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

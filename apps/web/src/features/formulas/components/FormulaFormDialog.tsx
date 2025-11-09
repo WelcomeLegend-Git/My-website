@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { GlowSelect } from "../../../components/ui/GlowSelect";
 import { getApiBaseUrl } from "../../../lib/env";
@@ -17,6 +18,17 @@ type FormulaAttachment = {
   title?: string | null;
 };
 
+type FormulaExample = {
+  problem: string;
+  solution: string;
+  answer: string;
+};
+
+type CommonMistake = {
+  mistake: string;
+  correction: string;
+};
+
 export type FormulaDraft = {
   subjectId: string;
   chapterId: string;
@@ -27,6 +39,11 @@ export type FormulaDraft = {
   tags: string[];
   derivationSteps: string[];
   attachments: FormulaAttachment[];
+  applications?: string;
+  examples?: FormulaExample[];
+  prerequisites?: string[];
+  relatedFormulas?: string[];
+  commonMistakes?: CommonMistake[];
 };
 
 type Props = {
@@ -70,7 +87,7 @@ const toFormValues = (draft?: FormulaDraft, subjects?: Subject[]): FormValues =>
   };
 };
 
-const normalizeDraft = (values: FormValues, attachments: FormulaAttachment[]): FormulaDraft => {
+const normalizeDraft = (values: FormValues, attachments: FormulaAttachment[], enhancedData?: Partial<FormulaDraft>): FormulaDraft => {
   const sanitizeList = (input?: string | null) =>
     input
       ?.split(/[,\n]/)
@@ -116,8 +133,15 @@ export const FormulaFormDialog = ({
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState<string>('');
+  
+  // Enhanced fields from AI extraction
+  const [aiEnhancedData, setAiEnhancedData] = useState<Partial<FormulaDraft>>({});
 
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
   const extractMutation = trpc.formulas.extractFormulaDetails.useMutation();
+  const bulkExtractMutation = trpc.formulas.extractAndCreateBulk.useMutation();
 
   const {
     register,
@@ -229,6 +253,75 @@ export const FormulaFormDialog = ({
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const handleAiBulkExtract = async () => {
+    if (!selectedSubjectId || !selectedChapterId) {
+      setUploadError('Please select subject and chapter');
+      return;
+    }
+
+    if (!aiDescription.trim() && attachments.length === 0) {
+      setUploadError('Please provide a description or upload an image');
+      return;
+    }
+
+    setIsExtracting(true);
+    setUploadError(null);
+    setExtractionProgress('Preparing image...');
+
+    try {
+      // Get first image attachment if any
+      const imageAttachment = attachments.find((a) => a.kind === 'image');
+      let imageBase64: string | undefined;
+      let mimeType: string | undefined;
+
+      if (imageAttachment) {
+        setExtractionProgress('Converting image to base64...');
+        // Fetch the image and convert to base64
+        const response = await fetch(imageAttachment.url);
+        const blob = await response.blob();
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+        imageBase64 = base64;
+        mimeType = blob.type;
+      }
+
+      setExtractionProgress('Sending to AI for analysis... This may take 30-60 seconds for complex images.');
+
+      const result = await bulkExtractMutation.mutateAsync({
+        subjectId: selectedSubjectId,
+        chapterId: selectedChapterId,
+        description: aiDescription.trim() || undefined,
+        imageBase64,
+        mimeType,
+      });
+
+      setExtractionProgress('Redirecting to collection view...');
+      // Success! Invalidate cache and redirect to collection view
+      await utils.formulas.list.invalidate();
+      closeAndReset();
+      // Navigate to the beautiful collection view
+      navigate(`/formulas/collections/${result.collectionId}`);
+    } catch (error) {
+      console.error('Bulk extraction failed:', error);
+      
+      // Extract detailed error message
+      let errorMsg = 'Failed to extract formulas. Please try again.';
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMsg = (error as { message: string }).message;
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
+      setUploadError(`❌ Error: ${errorMsg}`);
+      setExtractionProgress('');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleAiExtract = async () => {
     if (!aiDescription.trim() && attachments.length === 0) {
       setUploadError('Please provide a description or upload an image');
@@ -269,6 +362,15 @@ export const FormulaFormDialog = ({
       setValue('explanation', result.explanation || '', { shouldDirty: true });
       setValue('tagsText', result.tags.join(', '), { shouldDirty: true });
       setValue('stepsText', result.derivationSteps.join('\n'), { shouldDirty: true });
+      
+      // Store enhanced AI data
+      setAiEnhancedData({
+        applications: result.applications,
+        examples: result.examples,
+        prerequisites: result.prerequisites,
+        relatedFormulas: result.relatedFormulas,
+        commonMistakes: result.commonMistakes,
+      });
 
       // Switch to manual mode so user can review and set difficulty
       setEntryMode('manual');
@@ -281,7 +383,13 @@ export const FormulaFormDialog = ({
   };
 
   const submit = async (values: FormValues) => {
-    await onSubmit(normalizeDraft(values, attachments));
+    const draft = normalizeDraft(values, attachments);
+    // Merge with AI-enhanced data if available
+    const completeDraft = {
+      ...draft,
+      ...aiEnhancedData,
+    };
+    await onSubmit(completeDraft);
   };
 
   if (!open) {
@@ -327,8 +435,8 @@ export const FormulaFormDialog = ({
               </svg>
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-slate-100 mb-2">Fill with AI</h3>
-          <p className="text-sm text-slate-400">Describe the formula or upload an image and let AI auto-fill the fields</p>
+          <h3 className="text-lg font-semibold text-slate-100 mb-2">Bulk Extract with AI</h3>
+          <p className="text-sm text-slate-400">Upload formula sheet image - AI extracts ALL formulas and saves them automatically</p>
         </button>
       </div>
     </div>
@@ -349,23 +457,58 @@ export const FormulaFormDialog = ({
           Back
         </button>
         <span className="text-sm text-slate-500">→</span>
-        <span className="text-sm font-medium text-emerald-400">AI-Assisted Entry</span>
+        <span className="text-sm font-medium text-emerald-400">AI Bulk Extraction</span>
+      </div>
+
+      {/* Subject and Chapter Selection First */}
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-200">Subject *</label>
+          <GlowSelect
+            id="ai-subject"
+            value={selectedSubjectId}
+            onChange={(nextValue) => setValue("subjectId", nextValue, { shouldDirty: true })}
+            options={subjectSelectOptions}
+            placeholder="Select subject"
+            disabled={!hasSubjects}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-200">Chapter *</label>
+          <GlowSelect
+            id="ai-chapter"
+            value={selectedChapterId}
+            onChange={(nextValue) => {
+              if (nextValue === "__add_chapter__" && selectedSubjectId && onCreateChapter) {
+                void (async () => {
+                  const createdId = await onCreateChapter(selectedSubjectId);
+                  if (createdId) setValue("chapterId", createdId, { shouldDirty: true });
+                })();
+                return;
+              }
+              setValue("chapterId", nextValue, { shouldDirty: true });
+            }}
+            options={chapterSelectOptions}
+            placeholder="Select chapter"
+            disabled={!canSelectChapter}
+          />
+        </div>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Describe the formula or upload an image</label>
+          <label className="text-sm font-medium text-slate-200">Upload Formula Sheet or Describe (Optional)</label>
           <textarea
             value={aiDescription}
             onChange={(e) => setAiDescription(e.target.value)}
-            rows={4}
+            rows={3}
             className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-            placeholder="E.g., &apos;Newton&apos;s second law of motion&apos; or &apos;The formula for kinetic energy&apos;..."
+            placeholder="E.g., 'Physics formulas from chapter 5' or leave blank if uploading image..."
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Upload Photo (Optional)</label>
+          <label className="text-sm font-medium text-slate-200">Upload Formula Sheet Image *</label>
           <input
             type="file"
             accept="image/*"
@@ -402,13 +545,21 @@ export const FormulaFormDialog = ({
         </div>
 
         {uploadError && (
-          <p className="text-xs text-red-400">{uploadError}</p>
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-200 whitespace-pre-wrap">{uploadError}</p>
+          </div>
+        )}
+
+        {isExtracting && extractionProgress && (
+          <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-3">
+            <p className="text-sm text-blue-200">{extractionProgress}</p>
+          </div>
         )}
 
         <button
           type="button"
-          onClick={handleAiExtract}
-          disabled={isExtracting || (!aiDescription.trim() && attachments.length === 0)}
+          onClick={handleAiBulkExtract}
+          disabled={isExtracting || !selectedSubjectId || !selectedChapterId || (!aiDescription.trim() && attachments.length === 0)}
           className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
         >
           {isExtracting ? (
@@ -417,20 +568,20 @@ export const FormulaFormDialog = ({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Analyzing...
+              Extracting All Formulas...
             </>
           ) : (
             <>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Extract with AI
+              Extract & Save All Formulas
             </>
           )}
         </button>
 
         <p className="text-xs text-slate-500 text-center">
-          AI will auto-fill the form fields. You&apos;ll need to review and set the difficulty level.
+          🎯 AI will extract ALL formulas from the image/description and save them automatically to the selected chapter.
         </p>
       </div>
     </div>
@@ -691,7 +842,7 @@ export const FormulaFormDialog = ({
           )}
           {entryMode === 'ai' && (
             <p className="mt-2 text-sm text-slate-400">
-              Describe the formula or upload an image, and AI will help extract the details for you.
+              Upload a formula sheet image or describe formulas - AI will extract and save ALL of them automatically with complete details.
             </p>
           )}
         </div>

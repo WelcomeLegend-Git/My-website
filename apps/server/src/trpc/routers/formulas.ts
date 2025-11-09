@@ -48,6 +48,29 @@ const baseFormulaInput = z.object({
       })
     )
     .default([]),
+  // Enhanced learning fields
+  applications: z.string().optional().nullable(),
+  examples: z
+    .array(
+      z.object({
+        problem: z.string(),
+        solution: z.string(),
+        answer: z.string(),
+      })
+    )
+    .optional()
+    .nullable(),
+  prerequisites: z.array(z.string()).optional().nullable(),
+  relatedFormulas: z.array(z.string()).optional().nullable(),
+  commonMistakes: z
+    .array(
+      z.object({
+        mistake: z.string(),
+        correction: z.string(),
+      })
+    )
+    .optional()
+    .nullable(),
 });
 
 export const formulasRouter = router({
@@ -110,33 +133,60 @@ export const formulasRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Chapter not found" });
     }
 
-    const formula = await ctx.prisma.formula.create({
-      data: {
-        title: input.title,
-        expression: input.expression,
-        explanation: input.explanation,
-        difficulty: input.difficulty,
-        derivationSteps: input.derivationSteps,
-        tags: input.tags,
-        mindMap: input.mindMap ?? undefined,
-        subjectId: input.subjectId,
-        chapterId: input.chapterId,
-        ownerId: ctx.user.id,
-        assets: {
-          create: input.attachments.map((attachment) => ({
-            kind: attachment.kind,
-            url: attachment.url,
-            title: attachment.title,
-          })),
+    // Create formula and its collection in a transaction
+    const result = await ctx.prisma.$transaction(async (tx) => {
+      // Create the formula
+      const formula = await tx.formula.create({
+        data: {
+          title: input.title,
+          expression: input.expression,
+          explanation: input.explanation,
+          difficulty: input.difficulty,
+          derivationSteps: input.derivationSteps,
+          tags: input.tags,
+          mindMap: input.mindMap ?? undefined,
+          // Enhanced fields
+          applications: input.applications ?? undefined,
+          examples: input.examples ?? [],
+          prerequisites: input.prerequisites ?? [],
+          relatedFormulas: input.relatedFormulas ?? [],
+          commonMistakes: input.commonMistakes ?? [],
+          
+          subjectId: input.subjectId,
+          chapterId: input.chapterId,
+          ownerId: ctx.user.id,
+          assets: {
+            create: input.attachments.map((attachment) => ({
+              kind: attachment.kind,
+              url: attachment.url,
+              title: attachment.title,
+            })),
+          },
         },
-      },
-      include: { assets: true },
+        include: { assets: true },
+      });
+
+      // Auto-create a single-formula collection
+      await tx.formulaCollection.create({
+        data: {
+          title: input.title,
+          description: input.explanation ?? null,
+          subjectId: input.subjectId,
+          chapterId: input.chapterId,
+          ownerId: ctx.user.id,
+          formulas: {
+            connect: { id: formula.id },
+          },
+        },
+      });
+
+      return formula;
     });
 
     return {
-      ...formula,
-      derivationSteps: formula.derivationSteps as string[],
-      tags: (formula.tags as string[]) ?? [],
+      ...result,
+      derivationSteps: result.derivationSteps as string[],
+      tags: (result.tags as string[]) ?? [],
     };
   }),
   update: procedure
@@ -163,6 +213,13 @@ export const formulasRouter = router({
           derivationSteps: input.derivationSteps,
           tags: input.tags,
           mindMap: input.mindMap ?? undefined,
+          // Enhanced fields
+          applications: input.applications ?? undefined,
+          examples: input.examples ?? [],
+          prerequisites: input.prerequisites ?? [],
+          relatedFormulas: input.relatedFormulas ?? [],
+          commonMistakes: input.commonMistakes ?? [],
+          
           subjectId: input.subjectId,
           chapterId: input.chapterId,
           assets: {
@@ -227,23 +284,51 @@ Context: ${input.prompt}`,
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const prompt = `You are an expert in analyzing physics, chemistry, and mathematics formulas for JEE preparation.
-Analyze the following and extract formula details in JSON format with these fields:
-- title: Brief descriptive title
-- expression: The mathematical expression/formula
-- explanation: Brief explanation of the formula
-- tags: Array of relevant tags
-- derivationSteps: Array of key derivation steps
+      const prompt = `You are an expert JEE tutor analyzing formulas for comprehensive learning.
 
-User input: ${input.description}
+Extract and structure the following formula information in JSON format:
 
-Respond ONLY with valid JSON in this exact format:
+User Input: ${input.description}
+
+Provide a rich, structured response with:
+1. **title**: Clear, concise title (e.g., "Newton's Second Law of Motion")
+2. **expression**: The formula in LaTeX format (use \\( \\) for inline math)
+3. **explanation**: Detailed 2-3 sentence explanation covering what it means and when to use it
+4. **applications**: A paragraph describing real-world and exam contexts where this formula appears
+5. **derivationSteps**: Array of step-by-step derivation (each step should be clear and use LaTeX for math)
+6. **examples**: Array of 2-3 worked examples with:
+   - problem: Question statement
+   - solution: Step-by-step solution with LaTeX
+   - answer: Final answer
+7. **prerequisites**: Array of concepts/formulas students should know first
+8. **relatedFormulas**: Array of related formula titles
+9. **commonMistakes**: Array of common errors students make with explanation
+10. **tags**: Relevant topic tags
+
+IMPORTANT:
+- Use LaTeX notation wrapped in \\( \\) for inline math or \\[ \\] for display math
+- Make examples JEE-level appropriate
+- Ensure all mathematical expressions are properly formatted
+
+Respond ONLY with valid JSON:
 {
   "title": "...",
-  "expression": "...",
+  "expression": "\\(F = ma\\)",
   "explanation": "...",
-  "tags": ["tag1", "tag2"],
-  "derivationSteps": ["step1", "step2"]
+  "applications": "...",
+  "derivationSteps": ["Step 1: ...", "Step 2: ..."],
+  "examples": [{
+    "problem": "...",
+    "solution": "...",
+    "answer": "..."
+  }],
+  "prerequisites": ["Concept 1", "Concept 2"],
+  "relatedFormulas": ["Formula 1", "Formula 2"],
+  "commonMistakes": [{
+    "mistake": "...",
+    "correction": "..."
+  }],
+  "tags": ["mechanics", "dynamics"]
 }`;
 
       const response = await ctx.gemini.generate({
@@ -262,13 +347,308 @@ Respond ONLY with valid JSON in this exact format:
           title: parsed.title || "",
           expression: parsed.expression || "",
           explanation: parsed.explanation || "",
-          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          applications: parsed.applications || "",
           derivationSteps: Array.isArray(parsed.derivationSteps) ? parsed.derivationSteps : [],
+          examples: Array.isArray(parsed.examples) ? parsed.examples : [],
+          prerequisites: Array.isArray(parsed.prerequisites) ? parsed.prerequisites : [],
+          relatedFormulas: Array.isArray(parsed.relatedFormulas) ? parsed.relatedFormulas : [],
+          commonMistakes: Array.isArray(parsed.commonMistakes) ? parsed.commonMistakes : [],
+          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
         };
-      } catch {
+      } catch (error) {
         throw new TRPCError({ 
           code: "INTERNAL_SERVER_ERROR", 
           message: "Failed to extract formula details from AI response" 
+        });
+      }
+    }),
+  
+  listCollections: procedure
+    .use(requireUser)
+    .input(z.object({ includeDeleted: z.boolean().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const collections = await ctx.prisma.formulaCollection.findMany({
+        where: { 
+          ownerId: ctx.user.id,
+          deletedAt: input?.includeDeleted ? undefined : null,
+        },
+        include: {
+          subject: true,
+          chapter: true,
+          _count: {
+            select: { formulas: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return collections;
+    }),
+
+  deleteCollections: procedure
+    .use(requireUser)
+    .input(z.object({ ids: z.array(z.string().min(1)) }))
+    .mutation(async ({ ctx, input }) => {
+      // Soft delete - move to trash
+      const result = await ctx.prisma.formulaCollection.updateMany({
+        where: {
+          id: { in: input.ids },
+          ownerId: ctx.user.id,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      return { count: result.count };
+    }),
+
+  restoreCollections: procedure
+    .use(requireUser)
+    .input(z.object({ ids: z.array(z.string().min(1)) }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.prisma.formulaCollection.updateMany({
+        where: {
+          id: { in: input.ids },
+          ownerId: ctx.user.id,
+          deletedAt: { not: null },
+        },
+        data: {
+          deletedAt: null,
+        },
+      });
+
+      return { count: result.count };
+    }),
+
+  permanentlyDeleteCollections: procedure
+    .use(requireUser)
+    .input(z.object({ ids: z.array(z.string().min(1)) }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.prisma.formulaCollection.deleteMany({
+        where: {
+          id: { in: input.ids },
+          ownerId: ctx.user.id,
+        },
+      });
+
+      return { count: result.count };
+    }),
+
+  getCollection: procedure
+    .use(requireUser)
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const collection = await ctx.prisma.formulaCollection.findUnique({
+        where: { id: input.id },
+        include: {
+          formulas: {
+            include: { assets: true },
+            orderBy: { createdAt: 'asc' },
+          },
+          subject: true,
+          chapter: true,
+        },
+      });
+
+      if (!collection || collection.ownerId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Collection not found" });
+      }
+
+      return {
+        ...collection,
+        formulas: collection.formulas.map((f) => ({
+          ...f,
+          derivationSteps: f.derivationSteps as string[],
+          tags: (f.tags as string[]) ?? [],
+          examples: f.examples as unknown[],
+          prerequisites: f.prerequisites as string[],
+          relatedFormulas: f.relatedFormulas as string[],
+          commonMistakes: f.commonMistakes as unknown[],
+        })),
+      };
+    }),
+
+  extractAndCreateBulk: procedure
+    .use(requireUser)
+    .input(
+      z.object({
+        subjectId: z.string().min(1),
+        chapterId: z.string().min(1),
+        description: z.string().optional(),
+        imageBase64: z.string().optional(),
+        mimeType: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify chapter ownership
+      const chapter = await ctx.prisma.chapter.findUnique({
+        where: { id: input.chapterId },
+        include: { subject: true },
+      });
+      if (!chapter || chapter.subject.ownerId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Chapter not found" });
+      }
+
+      const prompt = `You are an expert JEE tutor analyzing formula sheets or descriptions. Extract ALL formulas from the provided content.
+
+User Input: ${input.description || 'Extract all formulas from the image'}
+
+IMPORTANT: Extract EVERY formula you can find. For each formula, provide complete details.
+
+Return a JSON array where each element has:
+1. **title**: Clear, concise title (e.g., "Newton's Second Law of Motion")
+2. **expression**: The formula in LaTeX format (use \\\\( \\\\) for inline math)
+3. **explanation**: Detailed 2-3 sentence explanation
+4. **applications**: Where this formula appears in JEE and real-world
+5. **derivationSteps**: Array of derivation steps with LaTeX
+6. **examples**: Array of 1-2 JEE-level worked examples with problem, solution, answer
+7. **prerequisites**: Array of required concepts
+8. **relatedFormulas**: Array of related formula titles
+9. **commonMistakes**: Array of objects with mistake and correction
+10. **difficulty**: "easy", "medium", or "hard"
+11. **tags**: Relevant topic tags
+
+Respond ONLY with a valid JSON array:
+[
+  {
+    "title": "...",
+    "expression": "\\\\(F = ma\\\\)",
+    "explanation": "...",
+    "applications": "...",
+    "derivationSteps": ["Step 1: ...", "Step 2: ..."],
+    "examples": [{
+      "problem": "...",
+      "solution": "...",
+      "answer": "..."
+    }],
+    "prerequisites": ["Concept 1"],
+    "relatedFormulas": ["Formula 1"],
+    "commonMistakes": [{
+      "mistake": "...",
+      "correction": "..."
+    }],
+    "difficulty": "medium",
+    "tags": ["mechanics", "dynamics"]
+  }
+]`;
+
+      const response = await ctx.gemini.generate({
+        prompt,
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+      });
+
+      try {
+        console.log("AI Response received, length:", response.text.length);
+        console.log("AI Response preview:", response.text.substring(0, 500));
+        
+        // Extract JSON array from response
+        const jsonMatch = response.text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          console.error("No JSON array found in response:", response.text);
+          throw new Error("AI did not return a valid JSON array. Response: " + response.text.substring(0, 200));
+        }
+        
+        const jsonText = jsonMatch[0];
+        console.log("Extracted JSON length:", jsonText.length);
+        
+        let parsedArray;
+        try {
+          parsedArray = JSON.parse(jsonText);
+        } catch (parseError) {
+          console.error("JSON parse error:", parseError);
+          console.error("Failed JSON text:", jsonText.substring(0, 500));
+          throw new Error("Failed to parse AI response as JSON");
+        }
+
+        if (!Array.isArray(parsedArray)) {
+          console.error("Parsed result is not an array:", typeof parsedArray);
+          throw new Error("AI response is not an array");
+        }
+        
+        if (parsedArray.length === 0) {
+          throw new Error("No formulas found in the image/description");
+        }
+        
+        console.log(`Successfully extracted ${parsedArray.length} formulas`);
+
+        // Create a FormulaCollection first
+        const collection = await ctx.prisma.formulaCollection.create({
+          data: {
+            title: `${parsedArray.length} Formulas - ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+            description: input.description || null,
+            subjectId: input.subjectId,
+            chapterId: input.chapterId,
+            ownerId: ctx.user.id,
+          },
+        });
+
+        console.log(`Created collection: ${collection.title} (ID: ${collection.id})`);
+
+        // Create all formulas in database and link to collection
+        const createdFormulas = await Promise.all(
+          parsedArray.map(async (formulaData, index) => {
+            try {
+              console.log(`Creating formula ${index + 1}/${parsedArray.length}: ${formulaData.title}`);
+              
+              const formula = await ctx.prisma.formula.create({
+                data: {
+                  title: formulaData.title || "Untitled Formula",
+                  expression: formulaData.expression || "",
+                  explanation: formulaData.explanation || null,
+                  difficulty: formulaData.difficulty || "medium",
+                  derivationSteps: formulaData.derivationSteps || [],
+                  tags: formulaData.tags || [],
+                  applications: formulaData.applications || null,
+                  examples: formulaData.examples || [],
+                  prerequisites: formulaData.prerequisites || [],
+                  relatedFormulas: formulaData.relatedFormulas || [],
+                  commonMistakes: formulaData.commonMistakes || [],
+                  subjectId: input.subjectId,
+                  chapterId: input.chapterId,
+                  ownerId: ctx.user.id,
+                  collectionId: collection.id, // Link to collection
+                },
+                include: { assets: true, subject: true, chapter: true },
+              });
+
+              console.log(`✓ Created formula ${index + 1}: ${formula.title}`);
+
+              return {
+                ...formula,
+                derivationSteps: formula.derivationSteps as string[],
+                tags: (formula.tags as string[]) ?? [],
+                examples: formula.examples as unknown[],
+                prerequisites: formula.prerequisites as string[],
+                relatedFormulas: formula.relatedFormulas as string[],
+                commonMistakes: formula.commonMistakes as unknown[],
+              };
+            } catch (dbError) {
+              console.error(`Failed to create formula ${index + 1}:`, formulaData.title, dbError);
+              throw new Error(`Failed to create formula "${formulaData.title}": ${dbError instanceof Error ? dbError.message : 'Unknown error'}`);
+            }
+          })
+        );
+
+        return {
+          formulas: createdFormulas,
+          count: createdFormulas.length,
+          collectionId: collection.id,
+        };
+      } catch (error) {
+        console.error("Bulk extraction error:", error);
+        
+        // Provide specific error message
+        let errorMessage = "Failed to extract and create formulas.";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
+        throw new TRPCError({ 
+          code: "INTERNAL_SERVER_ERROR", 
+          message: errorMessage
         });
       }
     }),

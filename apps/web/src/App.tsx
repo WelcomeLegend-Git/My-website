@@ -8,9 +8,13 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { FormulaLibraryPage } from "./pages/formulas/FormulaLibraryPage";
+import { FormulaCollectionPage } from "./pages/formulas/FormulaCollectionPage";
+import { FormulaCollectionsListPage } from "./pages/formulas/FormulaCollectionsListPage";
 import { MistakeLogPage } from "./pages/mistakes/MistakeLogPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { StudyCoachPage } from "./pages/study/StudyCoachPage";
+import { QuizPage } from "./pages/quiz/QuizPage";
+import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 
 const App = () => {
   useRegisterPwa();
@@ -25,7 +29,11 @@ const App = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<ShellLayout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="formulas" element={<FormulaLibraryPage />} />
+          <Route path="formulas" element={<FormulaCollectionsListPage />} />
+          <Route path="formulas/add" element={<FormulaLibraryPage />} />
+          <Route path="formulas/collections/:id" element={<FormulaCollectionPage />} />
+          <Route path="quiz/:id" element={<QuizPage />} />
+          <Route path="quiz/:id/results" element={<QuizResultsPage />} />
           <Route path="mistakes" element={<MistakeLogPage />} />
           <Route path="study" element={<StudyCoachPage />} />
           <Route path="*" element={<NotFoundPage />} />

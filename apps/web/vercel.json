@@ -1,8 +1,8 @@
 {
-  "buildCommand": "cd apps/web && npm run build",
-  "outputDirectory": "apps/web/dist",
-  "installCommand": "npm install",
   "framework": "vite",
+  "buildCommand": "chmod +x build.sh && ./build.sh",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",

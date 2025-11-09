@@ -1,0 +1,16 @@
+import { authRouter } from "./routers/auth";
+import { formulasRouter } from "./routers/formulas";
+import { mistakesRouter } from "./routers/mistakes";
+import { studyRouter } from "./routers/study";
+import { subjectsRouter } from "./routers/subjects";
+import { router } from "./trpc";
+
+export const appRouter = router({
+  authApi: authRouter,
+  subjects: subjectsRouter,
+  formulas: formulasRouter,
+  mistakes: mistakesRouter,
+  studyApi: studyRouter,
+});
+
+export type AppRouter = typeof appRouter;

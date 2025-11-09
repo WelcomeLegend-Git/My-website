@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "echo 'Frontend install complete'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

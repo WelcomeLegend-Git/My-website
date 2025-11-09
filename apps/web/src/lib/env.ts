@@ -1,4 +1,4 @@
-const fallbackApiUrl = "https://jee-study-companion-server.vercel.app";
+const fallbackApiUrl = "https://jee-study-companion-server-new.vercel.app";
 
 export const getApiBaseUrl = () => {
   const url = import.meta.env.VITE_API_URL as string | undefined;

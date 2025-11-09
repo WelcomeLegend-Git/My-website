@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: Props) => {
 
   const hasTokens = Boolean(authStorage.getAccessToken());
 
-  const meQuery = trpc.auth.me.useQuery(undefined, {
+  const meQuery = trpc.authApi.me.useQuery(undefined, {
     enabled: hasTokens,
     retry: 1,
     refetchOnMount: false,

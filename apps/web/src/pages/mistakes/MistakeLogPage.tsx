@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useShellContext } from "../../app/layouts/useShellContext";
+import { GlowSelect } from "../../components/ui/GlowSelect";
 import { MistakeCard } from "../../features/mistakes/components/MistakeCard";
 import {
   MistakeFormDialog,
@@ -105,6 +106,42 @@ export const MistakeLogPage = () => {
   const deleteMutation = trpc.mistakes.remove.useMutation();
   const transitionMutation = trpc.mistakes.transition.useMutation();
   const analyzeMutation = trpc.mistakes.analyze.useMutation();
+  const createChapterMutation = trpc.subjects.createChapter.useMutation();
+
+  const handleCreateChapter = async (targetSubjectId: string) => {
+    if (createChapterMutation.isPending) {
+      return undefined;
+    }
+
+    const subject = subjects?.find((candidate: Subject) => candidate.id === targetSubjectId);
+    if (!subject) {
+      return undefined;
+    }
+
+    const proposedTitle = window.prompt("New chapter title", "New Chapter");
+    if (!proposedTitle) {
+      return undefined;
+    }
+
+    const trimmedTitle = proposedTitle.trim();
+    if (!trimmedTitle) {
+      return undefined;
+    }
+
+    try {
+      const chapter = await createChapterMutation.mutateAsync({
+        subjectId: targetSubjectId,
+        title: trimmedTitle,
+        description: null,
+      });
+      await utils.subjects.list.invalidate();
+      return chapter.id;
+    } catch (error) {
+      console.error("Failed to create chapter", error);
+      alert("Could not create chapter. Please try again.");
+      return undefined;
+    }
+  };
 
   useEffect(() => {
     setAiSection("mistakes");
@@ -291,6 +328,44 @@ export const MistakeLogPage = () => {
   const chapterOptions = ensureChapterOptions(subjectId, subjects);
   const isEmpty = !mistakesLoading && (!mistakes || mistakes.length === 0);
 
+  const subjectSelectOptions = useMemo(
+    () => [
+      { value: "", label: "All subjects" },
+      ...(subjects?.map((subject) => ({ value: subject.id, label: subject.name })) ?? []),
+    ],
+    [subjects],
+  );
+
+  const chapterSelectOptions = useMemo(() => {
+    if (!subjectId) {
+      return [{ value: "", label: "Select a subject", disabled: true }];
+    }
+    return [
+      { value: "", label: "All chapters" },
+      ...chapterOptions.map((chapter) => ({ value: chapter.id, label: chapter.title })),
+    ];
+  }, [chapterOptions, subjectId]);
+
+  const statusSelectOptions = useMemo(
+    () => [
+      { value: "", label: "All statuses" },
+      { value: "new", label: "New" },
+      { value: "reviewing", label: "Reviewing" },
+      { value: "resolved", label: "Resolved" },
+    ],
+    [],
+  );
+
+  const difficultySelectOptions = useMemo(
+    () => [
+      { value: "", label: "All difficulty" },
+      { value: "easy", label: "Easy" },
+      { value: "medium", label: "Medium" },
+      { value: "hard", label: "Hard" },
+    ],
+    [],
+  );
+
   const currentFormDefaults: MistakeDraft | undefined = formState
     ? formState.mode === "edit"
       ? buildDraftFromMistake(formState.mistake)
@@ -330,67 +405,53 @@ export const MistakeLogPage = () => {
         </button>
       </header>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
-            <select
+            <GlowSelect
+              id="mistake-subject"
               value={subjectId ?? ""}
-              onChange={(event) => setSubjectId(event.target.value || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-            >
-              <option value="">All subjects</option>
-              {subjects?.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
+              onChange={(nextValue) => setSubjectId(nextValue || undefined)}
+              options={subjectSelectOptions}
+              placeholder="All subjects"
+            />
           </div>
 
           <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
-            <select
+            <GlowSelect
+              id="mistake-chapter"
               value={chapterId ?? ""}
-              onChange={(event) => setChapterId(event.target.value || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              onChange={(nextValue) => setChapterId(nextValue || undefined)}
+              options={chapterSelectOptions}
+              placeholder={subjectId ? "All chapters" : "Select a subject"}
               disabled={!subjectId || !chapterOptions.length}
-            >
-              <option value="">{subjectId ? "All chapters" : "Select a subject"}</option>
-              {chapterOptions.map((chapter) => (
-                <option key={chapter.id} value={chapter.id}>
-                  {chapter.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="flex-1 space-y-2 md:flex-none md:w-40">
             <label className="text-xs uppercase tracking-wide text-slate-400">Status</label>
-            <select
+            <GlowSelect
+              id="mistake-status"
               value={statusFilter ?? ""}
-              onChange={(event) => setStatusFilter((event.target.value as "new" | "reviewing" | "resolved") || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-            >
-              <option value="">All</option>
-              <option value="new">New</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="resolved">Resolved</option>
-            </select>
+              onChange={(nextValue) =>
+                setStatusFilter((nextValue as "new" | "reviewing" | "resolved") || undefined)
+              }
+              options={statusSelectOptions}
+              placeholder="All status"
+            />
           </div>
 
           <div className="flex-1 space-y-2 md:flex-none md:w-40">
             <label className="text-xs uppercase tracking-wide text-slate-400">Difficulty</label>
-            <select
+            <GlowSelect
+              id="mistake-difficulty"
               value={difficultyFilter ?? ""}
-              onChange={(event) => setDifficultyFilter((event.target.value as "easy" | "medium" | "hard") || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-            >
-              <option value="">All</option>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
+              onChange={(nextValue) => setDifficultyFilter((nextValue as "easy" | "medium" | "hard") || undefined)}
+              options={difficultySelectOptions}
+              placeholder="All difficulty"
+            />
           </div>
         </div>
       </div>
@@ -509,6 +570,7 @@ export const MistakeLogPage = () => {
         errorMessage={formError}
         onClose={closeForm}
         onSubmit={handleFormSubmit}
+        onCreateChapter={handleCreateChapter}
       />
     </section>
   );

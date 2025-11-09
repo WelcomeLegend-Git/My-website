@@ -2,13 +2,23 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from "../../env";
 import { logger } from "../../logger";
 
-type GenerateOptions = {
+export type GenerateOptions = {
   prompt: string;
   imageBase64?: string;
   mimeType?: string;
 };
 
-class GeminiClient {
+export type GenerateResult = {
+  text: string;
+  model: string;
+  apiKeyIndex: number;
+};
+
+export interface IGeminiClient {
+  generate(options: GenerateOptions): Promise<GenerateResult>;
+}
+
+class GeminiClient implements IGeminiClient {
   private apiKeys = env.GEMINI_API_KEYS;
   private primaryModel = env.GEMINI_MODEL_PRIMARY;
   private fallbackModels = env.GEMINI_FALLBACK_MODELS;

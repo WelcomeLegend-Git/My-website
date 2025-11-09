@@ -13,15 +13,16 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     ignores: [
-      "dist",
-      "build",
-      "node_modules",
+      "**/dist/**",
+      "**/build/**",
+      "**/node_modules/**",
       "apps/server/vitest.config.ts",
       "apps/server/prisma/seed.ts",
       "apps/web/vite.config.ts",
       "apps/web/vitest.config.ts",
       "apps/web/vitest.setup.ts",
       "apps/web/tailwind.config.ts",
+      "apps/web/public/sw.js",
     ],
   },
   {

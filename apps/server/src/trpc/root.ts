@@ -6,11 +6,11 @@ import { subjectsRouter } from "./routers/subjects";
 import { router } from "./trpc";
 
 export const appRouter = router({
-  auth: authRouter,
+  authApi: authRouter,
   subjects: subjectsRouter,
   formulas: formulasRouter,
   mistakes: mistakesRouter,
-  study: studyRouter,
+  studyApi: studyRouter,
 });
 
 export type AppRouter = typeof appRouter;

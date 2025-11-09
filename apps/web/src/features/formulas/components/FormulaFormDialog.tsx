@@ -1,10 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { GlowSelect } from "../../../components/ui/GlowSelect";
+import { getApiBaseUrl } from "../../../lib/env";
+import { trpc } from "../../../lib/trpc";
 import type { RouterOutputs } from "../../../types/trpc";
 
 type Subject = RouterOutputs["subjects"]["list"][number];
+
+type FormulaAttachment = {
+  id: string;
+  url: string;
+  kind: "image" | "pdf" | "link";
+  title?: string | null;
+};
 
 export type FormulaDraft = {
   subjectId: string;
@@ -15,6 +26,7 @@ export type FormulaDraft = {
   difficulty: "easy" | "medium" | "hard";
   tags: string[];
   derivationSteps: string[];
+  attachments: FormulaAttachment[];
 };
 
 type Props = {
@@ -26,6 +38,7 @@ type Props = {
   errorMessage?: string | null;
   onClose: () => void;
   onSubmit: (draft: FormulaDraft) => Promise<void> | void;
+  onCreateChapter?: (subjectId: string) => Promise<string | undefined>;
 };
 
 const formSchema = z.object({
@@ -57,7 +70,7 @@ const toFormValues = (draft?: FormulaDraft, subjects?: Subject[]): FormValues =>
   };
 };
 
-const normalizeDraft = (values: FormValues): FormulaDraft => {
+const normalizeDraft = (values: FormValues, attachments: FormulaAttachment[]): FormulaDraft => {
   const sanitizeList = (input?: string | null) =>
     input
       ?.split(/[,\n]/)
@@ -79,6 +92,7 @@ const normalizeDraft = (values: FormValues): FormulaDraft => {
     difficulty: values.difficulty,
     tags: sanitizeList(values.tagsText),
     derivationSteps: sanitizeSteps(values.stepsText),
+    attachments,
   };
 };
 
@@ -91,8 +105,19 @@ export const FormulaFormDialog = ({
   errorMessage,
   onClose,
   onSubmit,
+  onCreateChapter,
 }: Props) => {
   const initialValues = useMemo(() => toFormValues(defaultValues, subjects), [defaultValues, subjects]);
+
+  // Entry mode state: null = selection, 'manual' = manual form, 'ai' = AI-assisted
+  const [entryMode, setEntryMode] = useState<'manual' | 'ai' | null>(mode === 'edit' ? 'manual' : null);
+  const [aiDescription, setAiDescription] = useState('');
+  const [attachments, setAttachments] = useState<FormulaAttachment[]>(defaultValues?.attachments ?? []);
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  const extractMutation = trpc.formulas.extractFormulaDetails.useMutation();
 
   const {
     register,
@@ -111,15 +136,35 @@ export const FormulaFormDialog = ({
   const difficultyValue = watch("difficulty");
 
   const chapters = useMemo(() => {
-    return subjects?.find((subject) => subject.id === selectedSubjectId)?.chapters ?? [];
+    const list = subjects?.find((subject) => subject.id === selectedSubjectId)?.chapters ?? [];
+    return list as Subject["chapters"];
   }, [subjects, selectedSubjectId]);
+  const subjectSelectOptions = useMemo(
+    () => subjects?.map((subject) => ({ value: subject.id, label: subject.name })) ?? [],
+    [subjects],
+  );
+  const chapterSelectOptions = useMemo(
+    () =>
+      [
+        ...chapters.map((chapter: Subject["chapters"][number]) => ({
+          value: chapter.id,
+          label: chapter.title,
+        })),
+        ...(selectedSubjectId ? [{ value: "__add_chapter__", label: "+ Add a chapter" }] : []),
+      ],
+    [chapters, selectedSubjectId],
+  );
 
   useEffect(() => {
     if (!open) {
       return;
     }
     reset(initialValues);
-  }, [initialValues, open, reset]);
+    setEntryMode(mode === 'edit' ? 'manual' : null);
+    setAttachments(defaultValues?.attachments ?? []);
+    setAiDescription('');
+    setUploadError(null);
+  }, [initialValues, open, reset, mode, defaultValues]);
 
   useEffect(() => {
     if (!chapters.length) {
@@ -130,18 +175,113 @@ export const FormulaFormDialog = ({
       setValue("chapterId", chapters[0].id);
       return;
     }
-    if (!chapters.some((chapter) => chapter.id === selectedChapterId)) {
+    if (!chapters.some((chapter: Subject["chapters"][number]) => chapter.id === selectedChapterId)) {
       setValue("chapterId", chapters[0].id);
     }
   }, [chapters, selectedChapterId, setValue]);
 
   const closeAndReset = () => {
     reset(initialValues);
+    setEntryMode(mode === 'edit' ? 'manual' : null);
+    setAttachments([]);
+    setAiDescription('');
+    setUploadError(null);
     onClose();
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setUploadingFiles(files);
+    setUploadError(null);
+
+    try {
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await axios.post(`${getApiBaseUrl()}/api/uploads`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+
+          return {
+            id: response.data.id,
+            url: response.data.url,
+            kind: (file.type.startsWith('image/') ? 'image' : 'pdf') as 'image' | 'pdf',
+            title: file.name,
+          };
+        })
+      );
+
+      setAttachments((prev) => [...prev, ...uploaded]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadError('Failed to upload files. Please try again.');
+    } finally {
+      setUploadingFiles([]);
+      event.target.value = '';
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handleAiExtract = async () => {
+    if (!aiDescription.trim() && attachments.length === 0) {
+      setUploadError('Please provide a description or upload an image');
+      return;
+    }
+
+    setIsExtracting(true);
+    setUploadError(null);
+
+    try {
+      // Get first image attachment if any
+      const imageAttachment = attachments.find((a) => a.kind === 'image');
+      let imageBase64: string | undefined;
+      let mimeType: string | undefined;
+
+      if (imageAttachment) {
+        // Fetch the image and convert to base64
+        const response = await fetch(imageAttachment.url);
+        const blob = await response.blob();
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+        imageBase64 = base64;
+        mimeType = blob.type;
+      }
+
+      const result = await extractMutation.mutateAsync({
+        description: aiDescription.trim() || 'Extract formula details from this image',
+        imageBase64,
+        mimeType,
+      });
+
+      // Auto-fill the form fields (except difficulty)
+      setValue('title', result.title, { shouldDirty: true });
+      setValue('expression', result.expression, { shouldDirty: true });
+      setValue('explanation', result.explanation || '', { shouldDirty: true });
+      setValue('tagsText', result.tags.join(', '), { shouldDirty: true });
+      setValue('stepsText', result.derivationSteps.join('\n'), { shouldDirty: true });
+
+      // Switch to manual mode so user can review and set difficulty
+      setEntryMode('manual');
+    } catch (error) {
+      console.error('AI extraction failed:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to extract formula details. Please try again.');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const submit = async (values: FormValues) => {
-    await onSubmit(normalizeDraft(values));
+    await onSubmit(normalizeDraft(values, attachments));
   };
 
   if (!open) {
@@ -150,69 +290,210 @@ export const FormulaFormDialog = ({
 
   const hasSubjects = Boolean(subjects?.length);
   const hasChapters = Boolean(chapters.length);
+  const canSelectChapter = Boolean(selectedSubjectId);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8">
-      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur shadow-2xl">
-        <div className="border-b border-slate-800 px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{mode === "create" ? "New" : "Edit"} formula</p>
-              <h2 className="text-2xl font-semibold text-slate-100">
-                {mode === "create" ? "Capture a concept" : "Update formula"}
-              </h2>
+  // Render entry mode selection screen
+  const renderModeSelection = () => (
+    <div className="px-6 py-8 space-y-6">
+      <div className="text-center mb-6">
+        <p className="text-sm text-slate-400 mb-2">Choose how you&apos;d like to add this formula:</p>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => setEntryMode('manual')}
+          className="group relative rounded-2xl border-2 border-slate-700 bg-slate-900/60 p-6 text-center transition-all hover:border-primary hover:bg-slate-800/80 hover:shadow-lg hover:shadow-primary/20"
+        >
+          <div className="mb-3 flex justify-center">
+            <div className="rounded-xl bg-primary/10 p-3">
+              <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
             </div>
-            <button
-              type="button"
-              onClick={closeAndReset}
-              className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-400 hover:border-slate-500 hover:text-slate-100"
-            >
-              Close
-            </button>
           </div>
-          <p className="mt-2 text-sm text-slate-400">
-            Fill the essentials, add derivation breadcrumbs, and tag usage contexts. You can enrich this later with mind maps
-            and assets.
-          </p>
+          <h3 className="text-lg font-semibold text-slate-100 mb-2">Add Manually</h3>
+          <p className="text-sm text-slate-400">Fill in all the formula details yourself with optional photo upload</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setEntryMode('ai')}
+          className="group relative rounded-2xl border-2 border-slate-700 bg-slate-900/60 p-6 text-center transition-all hover:border-emerald-500 hover:bg-slate-800/80 hover:shadow-lg hover:shadow-emerald-500/20"
+        >
+          <div className="mb-3 flex justify-center">
+            <div className="rounded-xl bg-emerald-500/10 p-3">
+              <svg className="h-8 w-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-slate-100 mb-2">Fill with AI</h3>
+          <p className="text-sm text-slate-400">Describe the formula or upload an image and let AI auto-fill the fields</p>
+        </button>
+      </div>
+    </div>
+  );
+
+  // Render AI-assisted entry screen
+  const renderAiMode = () => (
+    <div className="px-6 py-6 space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setEntryMode(null)}
+          className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+        <span className="text-sm text-slate-500">→</span>
+        <span className="text-sm font-medium text-emerald-400">AI-Assisted Entry</span>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-200">Describe the formula or upload an image</label>
+          <textarea
+            value={aiDescription}
+            onChange={(e) => setAiDescription(e.target.value)}
+            rows={4}
+            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+            placeholder="E.g., &apos;Newton&apos;s second law of motion&apos; or &apos;The formula for kinetic energy&apos;..."
+          />
         </div>
-        <form onSubmit={handleSubmit(submit)} className="max-h-[70vh] overflow-y-auto px-6 py-6 space-y-6">
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-200">Upload Photo (Optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            disabled={uploadingFiles.length > 0 || isExtracting}
+            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-emerald-600"
+          />
+          {uploadingFiles.length > 0 && (
+            <p className="text-xs text-blue-400">Uploading {uploadingFiles.length} file(s)...</p>
+          )}
+
+          {attachments.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">{attachment.kind}</span>
+                    <span className="text-xs text-slate-300">{attachment.title || attachment.url.split('/').pop()}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/20"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {uploadError && (
+          <p className="text-xs text-red-400">{uploadError}</p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleAiExtract}
+          disabled={isExtracting || (!aiDescription.trim() && attachments.length === 0)}
+          className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
+        >
+          {isExtracting ? (
+            <>
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Extract with AI
+            </>
+          )}
+        </button>
+
+        <p className="text-xs text-slate-500 text-center">
+          AI will auto-fill the form fields. You&apos;ll need to review and set the difficulty level.
+        </p>
+      </div>
+    </div>
+  );
+
+  // Render manual entry form
+  const renderManualForm = () => (
+    <form onSubmit={handleSubmit(submit)} className="max-h-[70vh] overflow-y-auto px-6 py-6 space-y-6">
+      {mode === 'create' && (
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setEntryMode(null)}
+            className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+          <span className="text-sm text-slate-500">→</span>
+          <span className="text-sm font-medium text-primary">Manual Entry</span>
+        </div>
+      )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="subjectId" className="text-sm font-medium text-slate-200">
-                Subject
-              </label>
-              <select
-                id="subjectId"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none disabled:opacity-60"
+              <label className="text-sm font-medium text-slate-200">Subject</label>
+              <input type="hidden" {...register("subjectId")} />
+              <GlowSelect
+                id="formula-form-subject"
+                value={selectedSubjectId}
+                onChange={(nextValue) => setValue("subjectId", nextValue, { shouldDirty: true, shouldTouch: true })}
+                options={subjectSelectOptions}
+                placeholder={hasSubjects ? "Select subject" : "Add subjects"}
                 disabled={!hasSubjects}
-                {...register("subjectId")}
-              >
-                {!hasSubjects && <option value="">Add a subject first</option>}
-                {subjects?.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
+              />
               {errors.subjectId && <p className="text-xs text-red-400">{errors.subjectId.message}</p>}
             </div>
             <div className="space-y-2">
-              <label htmlFor="chapterId" className="text-sm font-medium text-slate-200">
-                Chapter
-              </label>
-              <select
-                id="chapterId"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none disabled:opacity-60"
-                disabled={!hasChapters}
-                {...register("chapterId")}
-              >
-                {!hasChapters && <option value="">Add a chapter first</option>}
-                {chapters.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.title}
-                  </option>
-                ))}
-              </select>
+              <label className="text-sm font-medium text-slate-200">Chapter</label>
+              <input type="hidden" {...register("chapterId")} />
+              <GlowSelect
+                id="formula-form-chapter"
+                value={selectedChapterId}
+                onChange={(nextValue) => {
+                  if (nextValue === "__add_chapter__") {
+                    if (!selectedSubjectId || !onCreateChapter) {
+                      return;
+                    }
+                    void (async () => {
+                      const createdChapterId = await onCreateChapter(selectedSubjectId);
+                      if (createdChapterId) {
+                        setValue("chapterId", createdChapterId, { shouldDirty: true, shouldTouch: true });
+                      }
+                    })();
+                    return;
+                  }
+                  setValue("chapterId", nextValue, { shouldDirty: true, shouldTouch: true });
+                }}
+                options={chapterSelectOptions}
+                placeholder={canSelectChapter ? (hasChapters ? "Select chapter" : "Add chapters") : "Select subject first"}
+                disabled={!canSelectChapter}
+              />
               {errors.chapterId && <p className="text-xs text-red-400">{errors.chapterId.message}</p>}
             </div>
           </div>
@@ -316,6 +597,45 @@ export const FormulaFormDialog = ({
             {errors.stepsText && <p className="text-xs text-red-400">{errors.stepsText.message}</p>}
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-200">Attachments / Photos</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*,application/pdf"
+              onChange={handleFileUpload}
+              disabled={uploadingFiles.length > 0}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/80"
+            />
+            {uploadingFiles.length > 0 && (
+              <p className="text-xs text-blue-400">Uploading {uploadingFiles.length} file(s)...</p>
+            )}
+            {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+            
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">{attachment.kind}</span>
+                      <span className="text-xs text-slate-300">{attachment.title || attachment.url.split('/').pop()}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(attachment.id)}
+                      className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/20"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {errorMessage && (
             <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{errorMessage}</p>
           )}
@@ -337,6 +657,48 @@ export const FormulaFormDialog = ({
             </button>
           </div>
         </form>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8">
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur shadow-2xl">
+        <div className="border-b border-slate-800 px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{mode === "create" ? "New" : "Edit"} formula</p>
+              <h2 className="text-2xl font-semibold text-slate-100">
+                {mode === "create" ? "Capture a concept" : "Update formula"}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeAndReset}
+              className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-400 hover:border-slate-500 hover:text-slate-100"
+            >
+              Close
+            </button>
+          </div>
+          {entryMode === null && (
+            <p className="mt-2 text-sm text-slate-400">
+              Choose your preferred method to add formula details.
+            </p>
+          )}
+          {entryMode === 'manual' && (
+            <p className="mt-2 text-sm text-slate-400">
+              Fill the essentials, add derivation breadcrumbs, and tag usage contexts. You can enrich this later with mind maps
+              and assets.
+            </p>
+          )}
+          {entryMode === 'ai' && (
+            <p className="mt-2 text-sm text-slate-400">
+              Describe the formula or upload an image, and AI will help extract the details for you.
+            </p>
+          )}
+        </div>
+
+        {entryMode === null && renderModeSelection()}
+        {entryMode === 'ai' && renderAiMode()}
+        {entryMode === 'manual' && renderManualForm()}
       </div>
     </div>
   );

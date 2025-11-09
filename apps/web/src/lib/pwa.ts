@@ -56,7 +56,7 @@ export const canInstall = (): boolean => {
 export const isInstalled = (): boolean => {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true
+    (window.navigator as { standalone?: boolean }).standalone === true
   );
 };
 

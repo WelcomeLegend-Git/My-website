@@ -52,7 +52,7 @@ const performTokenRefresh = async () => {
       id: 1,
       method: "mutation",
       params: {
-        path: "auth.refresh",
+        path: "authApi.refresh",
         input: { refreshToken },
       },
     }),

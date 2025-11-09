@@ -3,8 +3,8 @@ import { useShellContext } from "../../app/layouts/useShellContext";
 import { trpc } from "../../lib/trpc";
 import type { RouterOutputs } from "../../types/trpc";
 
-type QuizSession = RouterOutputs["study"]["getSession"];
-type QuizHistory = RouterOutputs["study"]["getHistory"][number];
+type QuizSession = RouterOutputs["studyApi"]["getSession"];
+type QuizHistory = RouterOutputs["studyApi"]["getHistory"][number];
 
 export const StudyCoachPage = () => {
   const { setAiSection, setAiContext } = useShellContext();
@@ -17,13 +17,13 @@ export const StudyCoachPage = () => {
 
   // Queries
   const { data: subjects } = trpc.subjects.list.useQuery();
-  const { data: history } = trpc.study.getHistory.useQuery({ limit: 10 });
+  const { data: history } = trpc.studyApi.getHistory.useQuery({ limit: 10 });
 
   // Mutations
-  const createSessionMutation = trpc.study.createSession.useMutation();
-  const submitAnswerMutation = trpc.study.submitAnswer.useMutation();
-  const completeSessionMutation = trpc.study.completeSession.useMutation();
-  const deleteSessionMutation = trpc.study.deleteSession.useMutation();
+  const createSessionMutation = trpc.studyApi.createSession.useMutation();
+  const submitAnswerMutation = trpc.studyApi.submitAnswer.useMutation();
+  const completeSessionMutation = trpc.studyApi.completeSession.useMutation();
+  const deleteSessionMutation = trpc.studyApi.deleteSession.useMutation();
 
   useEffect(() => {
     setAiSection("study");
@@ -118,7 +118,7 @@ export const StudyCoachPage = () => {
 
     try {
       await deleteSessionMutation.mutateAsync({ sessionId });
-      await utils.study.getHistory.invalidate();
+      await utils.studyApi.getHistory.invalidate();
     } catch (error) {
       console.error("Failed to delete session:", error);
     }
@@ -129,7 +129,7 @@ export const StudyCoachPage = () => {
     setCurrentQuestionIndex(0);
     setScore({ correct: 0, total: 0 });
     setView("home");
-    utils.study.getHistory.invalidate();
+    utils.studyApi.getHistory.invalidate();
   };
 
   if (view === "create") {

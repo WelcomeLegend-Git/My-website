@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { GlowSelect } from "../../../components/ui/GlowSelect";
 import { getApiBaseUrl } from "../../../lib/env";
 import type { RouterOutputs } from "../../../types/trpc";
 
@@ -35,6 +36,7 @@ type Props = {
   errorMessage?: string | null;
   onClose: () => void;
   onSubmit: (draft: MistakeDraft) => Promise<void> | void;
+  onCreateChapter?: (subjectId: string) => Promise<string | undefined>;
 };
 
 const formSchema = z.object({
@@ -73,6 +75,7 @@ export const MistakeFormDialog = ({
   errorMessage,
   onClose,
   onSubmit,
+  onCreateChapter,
 }: Props) => {
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
   const [attachments, setAttachments] = useState<MistakeDraft["attachments"]>(defaultValues?.attachments ?? []);
@@ -84,13 +87,32 @@ export const MistakeFormDialog = ({
     watch,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: toFormValues(defaultValues, subjects),
   });
 
   const selectedSubjectId = watch("subjectId");
-  const chapterOptions = subjects?.find((s) => s.id === selectedSubjectId)?.chapters ?? [];
+  const chapterOptions = useMemo(() => {
+    const list = subjects?.find((s) => s.id === selectedSubjectId)?.chapters ?? [];
+    return list as Subject["chapters"];
+  }, [selectedSubjectId, subjects]);
+  const subjectSelectOptions = useMemo(
+    () => subjects?.map((subject) => ({ value: subject.id, label: subject.name })) ?? [],
+    [subjects],
+  );
+  const chapterSelectOptions = useMemo(
+    () =>
+      [
+        ...chapterOptions.map((chapter: Subject["chapters"][number]) => ({
+          value: chapter.id,
+          label: chapter.title,
+        })),
+        ...(selectedSubjectId ? [{ value: "__add_chapter__", label: "+ Add a chapter" }] : []),
+      ],
+    [chapterOptions, selectedSubjectId],
+  );
 
   useEffect(() => {
     if (open) {
@@ -173,31 +195,42 @@ export const MistakeFormDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Subject</label>
-              <select
-                {...register("subjectId")}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-              >
-                {subjects?.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
+              <input type="hidden" {...register("subjectId")} />
+              <GlowSelect
+                id="mistake-form-subject"
+                value={selectedSubjectId}
+                onChange={(nextValue) => setValue("subjectId", nextValue, { shouldDirty: true, shouldTouch: true })}
+                options={subjectSelectOptions}
+                placeholder={subjects?.length ? "Select subject" : "Add subjects"}
+                disabled={!subjects?.length}
+              />
               {errors.subjectId && <p className="text-xs text-red-400">{errors.subjectId.message}</p>}
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Chapter</label>
-              <select
-                {...register("chapterId")}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-              >
-                {chapterOptions.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.title}
-                  </option>
-                ))}
-              </select>
+              <input type="hidden" {...register("chapterId")} />
+              <GlowSelect
+                id="mistake-form-chapter"
+                value={watch("chapterId")}
+                onChange={(nextValue) => {
+                  if (nextValue === "__add_chapter__") {
+                    if (!selectedSubjectId || !onCreateChapter) {
+                      return;
+                    }
+                    void (async () => {
+                      const createdChapterId = await onCreateChapter(selectedSubjectId);
+                      if (createdChapterId) {
+                        setValue("chapterId", createdChapterId, { shouldDirty: true, shouldTouch: true });
+                      }
+                    })();
+                    return;
+                  }
+                  setValue("chapterId", nextValue, { shouldDirty: true, shouldTouch: true });
+                }}
+                options={chapterSelectOptions}
+                placeholder={selectedSubjectId ? (chapterOptions.length ? "Select chapter" : "Add chapters") : "Select subject first"}
+                disabled={!selectedSubjectId}
+              />
               {errors.chapterId && <p className="text-xs text-red-400">{errors.chapterId.message}</p>}
             </div>
           </div>

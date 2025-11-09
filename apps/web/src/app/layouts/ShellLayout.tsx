@@ -64,64 +64,158 @@ export const ShellLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="relative flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {/* Background decorative elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+      </div>
+
       <InstallPrompt />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-8">
-              <div className="text-center">
-                <p className="text-2xs uppercase tracking-[0.2em] text-slate-500">JEE Companion</p>
-                <h1 className="text-1.5xs font-semibold">Your daily mastery system</h1>
+      
+      <div className="relative flex min-h-screen flex-1 flex-col z-10">
+        {/* Modern Header with Glassmorphism */}
+        <header className="sticky top-0 z-50 border-b border-slate-800/50 glass backdrop-blur-xl fade-in-down">
+          <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16 lg:h-20">
+              {/* Logo & Brand */}
+              <div className="flex items-center gap-6 lg:gap-8">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                  <div className="relative px-4 py-2 bg-slate-900 rounded-lg">
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary font-bold">JEE Companion</p>
+                    <h1 className="text-xs font-medium text-slate-300">Daily Mastery System</h1>
+                  </div>
+                </div>
+                
+                {/* Desktop Navigation */}
+                <nav className="hidden lg:flex items-center gap-2">
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `group relative px-4 py-2.5 rounded-xl transition-all duration-300 hover-lift ${
+                          isActive
+                            ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
+                            : "border border-transparent hover:border-slate-700/50"
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <div className="relative">
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-semibold transition-colors ${
+                              isActive ? "text-primary" : "text-slate-300 group-hover:text-slate-100"
+                            }`}>
+                              {item.label}
+                            </span>
+                            <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
+                              {item.description}
+                            </span>
+                          </div>
+                          {isActive && (
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full"></div>
+                          )}
+                        </div>
+                      )}
+                    </NavLink>
+                  ))}
+                </nav>
               </div>
-              <nav className="hidden items-center gap-5 md:flex">
+
+              {/* Right Section: User & Actions */}
+              <div className="flex items-center gap-3">
+                {/* AI Toggle - Desktop */}
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((prev) => !prev)}
+                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
+                    aiOpen
+                      ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
+                      : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  {aiOpen ? "Hide" : "Show"} Mentor
+                </button>
+
+                {/* User Info - Desktop */}
+                <div className="hidden md:flex items-center gap-3">
+                  <div className="flex flex-col items-end text-right">
+                    <span className="text-sm font-medium text-slate-100">{user?.name}</span>
+                    <span className="text-xs text-slate-400">{user?.email}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center font-bold text-sm">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl border border-slate-700/50 text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
+                  onClick={logout}
+                >
+                  <span className="hidden sm:inline">Log out</span>
+                  <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+
+                {/* Mobile Menu Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((prev) => !prev)}
+                  className="lg:hidden px-3 py-2 rounded-xl border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary transition-all"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Navigation */}
+            <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto">
+              <div className="flex gap-2 min-w-max px-1">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     className={({ isActive }) =>
-                      `rounded-xl border px-5 py-2 text-base transition-colors ${
+                      `flex-shrink-0 px-4 py-2 rounded-lg transition-all ${
                         isActive
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                          ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
+                          : "border border-transparent hover:border-slate-700/50"
                       }`
                     }
                   >
-                    <span className="block text-base font-semibold">{item.label}</span>
-                    <span className="text-sm text-slate-500">{item.description}</span>
+                    {({ isActive }) => (
+                      <div>
+                        <span className={`text-sm font-semibold ${
+                          isActive ? "text-primary" : "text-slate-300"
+                        }`}>
+                          {item.label}
+                        </span>
+                      </div>
+                    )}
                   </NavLink>
                 ))}
-              </nav>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setAiOpen((prev) => !prev)}
-                className={`hidden rounded-full border px-4 py-2 text-sm font-medium transition-colors lg:block ${
-                  aiOpen
-                    ? "border-primary text-primary"
-                    : "border-slate-700 text-slate-300 hover:border-primary hover:text-primary"
-                }`}
-              >
-                {aiOpen ? "Hide" : "Show"} Mentor
-              </button>
-              <div className="hidden flex-col items-end text-right md:flex">
-                <span className="text-sm font-medium text-slate-100">{user?.name}</span>
-                <span className="text-xs text-slate-500">{user?.email}</span>
               </div>
-              <button
-                type="button"
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-red-500 hover:text-red-400 transition-colors"
-                onClick={logout}
-              >
-                Log out
-              </button>
-            </div>
+            </nav>
           </div>
         </header>
-        <div className="flex flex-1">
-          <main className="flex w-full flex-1 flex-col gap-6 px-6 py-6">
-            <Outlet context={outletContext} />
+
+        {/* Main Content Area */}
+        <div className="flex flex-1 min-h-0 max-w-[1920px] mx-auto w-full overflow-hidden">
+          <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 fade-in-up overflow-y-auto">
+            <div className="max-w-7xl mx-auto">
+              <Outlet context={outletContext} />
+            </div>
           </main>
           <AiSidebar open={aiOpen} section={aiSection} context={aiContext} />
         </div>

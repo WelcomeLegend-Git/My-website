@@ -4,21 +4,23 @@ import { z } from "zod";
 import { requireUser } from "../middleware/auth";
 import { procedure, router } from "../trpc";
 
-type MindMapNodeInput = {
+export type MindMapNodeInput = {
   id: string;
   label: string;
   detail?: string | null;
   children: MindMapNodeInput[];
 };
 
-const mindMapNodeInput: z.ZodType<MindMapNodeInput, z.ZodTypeDef, any> = z.lazy(() =>
-  z.object({
-    id: z.string().min(1),
-    label: z.string().min(1),
-    detail: z.string().optional().nullable(),
-    children: z.array(mindMapNodeInput).default([]),
-  })
-) as any;
+const mindMapNodeInput: z.ZodType<MindMapNodeInput> = z.lazy(
+  (): z.ZodType<MindMapNodeInput> =>
+    z
+      .object({
+        id: z.string().min(1),
+        label: z.string().min(1),
+        detail: z.string().optional().nullable(),
+        children: z.array(mindMapNodeInput).default([]),
+      }) as unknown as z.ZodType<MindMapNodeInput>,
+);
 
 const mindMapInput = z.object({
   root: mindMapNodeInput,
@@ -214,5 +216,60 @@ Context: ${input.prompt}`,
       }
 
       return parsed.data;
+    }),
+  extractFormulaDetails: procedure
+    .use(requireUser)
+    .input(
+      z.object({
+        description: z.string().min(1),
+        imageBase64: z.string().optional(),
+        mimeType: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const prompt = `You are an expert in analyzing physics, chemistry, and mathematics formulas for JEE preparation.
+Analyze the following and extract formula details in JSON format with these fields:
+- title: Brief descriptive title
+- expression: The mathematical expression/formula
+- explanation: Brief explanation of the formula
+- tags: Array of relevant tags
+- derivationSteps: Array of key derivation steps
+
+User input: ${input.description}
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "title": "...",
+  "expression": "...",
+  "explanation": "...",
+  "tags": ["tag1", "tag2"],
+  "derivationSteps": ["step1", "step2"]
+}`;
+
+      const response = await ctx.gemini.generate({
+        prompt,
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+      });
+
+      try {
+        // Extract JSON from response (in case AI adds extra text)
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        const jsonText = jsonMatch ? jsonMatch[0] : response.text;
+        const parsed = JSON.parse(jsonText);
+        
+        return {
+          title: parsed.title || "",
+          expression: parsed.expression || "",
+          explanation: parsed.explanation || "",
+          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          derivationSteps: Array.isArray(parsed.derivationSteps) ? parsed.derivationSteps : [],
+        };
+      } catch {
+        throw new TRPCError({ 
+          code: "INTERNAL_SERVER_ERROR", 
+          message: "Failed to extract formula details from AI response" 
+        });
+      }
     }),
 });

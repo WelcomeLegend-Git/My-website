@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useShellContext } from "../../app/layouts/useShellContext";
+import { GlowSelect } from "../../components/ui/GlowSelect";
 import { FormulaCard } from "../../features/formulas/components/FormulaCard";
 import {
   FormulaFormDialog,
@@ -54,6 +55,13 @@ const buildDraftFromFormula = (formula: Formula): FormulaDraft => ({
   difficulty: formula.difficulty,
   tags: (formula.tags as string[]) ?? [],
   derivationSteps: formula.derivationSteps ?? [],
+  attachments:
+    formula.assets?.map((asset) => ({
+      id: asset.id,
+      url: asset.url,
+      kind: asset.kind as "image" | "pdf" | "link",
+      title: asset.title,
+    })) ?? [],
 });
 
 export const FormulaLibraryPage = () => {
@@ -95,6 +103,42 @@ export const FormulaLibraryPage = () => {
   const createMutation = trpc.formulas.create.useMutation();
   const updateMutation = trpc.formulas.update.useMutation();
   const deleteMutation = trpc.formulas.remove.useMutation();
+  const createChapterMutation = trpc.subjects.createChapter.useMutation();
+
+  const handleCreateChapter = async (targetSubjectId: string) => {
+    if (createChapterMutation.isPending) {
+      return undefined;
+    }
+
+    const subject = subjects?.find((candidate: Subject) => candidate.id === targetSubjectId);
+    if (!subject) {
+      return undefined;
+    }
+
+    const proposedTitle = window.prompt("New chapter title", "New Chapter");
+    if (!proposedTitle) {
+      return undefined;
+    }
+
+    const trimmedTitle = proposedTitle.trim();
+    if (!trimmedTitle) {
+      return undefined;
+    }
+
+    try {
+      const chapter = await createChapterMutation.mutateAsync({
+        subjectId: targetSubjectId,
+        title: trimmedTitle,
+        description: null,
+      });
+      await utils.subjects.list.invalidate();
+      return chapter.id;
+    } catch (error) {
+      console.error("Failed to create chapter", error);
+      alert("Could not create chapter. Please try again.");
+      return undefined;
+    }
+  };
 
   useEffect(() => {
     setAiSection("formulas");
@@ -187,7 +231,7 @@ export const FormulaLibraryPage = () => {
       difficulty: draft.difficulty,
       derivationSteps: draft.derivationSteps,
       tags: draft.tags,
-      attachments: [],
+      attachments: draft.attachments,
     };
 
     try {
@@ -226,6 +270,24 @@ export const FormulaLibraryPage = () => {
   const chapterOptions = ensureChapterOptions(subjectId, subjects);
   const isEmpty = !formulasLoading && (!formulas || formulas.length === 0);
 
+  const subjectSelectOptions = useMemo(
+    () => [
+      { value: "", label: "All subjects" },
+      ...(subjects?.map((subject) => ({ value: subject.id, label: subject.name })) ?? []),
+    ],
+    [subjects],
+  );
+
+  const chapterSelectOptions = useMemo(() => {
+    if (!subjectId) {
+      return [{ value: "", label: "Select a subject", disabled: true }];
+    }
+    return [
+      { value: "", label: "All chapters" },
+      ...chapterOptions.map((chapter) => ({ value: chapter.id, label: chapter.title })),
+    ];
+  }, [chapterOptions, subjectId]);
+
   const currentFormDefaults: FormulaDraft | undefined = formState
     ? formState.mode === "edit"
       ? buildDraftFromFormula(formState.formula)
@@ -240,6 +302,7 @@ export const FormulaLibraryPage = () => {
           difficulty: "medium",
           tags: [],
           derivationSteps: [],
+          attachments: [],
         }
     : undefined;
 
@@ -263,39 +326,29 @@ export const FormulaLibraryPage = () => {
         </button>
       </header>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
-            <select
+            <GlowSelect
+              id="formula-subject"
               value={subjectId ?? ""}
-              onChange={(event) => setSubjectId(event.target.value || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
-            >
-              <option value="">All subjects</option>
-              {subjects?.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
+              onChange={(nextValue) => setSubjectId(nextValue || undefined)}
+              options={subjectSelectOptions}
+              placeholder="All subjects"
+            />
           </div>
 
           <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
-            <select
+            <GlowSelect
+              id="formula-chapter"
               value={chapterId ?? ""}
-              onChange={(event) => setChapterId(event.target.value || undefined)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              onChange={(nextValue) => setChapterId(nextValue || undefined)}
+              options={chapterSelectOptions}
+              placeholder={subjectId ? "All chapters" : "Select a subject"}
               disabled={!subjectId || !chapterOptions.length}
-            >
-              <option value="">{subjectId ? "All chapters" : "Select a subject"}</option>
-              {chapterOptions.map((chapter) => (
-                <option key={chapter.id} value={chapter.id}>
-                  {chapter.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="flex-1 space-y-2">
@@ -305,7 +358,7 @@ export const FormulaLibraryPage = () => {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Title, expression, explanation keywords"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
             />
           </div>
 
@@ -317,9 +370,9 @@ export const FormulaLibraryPage = () => {
                 setChapterId(undefined);
                 setSearchTerm("");
               }}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+              className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-2 text-sm font-medium text-slate-300 hover:border-primary/40 hover:text-primary transition"
             >
-              Clear filters
+              Reset filters
             </button>
           )}
         </div>
@@ -438,9 +491,10 @@ export const FormulaLibraryPage = () => {
         subjects={subjects}
         defaultValues={currentFormDefaults}
         isSubmitting={isSaving}
-        errorMessage={formError ?? null}
+        errorMessage={formError}
         onClose={closeForm}
         onSubmit={handleFormSubmit}
+        onCreateChapter={handleCreateChapter}
       />
     </section>
   );

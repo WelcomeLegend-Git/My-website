@@ -246,7 +246,7 @@ Respond STRICTLY in this JSON format:
       const isCorrect = input.answerIndex === question.correctAnswer;
 
       // Update question
-      const updated = await ctx.prisma.quizQuestion.update({
+      await ctx.prisma.quizQuestion.update({
         where: { id: input.questionId },
         data: {
           userAnswer: input.answerIndex,

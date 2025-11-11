@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs --dts",
     "generate": "prisma generate --schema ./prisma/schema.prisma",
-    "postinstall": "prisma generate --schema ./prisma/schema.prisma",
+    "postinstall": "npx prisma generate --schema ./prisma/schema.prisma || echo 'Prisma generate skipped'",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

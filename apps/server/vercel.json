@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Serverless functions - no build needed'",
-  "installCommand": "npm install --prefix=../..",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/index.ts"
+      "destination": "/api"
     }
   ]
 }

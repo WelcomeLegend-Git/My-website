@@ -96,7 +96,7 @@ export const createApp = () => {
     res.json({ status: "ok" });
   });
 
-  app.use((error: Error, _req: express.Request, res: express.Response) => {
+  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     logger.error({ error }, "Unhandled error");
     res.status(500).json({ message: "Internal server error" });
   });

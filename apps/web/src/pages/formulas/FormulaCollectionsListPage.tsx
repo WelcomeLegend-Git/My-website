@@ -1,7 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { useShellContext } from '../../app/layouts/useShellContext';
+import { FormulaFormDialog, type FormulaDraft } from '../../features/formulas/components/FormulaFormDialog';
+import type { RouterOutputs } from '../../types/trpc';
+import { GlowSelect, type GlowSelectOption } from '../../components/ui/GlowSelect';
+
+type Subject = RouterOutputs["subjects"]["list"][number];
 
 // Helper to create AI context from collections list
 const toAiContext = (collections: any[], filters: { subjectId?: string; chapterId?: string; searchTerm: string }) => ({
@@ -22,6 +27,7 @@ type SortOption = 'recent' | 'oldest' | 'large' | 'small' | 'name';
 
 export const FormulaCollectionsListPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setAiContext, setAiSection } = useShellContext();
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -30,9 +36,12 @@ export const FormulaCollectionsListPage = () => {
   const [subjectId, setSubjectId] = useState<string>();
   const [chapterId, setChapterId] = useState<string>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: subjects } = trpc.subjects.list.useQuery();
+  const createChapterMutation = trpc.subjects.createChapter.useMutation();
+  const createFormulaMutation = trpc.formulas.create.useMutation();
   const { data: collections, isLoading } = trpc.formulas.listCollections.useQuery({ includeDeleted: showDeleted });
   const deleteMutation = trpc.formulas.deleteCollections.useMutation();
   const restoreMutation = trpc.formulas.restoreCollections.useMutation();
@@ -89,6 +98,24 @@ export const FormulaCollectionsListPage = () => {
     return subject?.chapters ?? [];
   }, [subjectId, subjects]);
 
+  // GlowSelect options for subjects
+  const subjectSelectOptions: GlowSelectOption[] = useMemo(() => [
+    { value: '', label: 'All subjects' },
+    ...(subjects?.map((subject) => ({
+      value: subject.id,
+      label: subject.name,
+    })) || []),
+  ], [subjects]);
+
+  // GlowSelect options for chapters
+  const chapterSelectOptions: GlowSelectOption[] = useMemo(() => [
+    { value: '', label: subjectId ? 'All chapters' : 'Select a subject' },
+    ...chapterOptions.map((chapter) => ({
+      value: chapter.id,
+      label: chapter.title,
+    })),
+  ], [chapterOptions, subjectId]);
+
   // Set AI section on mount
   useEffect(() => {
     setAiSection('formulas');
@@ -96,6 +123,18 @@ export const FormulaCollectionsListPage = () => {
       setAiContext(undefined);
     };
   }, [setAiContext, setAiSection]);
+
+  useEffect(() => {
+    const intent = searchParams.get('intent');
+    if (intent === 'add-formula' && !isModalOpen) {
+      setIsModalOpen(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('intent');
+        return next;
+      }, { replace: true });
+    }
+  }, [isModalOpen, searchParams, setSearchParams]);
 
   // Update AI context when collections or filters change
   useEffect(() => {
@@ -118,70 +157,60 @@ export const FormulaCollectionsListPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-8 px-4">
+    <div className="w-full">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula Studio</p>
-              <h1 className="text-4xl font-bold text-slate-100 mb-2">Archive your derivations</h1>
-              <p className="text-slate-400">Filter by subject, dissect with AI, and keep every insight searchable.</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Archive your derivations</h1>
+              <p className="text-xs sm:text-sm text-slate-400">Filter by subject, dissect with AI, and keep every insight searchable.</p>
             </div>
             <button
-              onClick={() => navigate('/formulas/add')}
-              className="px-4 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+              onClick={() => setIsModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors flex-shrink-0"
             >
               Add Formula
             </button>
           </div>
 
           {/* Filters */}
-          <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)] mb-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="flex-1 space-y-2 md:flex-none md:w-56">
+          <div className="rounded-2xl sm:rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-4 sm:p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)] mb-6">
+            <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end">
+              <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
                 <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
-                <select
+                <GlowSelect
                   value={subjectId ?? ''}
-                  onChange={(e) => {
-                    setSubjectId(e.target.value || undefined);
+                  onChange={(value) => {
+                    setSubjectId(value || undefined);
                     setChapterId(undefined);
                   }}
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
-                >
-                  <option value="">All subjects</option>
-                  {subjects?.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
+                  options={subjectSelectOptions}
+                  placeholder="All subjects"
+                  placement="right"
+                />
               </div>
 
-              <div className="flex-1 space-y-2 md:flex-none md:w-56">
+              <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
                 <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
-                <select
+                <GlowSelect
                   value={chapterId ?? ''}
-                  onChange={(e) => setChapterId(e.target.value || undefined)}
+                  onChange={(value) => setChapterId(value || undefined)}
+                  options={chapterSelectOptions}
+                  placeholder={subjectId ? 'All chapters' : 'Select a subject'}
                   disabled={!subjectId}
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">{subjectId ? 'All chapters' : 'Select a subject'}</option>
-                  {chapterOptions.map((chapter) => (
-                    <option key={chapter.id} value={chapter.id}>
-                      {chapter.title}
-                    </option>
-                  ))}
-                </select>
+                  placement="right"
+                />
               </div>
 
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-1.5 sm:space-y-2">
                 <label className="text-xs uppercase tracking-wide text-slate-400">Search</label>
                 <input
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Title, subject, chapter keywords"
+                  placeholder="Title, subject, chapter"
                   className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
                 />
               </div>
@@ -203,8 +232,8 @@ export const FormulaCollectionsListPage = () => {
           </div>
 
           {/* Sort Options */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-slate-400 font-medium">Sort by:</span>
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
+            <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
             {[
               { value: 'recent', label: 'Most Recent' },
               { value: 'oldest', label: 'Oldest First' },
@@ -215,7 +244,7 @@ export const FormulaCollectionsListPage = () => {
               <button
                 key={option.value}
                 onClick={() => setSortBy(option.value as SortOption)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
                   sortBy === option.value
                     ? 'bg-blue-500 text-white'
                     : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
@@ -245,7 +274,7 @@ export const FormulaCollectionsListPage = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {sortedCollections.map((collection) => (
               <button
                 key={collection.id}
@@ -313,6 +342,72 @@ export const FormulaCollectionsListPage = () => {
           </div>
         )}
       </div>
+
+      {/* Formula Creation Modal */}
+      <FormulaFormDialog
+        open={isModalOpen}
+        mode="create"
+        subjects={subjects}
+        defaultValues={undefined}
+        isSubmitting={createFormulaMutation.isPending}
+        errorMessage={createFormulaMutation.error?.message}
+        onClose={() => {
+          setIsModalOpen(false);
+          createFormulaMutation.reset();
+        }}
+        onSubmit={async (draft) => {
+          try {
+            const result = await createFormulaMutation.mutateAsync({
+              subjectId: draft.subjectId,
+              chapterId: draft.chapterId,
+              title: draft.title,
+              expression: draft.expression,
+              explanation: draft.explanation,
+              difficulty: draft.difficulty,
+              tags: draft.tags,
+              derivationSteps: draft.derivationSteps,
+              attachments: draft.attachments,
+              applications: draft.applications,
+              examples: draft.examples,
+              prerequisites: draft.prerequisites,
+              relatedFormulas: draft.relatedFormulas,
+              commonMistakes: draft.commonMistakes,
+            });
+            
+            await utils.formulas.listCollections.invalidate();
+            setIsModalOpen(false);
+            createFormulaMutation.reset();
+            
+            // Navigate to the new collection if created successfully
+            if ('collectionId' in result) {
+              navigate(`/formulas/collections/${result.collectionId}`);
+            }
+          } catch (error) {
+            // Error handled by mutation state
+          }
+        }}
+        onCreateChapter={async (subjectId) => {
+          const subject = subjects?.find((s) => s.id === subjectId);
+          if (!subject) return undefined;
+          
+          const title = window.prompt("New chapter title", "New Chapter");
+          if (!title) return undefined;
+          
+          const trimmed = title.trim();
+          if (!trimmed) return undefined;
+          
+          try {
+            const chapter = await createChapterMutation.mutateAsync({
+              subjectId,
+              title: trimmed,
+            });
+            await utils.subjects.list.invalidate();
+            return chapter.id;
+          } catch {
+            return undefined;
+          }
+        }}
+      />
     </div>
   );
 };

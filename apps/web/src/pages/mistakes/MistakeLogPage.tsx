@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useShellContext } from "../../app/layouts/useShellContext";
 import { GlowSelect } from "../../components/ui/GlowSelect";
-import { MistakeCard } from "../../features/mistakes/components/MistakeCard";
 import {
   MistakeFormDialog,
   type MistakeDraft,
 } from "../../features/mistakes/components/MistakeFormDialog";
+import { MistakeLogChoiceModal } from "../../features/mistakes/components/MistakeLogChoiceModal";
+import { AIMistakeDialog } from "../../features/mistakes/components/AIMistakeDialog";
+import { ImageViewerModal } from "../../features/mistakes/components/ImageViewerModal";
 import { trpc } from "../../lib/trpc";
 import type { RouterInputs, RouterOutputs } from "../../types/trpc";
 
@@ -67,6 +70,8 @@ const buildDraftFromMistake = (mistake: Mistake): MistakeDraft => ({
 });
 
 export const MistakeLogPage = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setAiSection, setAiContext } = useShellContext();
   const utils = trpc.useUtils();
 
@@ -76,10 +81,15 @@ export const MistakeLogPage = () => {
   const [chapterId, setChapterId] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<"new" | "reviewing" | "resolved" | undefined>();
   const [difficultyFilter, setDifficultyFilter] = useState<"easy" | "medium" | "hard" | undefined>();
+  const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'difficulty-high' | 'difficulty-low'>('recent');
   const [selectedMistake, setSelectedMistake] = useState<Mistake | null>(null);
   const [formState, setFormState] = useState<FormState | null>(null);
   const [pendingMistakeId, setPendingMistakeId] = useState<string | null>(null);
-  const [analyzingMistake, setAnalyzingMistake] = useState<string | null>(null);
+  const [choiceModalOpen, setChoiceModalOpen] = useState(false);
+  const [aiDialogOpen, setAIDialogOpen] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<Mistake['assets']>([]);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
   const filters = useMemo<MistakeFilters | undefined>(() => {
     const active: MistakeFilters = {
@@ -95,11 +105,32 @@ export const MistakeLogPage = () => {
   }, [chapterId, difficultyFilter, statusFilter, subjectId]);
 
   const {
-    data: mistakes,
+    data: mistakesData,
     isLoading: mistakesLoading,
   } = trpc.mistakes.list.useQuery(filters, {
     placeholderData: (previousData) => previousData,
   });
+
+  // Sort mistakes
+  const mistakes = useMemo(() => {
+    if (!mistakesData) return [];
+    const sorted = [...mistakesData];
+    
+    switch (sortBy) {
+      case 'recent':
+        return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      case 'oldest':
+        return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      case 'difficulty-high':
+        const difficultyOrder = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrder[b.difficulty] || 0) - (difficultyOrder[a.difficulty] || 0));
+      case 'difficulty-low':
+        const difficultyOrderLow = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrderLow[a.difficulty] || 0) - (difficultyOrderLow[b.difficulty] || 0));
+      default:
+        return sorted;
+    }
+  }, [mistakesData, sortBy]);
 
   const createMutation = trpc.mistakes.create.useMutation();
   const updateMutation = trpc.mistakes.update.useMutation();
@@ -151,45 +182,16 @@ export const MistakeLogPage = () => {
   }, [setAiContext, setAiSection]);
 
   useEffect(() => {
-    if (selectedMistake) {
-      setAiContext(toAiContext(selectedMistake));
-    } else {
-      setAiContext(undefined);
+    const intent = searchParams.get("intent");
+    if (intent === "log-mistake" && !choiceModalOpen && !formState) {
+      setChoiceModalOpen(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("intent");
+        return next;
+      }, { replace: true });
     }
-  }, [selectedMistake, setAiContext]);
-
-  useEffect(() => {
-    if (!mistakes || mistakes.length === 0) {
-      if (selectedMistake !== null) {
-        setSelectedMistake(null);
-      }
-      return;
-    }
-
-    const desired =
-      (pendingMistakeId ? mistakes.find((mistake) => mistake.id === pendingMistakeId) : undefined) ??
-      (selectedMistake ? mistakes.find((mistake) => mistake.id === selectedMistake.id) : undefined) ??
-      mistakes[0];
-
-    if (!desired) {
-      if (selectedMistake !== null) {
-        setSelectedMistake(null);
-      }
-      return;
-    }
-
-    if (
-      !selectedMistake ||
-      selectedMistake.id !== desired.id ||
-      selectedMistake.updatedAt !== desired.updatedAt
-    ) {
-      setSelectedMistake(desired);
-    }
-
-    if (pendingMistakeId && mistakes.some((mistake) => mistake.id === pendingMistakeId)) {
-      setPendingMistakeId(null);
-    }
-  }, [mistakes, pendingMistakeId, selectedMistake]);
+  }, [choiceModalOpen, formState, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!subjectId) {
@@ -206,36 +208,6 @@ export const MistakeLogPage = () => {
     }
   }, [chapterId, subjectId, subjects]);
 
-  const handleDelete = async (mistake: Mistake) => {
-    if (deleteMutation.isPending) {
-      return;
-    }
-    const confirmed = typeof window !== "undefined" ? window.confirm("Delete this mistake? This cannot be undone.") : true;
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteMutation.mutateAsync({ id: mistake.id });
-      await utils.mistakes.list.invalidate();
-      setSelectedMistake((current) => (current?.id === mistake.id ? null : current));
-    } catch {
-      // Error surfaces via mutation state.
-    }
-  };
-
-  const handleTransition = async (mistake: Mistake, status: Mistake["status"]) => {
-    if (transitionMutation.isPending) {
-      return;
-    }
-
-    try {
-      await transitionMutation.mutateAsync({ id: mistake.id, status });
-      await utils.mistakes.list.invalidate();
-    } catch {
-      // Error surfaces via mutation state.
-    }
-  };
 
   const handleFormSubmit = async (draft: MistakeDraft) => {
     const payload: MistakeCreateInput = {
@@ -320,11 +292,6 @@ export const MistakeLogPage = () => {
     createMutation.reset();
   };
 
-  const openEditForm = (mistake: Mistake) => {
-    setFormState({ mode: "edit", mistake });
-    updateMutation.reset();
-  };
-
   const chapterOptions = ensureChapterOptions(subjectId, subjects);
   const isEmpty = !mistakesLoading && (!mistakes || mistakes.length === 0);
 
@@ -389,25 +356,25 @@ export const MistakeLogPage = () => {
   const isSaving = formState?.mode === "edit" ? updateMutation.isPending : createMutation.isPending;
 
   return (
-    <section className="space-y-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
-          <h2 className="text-3xl font-semibold text-slate-100">Learn from every slip</h2>
-          <p className="text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-slate-100">Learn from every slip</h2>
+          <p className="text-xs sm:text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
         </div>
         <button
           type="button"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
-          onClick={openCreateForm}
+          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 w-full sm:w-auto"
+          onClick={() => setChoiceModalOpen(true)}
         >
           Log mistake
         </button>
       </header>
 
-      <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end">
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-4 sm:p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
+        <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end">
+          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
             <GlowSelect
               id="mistake-subject"
@@ -415,10 +382,11 @@ export const MistakeLogPage = () => {
               onChange={(nextValue) => setSubjectId(nextValue || undefined)}
               options={subjectSelectOptions}
               placeholder="All subjects"
+              placement="right"
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
             <GlowSelect
               id="mistake-chapter"
@@ -430,7 +398,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-40">
+          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-36 lg:w-40">
             <label className="text-xs uppercase tracking-wide text-slate-400">Status</label>
             <GlowSelect
               id="mistake-status"
@@ -440,10 +408,11 @@ export const MistakeLogPage = () => {
               }
               options={statusSelectOptions}
               placeholder="All status"
+              placement="right"
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-40">
+          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-36 lg:w-40">
             <label className="text-xs uppercase tracking-wide text-slate-400">Difficulty</label>
             <GlowSelect
               id="mistake-difficulty"
@@ -451,9 +420,33 @@ export const MistakeLogPage = () => {
               onChange={(nextValue) => setDifficultyFilter((nextValue as "easy" | "medium" | "hard") || undefined)}
               options={difficultySelectOptions}
               placeholder="All difficulty"
+              placement="right"
             />
           </div>
         </div>
+      </div>
+
+      {/* Sort Options */}
+      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
+        <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
+        {[
+          { value: 'recent', label: 'Most Recent' },
+          { value: 'oldest', label: 'Oldest First' },
+          { value: 'difficulty-high', label: 'Hardest First' },
+          { value: 'difficulty-low', label: 'Easiest First' },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setSortBy(option.value as any)}
+            className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+              sortBy === option.value
+                ? 'bg-red-500 text-white'
+                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       {mistakesLoading && (
@@ -471,93 +464,103 @@ export const MistakeLogPage = () => {
       )}
 
       {!mistakesLoading && mistakes && mistakes.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4">
-            {mistakes.map((mistake) => (
-              <MistakeCard
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {mistakes.map((mistake) => {
+            const imageCount = mistake.assets.filter((a) => a.kind === 'image').length;
+            const difficultyColors = {
+              easy: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10',
+              medium: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
+              hard: 'text-rose-300 border-rose-500/40 bg-rose-500/10',
+            };
+            const statusColors = {
+              new: 'text-red-400 bg-red-500/10 border-red-500/30',
+              reviewing: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+              resolved: 'text-green-400 bg-green-500/10 border-green-500/30',
+            };
+
+            return (
+              <button
                 key={mistake.id}
-                mistake={mistake}
-                isActive={selectedMistake?.id === mistake.id}
-                onSelect={setSelectedMistake}
-                onEdit={openEditForm}
-                onDelete={handleDelete}
-                onTransition={handleTransition}
-              />
-            ))}
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            {selectedMistake ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-100">{selectedMistake.title}</h3>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      {selectedMistake.subject.name} • {selectedMistake.chapter.title}
-                    </p>
+                onClick={() => navigate(`/mistakes/${mistake.id}`)}
+                className="group rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all"
+              >
+                {/* Card Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/25">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyze(selectedMistake)}
-                    disabled={analyzingMistake === selectedMistake.id || analyzeMutation.isPending}
-                    className="rounded-lg bg-purple-500/20 px-3 py-1.5 text-xs font-medium text-purple-300 hover:bg-purple-500/30 disabled:opacity-50"
-                  >
-                    {analyzingMistake === selectedMistake.id ? "Analyzing..." : "AI Analyze"}
-                  </button>
+                  <div className="flex gap-2">
+                    <span className={`px-2 py-1 rounded-lg border text-xs font-semibold ${statusColors[mistake.status]}`}>
+                      {mistake.status}
+                    </span>
+                    {imageCount > 0 && (
+                      <span className="px-2 py-1 rounded-lg bg-slate-500/10 border border-slate-500/30 text-slate-400 text-xs font-bold flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {imageCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-300">Description</h4>
-                  <p className="text-sm text-slate-400 whitespace-pre-wrap">{selectedMistake.description}</p>
+                {/* Card Content */}
+                <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-red-400 transition-colors line-clamp-2">
+                  {mistake.title}
+                </h3>
+                
+                <div className="space-y-1 text-sm text-slate-400 mb-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>{mistake.subject.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <span>{mistake.chapter.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      {new Date(mistake.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
                 </div>
 
-                {selectedMistake.aiSummary && (
-                  <div className="space-y-2 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
-                    <h4 className="text-sm font-semibold text-purple-300">AI Summary</h4>
-                    <p className="text-sm text-slate-300">{selectedMistake.aiSummary}</p>
-                  </div>
-                )}
-
-                {selectedMistake.assets.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-slate-300">Attachments</h4>
-                    <div className="space-y-2">
-                      {selectedMistake.assets.map((asset) => (
-                        <div
-                          key={asset.id}
-                          className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 p-2"
-                        >
-                          <span className="text-xs text-slate-400">{asset.kind}</span>
-                          <a
-                            href={asset.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline"
-                          >
-                            View
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-4">
-                  <span className="rounded-full border border-slate-700 bg-slate-800/50 px-2 py-1 text-xs text-slate-300">
-                    {selectedMistake.difficulty}
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${difficultyColors[mistake.difficulty]}`}>
+                    {mistake.difficulty}
                   </span>
-                  <span className="rounded-full border border-slate-700 bg-slate-800/50 px-2 py-1 text-xs text-slate-300">
-                    {selectedMistake.status}
-                  </span>
-                  <span className="rounded-full border border-slate-700 bg-slate-800/50 px-2 py-1 text-xs text-slate-300">
-                    {selectedMistake.errorType}
+                  <span className="px-2 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-300 text-[11px] font-semibold">
+                    {mistake.errorType}
                   </span>
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400">Select a mistake to view details</p>
-            )}
-          </div>
+
+                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{mistake.description}</p>
+
+                {/* Hover Arrow */}
+                <div className="flex items-center gap-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-sm font-medium">View Details</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -571,6 +574,40 @@ export const MistakeLogPage = () => {
         onClose={closeForm}
         onSubmit={handleFormSubmit}
         onCreateChapter={handleCreateChapter}
+      />
+
+      {/* Choice Modal */}
+      <MistakeLogChoiceModal
+        open={choiceModalOpen}
+        onClose={() => setChoiceModalOpen(false)}
+        onChooseManual={() => {
+          setChoiceModalOpen(false);
+          openCreateForm();
+        }}
+        onChooseAI={() => {
+          setChoiceModalOpen(false);
+          setAIDialogOpen(true);
+        }}
+      />
+
+      {/* AI Logging Dialog */}
+      <AIMistakeDialog
+        open={aiDialogOpen}
+        onClose={() => setAIDialogOpen(false)}
+        subjects={subjects}
+        onSuccess={(mistakeId) => {
+          setAIDialogOpen(false);
+          // Navigate to detail view
+          navigate(`/mistakes/${mistakeId}`);
+        }}
+      />
+
+      {/* Image Viewer */}
+      <ImageViewerModal
+        open={imageViewerOpen}
+        images={viewerImages}
+        initialIndex={viewerInitialIndex}
+        onClose={() => setImageViewerOpen(false)}
       />
     </section>
   );

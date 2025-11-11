@@ -11,6 +11,7 @@ type Answer = number[]; // Array of selected option indices
 export const QuizPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const utils = trpc.useUtils();
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -23,7 +24,9 @@ export const QuizPage = () => {
   );
 
   const submitMutation = trpc.quiz.submitQuiz.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Invalidate quiz cache so results page gets fresh data
+      await utils.quiz.getQuiz.invalidate({ id: id! });
       navigate(`/quiz/${id}/results?attemptId=${data.attemptId}`);
     },
   });

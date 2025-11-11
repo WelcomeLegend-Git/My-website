@@ -20,6 +20,7 @@ type GlowSelectProps = {
   buttonClassName?: string;
   listClassName?: string;
   align?: "left" | "right";
+  placement?: "bottom" | "top" | "right";
 };
 
 export const GlowSelect = ({
@@ -34,6 +35,7 @@ export const GlowSelect = ({
   buttonClassName,
   listClassName,
   align = "left",
+  placement = "bottom",
 }: GlowSelectProps) => {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState<number>(-1);
@@ -138,6 +140,9 @@ export const GlowSelect = ({
     optionEl?.scrollIntoView({ block: "nearest" });
   }, [highlighted, open]);
 
+  const isTopPlacement = placement === "top";
+  const isRightPlacement = placement === "right";
+
   return (
     <div ref={containerRef} className={clsx("relative", className)}>
       <button
@@ -172,24 +177,41 @@ export const GlowSelect = ({
         <svg
           className={clsx(
             "h-4 w-4 text-slate-400 transition-transform duration-200",
-            open ? "rotate-180" : "rotate-0",
+            isRightPlacement 
+              ? "rotate-0" 
+              : open ? "rotate-180" : "rotate-0",
           )}
           viewBox="0 0 20 20"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"
         >
-          <path d="M5 7l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+          <path 
+            d={isRightPlacement ? "M7 5l5 5-5 5" : "M5 7l5 5 5-5"} 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
         </svg>
       </button>
 
       <div
         className={clsx(
-          "absolute z-40 mt-2 w-full min-w-[12rem] origin-top overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/95/ backdrop-blur-xl shadow-[0_28px_60px_-30px_rgba(56,189,248,0.45)] transition-all duration-200",
+          "absolute z-[9999] overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/95 backdrop-blur-xl shadow-[0_28px_60px_-30px_rgba(56,189,248,0.45)] transition-all duration-200",
+          isRightPlacement 
+            ? "left-full ml-2 top-1/2 -translate-y-1/2 min-w-[16rem] w-auto origin-left" 
+            : isTopPlacement 
+              ? "bottom-full mb-2 w-full min-w-[12rem] origin-bottom" 
+              : "mt-2 w-full min-w-[12rem] origin-top",
           open
-            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none -translate-y-2 scale-95 opacity-0",
-          align === "right" ? "right-0" : "left-0",
+            ? isRightPlacement
+              ? "pointer-events-auto -translate-y-1/2 scale-100 opacity-100"
+              : "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : isRightPlacement
+              ? "pointer-events-none -translate-y-1/2 -translate-x-2 scale-95 opacity-0"
+              : isTopPlacement
+                ? "pointer-events-none translate-y-2 scale-95 opacity-0"
+                : "pointer-events-none -translate-y-2 scale-95 opacity-0",
+          !isRightPlacement && (align === "right" ? "right-0" : "left-0"),
           listClassName,
         )}
         role="presentation"

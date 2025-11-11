@@ -1,19 +1,26 @@
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
+import type { ShellOutletContext } from '../../app/layouts/ShellLayout';
 
 export const QuizResultsPage = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const attemptId = searchParams.get('attemptId');
+  const { setAiContext, setAiSection } = useOutletContext<ShellOutletContext>();
 
   const { data: quiz, isLoading } = trpc.quiz.getQuiz.useQuery(
     { id: id! },
-    { enabled: !!id }
+    { 
+      enabled: !!id,
+      refetchOnMount: 'always', // Always fetch fresh data when results page loads
+      refetchOnWindowFocus: false, // Don't refetch when user switches tabs
+    }
   );
 
   if (isLoading) {
@@ -45,7 +52,77 @@ export const QuizResultsPage = () => {
 
   const score = quiz.score || 0;
   const accuracy = quiz.accuracy || 0;
-  const timeSpent = quiz.timeSpent || 0;
+  const timeSpent = (quiz as any).actualTimeSpent || quiz.timeSpent || 0;
+
+  type QuestionInsight = {
+    id: string;
+    index: number;
+    topic: string | null;
+    difficulty: string | null;
+    isCorrect: boolean;
+    hasPartial: boolean;
+    isUnanswered: boolean;
+    userAnswers: number[];
+    correctAnswers: number[];
+    explanation: string;
+  };
+
+  const userAnswersMap = (quiz as any).userAnswers as Record<string, number[]> | undefined;
+
+  const questionInsights = useMemo<QuestionInsight[]>(() => {
+    return quiz.questions.map((question, index) => {
+      const userAnswers = userAnswersMap?.[question.id] || [];
+      const correctAnswers = (question.correctAnswers as number[]) || [];
+      const isUnanswered = userAnswers.length === 0;
+      const isCorrect =
+        !isUnanswered &&
+        userAnswers.length === correctAnswers.length &&
+        userAnswers.every((ans) => correctAnswers.includes(ans));
+      const hasPartial =
+        !isUnanswered && userAnswers.some((ans) => correctAnswers.includes(ans)) && !isCorrect;
+
+      return {
+        id: question.id,
+        index: index + 1,
+        topic: question.topic ?? null,
+        difficulty: (question.difficulty as string | null) ?? null,
+        isCorrect,
+        hasPartial,
+        isUnanswered,
+        userAnswers,
+        correctAnswers,
+        explanation: question.explanation ?? '',
+      };
+    });
+  }, [quiz.questions, userAnswersMap]);
+
+  useEffect(() => {
+    if (!quiz) return;
+
+    setAiSection('study');
+    setAiContext({
+      type: 'quiz_results',
+      quizId: quiz.id,
+      attemptId,
+      title: quiz.title,
+      examType: quiz.examType,
+      answerType: quiz.answerType,
+      totalQuestions: quiz.questions.length,
+      score,
+      correctCount: quiz.correctCount || 0,
+      partialCount: quiz.partialCount || 0,
+      attemptedCount: quiz.attemptedCount || 0,
+      unattemptedCount: quiz.questions.length - (quiz.attemptedCount || 0),
+      timeSpentSeconds: timeSpent,
+      includeTimer: quiz.includeTimer,
+      timeLimitMinutes: quiz.timeMinutes || null,
+      questionInsights,
+    });
+
+    return () => {
+      setAiContext(undefined);
+    };
+  }, [attemptId, questionInsights, quiz, score, setAiContext, setAiSection, timeSpent]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -69,8 +146,7 @@ export const QuizResultsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto py-6">
         {/* Score Card */}
         <div className="glass-card rounded-2xl p-8 border border-primary/20 mb-6 relative overflow-hidden">
           {/* Background decoration */}
@@ -147,13 +223,12 @@ export const QuizResultsPage = () => {
           <h2 className="text-2xl font-bold text-white mb-4">Question Analysis</h2>
           
           {quiz.questions.map((question, index) => {
-            const userAnswers = (quiz as any).userAnswers?.[question.id] || [];
-            const correctAnswers = question.correctAnswers as number[];
-            const isCorrect = 
-              userAnswers.length === correctAnswers.length &&
-              userAnswers.every((ans: number) => correctAnswers.includes(ans));
-            const hasPartial = 
-              userAnswers.some((ans: number) => correctAnswers.includes(ans)) && !isCorrect;
+            const insight = questionInsights[index];
+            const userAnswers = insight.userAnswers;
+            const correctAnswers = insight.correctAnswers;
+            const isUnanswered = insight.isUnanswered;
+            const isCorrect = insight.isCorrect;
+            const hasPartial = insight.hasPartial;
 
             return (
               <div
@@ -166,7 +241,14 @@ export const QuizResultsPage = () => {
                     <span className="px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold">
                       Q{index + 1}
                     </span>
-                    {isCorrect ? (
+                    {isUnanswered ? (
+                      <span className="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                        </svg>
+                        Not Answered
+                      </span>
+                    ) : isCorrect ? (
                       <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -226,14 +308,20 @@ export const QuizResultsPage = () => {
                               {optionLabel}
                             </span>
                             {isCorrectOption && (
-                              <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
+                              <div className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-xs text-emerald-400 font-medium">Correct</span>
+                              </div>
                             )}
                             {isUserSelected && !isCorrectOption && (
-                              <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                              </svg>
+                              <div className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-xs text-red-400 font-medium">Your Answer</span>
+                              </div>
                             )}
                           </div>
                           <div className="flex-1 prose prose-invert prose-xs max-w-none">
@@ -273,7 +361,6 @@ export const QuizResultsPage = () => {
             );
           })}
         </div>
-      </div>
     </div>
   );
 };

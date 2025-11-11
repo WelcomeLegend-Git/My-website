@@ -7,12 +7,13 @@ import { useRegisterPwa } from "./hooks/useRegisterPwa";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { FormulaLibraryPage } from "./pages/formulas/FormulaLibraryPage";
 import { FormulaCollectionPage } from "./pages/formulas/FormulaCollectionPage";
 import { FormulaCollectionsListPage } from "./pages/formulas/FormulaCollectionsListPage";
 import { MistakeLogPage } from "./pages/mistakes/MistakeLogPage";
+import { MistakeDetailPage } from "./pages/mistakes/MistakeDetailPage";
+import { StudyCoachPage } from "./pages/study-coach/StudyCoachPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { StudyCoachPage } from "./pages/study/StudyCoachPage";
+import { QuizHistoryPage } from "./pages/quiz/QuizHistoryPage";
 import { QuizPage } from "./pages/quiz/QuizPage";
 import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 
@@ -30,12 +31,13 @@ const App = () => {
         <Route element={<ShellLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="formulas" element={<FormulaCollectionsListPage />} />
-          <Route path="formulas/add" element={<FormulaLibraryPage />} />
           <Route path="formulas/collections/:id" element={<FormulaCollectionPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />
           <Route path="quiz/:id/results" element={<QuizResultsPage />} />
           <Route path="mistakes" element={<MistakeLogPage />} />
-          <Route path="study" element={<StudyCoachPage />} />
+          <Route path="mistakes/:id" element={<MistakeDetailPage />} />
+          <Route path="quiz-history" element={<QuizHistoryPage />} />
+          <Route path="study-coach" element={<StudyCoachPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

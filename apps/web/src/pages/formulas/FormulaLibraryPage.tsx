@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useShellContext } from "../../app/layouts/useShellContext";
 import { GlowSelect } from "../../components/ui/GlowSelect";
 import { FormulaCard } from "../../features/formulas/components/FormulaCard";
@@ -65,6 +66,7 @@ const buildDraftFromFormula = (formula: Formula): FormulaDraft => ({
 });
 
 export const FormulaLibraryPage = () => {
+  const location = useLocation();
   const { setAiSection, setAiContext, openAi } = useShellContext();
   const utils = trpc.useUtils();
 
@@ -146,6 +148,13 @@ export const FormulaLibraryPage = () => {
       setAiContext(undefined);
     };
   }, [setAiContext, setAiSection]);
+
+  // Auto-open add formula modal when navigating to /formulas/add
+  useEffect(() => {
+    if (location.pathname === '/formulas/add' && !formState) {
+      setFormState({ mode: 'create' });
+    }
+  }, [location.pathname, formState]);
 
   useEffect(() => {
     if (selectedFormula) {
@@ -311,6 +320,25 @@ export const FormulaLibraryPage = () => {
 
   return (
     <section className="space-y-6">
+      {/* Only show modal when formState is set, hide everything else */}
+      {formState && (
+        <FormulaFormDialog
+          key={formState.mode === "edit" ? formState.formula.id : "create"}
+          defaultValues={currentFormDefaults}
+          onSubmit={handleFormSubmit}
+          onClose={closeForm}
+          open={true}
+          mode={formState.mode}
+          subjects={subjects ?? []}
+          onCreateChapter={handleCreateChapter}
+          errorMessage={formError}
+          isSubmitting={isSaving}
+        />
+      )}
+      
+      {/* Only show main interface when no modal is open */}
+      {!formState && (
+        <>
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula studio</p>
@@ -492,18 +520,8 @@ export const FormulaLibraryPage = () => {
           )}
         </aside>
       </div>
-
-      <FormulaFormDialog
-        open={Boolean(formState)}
-        mode={formState?.mode ?? "create"}
-        subjects={subjects}
-        defaultValues={currentFormDefaults}
-        isSubmitting={isSaving}
-        errorMessage={formError}
-        onClose={closeForm}
-        onSubmit={handleFormSubmit}
-        onCreateChapter={handleCreateChapter}
-      />
+        </>
+      )}
     </section>
   );
 };

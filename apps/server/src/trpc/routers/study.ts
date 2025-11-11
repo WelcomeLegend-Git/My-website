@@ -95,7 +95,13 @@ Context: ${JSON.stringify(input.context ?? {})}
 Student message: ${input.message}
 Provide a concise, structured response with actionable guidance.`;
 
-      const response = await ctx.gemini.generate({ prompt });
+      // Use premium model for quiz analysis (quiz_history or quiz_results)
+      const usePremium = input.context?.type === 'quiz_history' || input.context?.type === 'quiz_results';
+      
+      const response = await ctx.gemini.generate({ 
+        prompt,
+        usePremiumOnly: usePremium, // Use gemini-2.5-pro for deep quiz analysis
+      });
       return { reply: response.text };
     }),
   
@@ -346,5 +352,25 @@ Respond STRICTLY in this JSON format:
       });
 
       return { success: true };
+    }),
+
+  // Verify AI access code
+  verifyAiAccess: procedure
+    .use(requireUser)
+    .input(z.object({ code: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const { env } = await import("../../env");
+      
+      if (input.code.trim() !== env.AI_ACCESS_CODE) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN",
+          message: "Invalid access code. Please contact the owner for the correct code." 
+        });
+      }
+
+      return { 
+        success: true, 
+        message: "AI Mentor access granted! You can now use all AI features." 
+      };
     }),
 });

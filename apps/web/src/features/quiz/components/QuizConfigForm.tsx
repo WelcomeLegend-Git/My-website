@@ -13,9 +13,10 @@ type Props = {
   onSubmit: (config: QuizConfig) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  section?: 'formulas' | 'mistakes' | 'study';
 };
 
-export const QuizConfigForm = ({ onSubmit, onCancel, isLoading }: Props) => {
+export const QuizConfigForm = ({ onSubmit, onCancel, isLoading, section = 'formulas' }: Props) => {
   const [config, setConfig] = useState<QuizConfig>({
     examType: 'mains',
     questionCount: 10,
@@ -130,7 +131,7 @@ export const QuizConfigForm = ({ onSubmit, onCancel, isLoading }: Props) => {
                   : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
               }`}
             >
-              Current Collection Only
+              {section === 'mistakes' ? 'Current Mistake Only' : 'Current Collection Only'}
             </button>
             <button
               type="button"
@@ -141,7 +142,7 @@ export const QuizConfigForm = ({ onSubmit, onCancel, isLoading }: Props) => {
                   : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
               }`}
             >
-              All Formulas in This Chapter
+              {section === 'mistakes' ? 'All Mistakes in This Chapter' : 'All Formulas in This Chapter'}
             </button>
             <button
               type="button"

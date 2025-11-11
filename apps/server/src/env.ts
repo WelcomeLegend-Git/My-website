@@ -17,15 +17,19 @@ const envSchema = z.object({
     .string()
     .min(1, "Provide at least one Gemini API key")
     .transform((value) => value.split(",").map((key) => key.trim()).filter(Boolean)),
-  GEMINI_MODEL_PRIMARY: z.string().default("models/gemini-2.0-pro-exp"),
+  GEMINI_MODEL_PRIMARY: z.string().default("gemini-2.0-flash-exp"),
   GEMINI_MODEL_FALLBACK: z
     .string()
-    .default("models/gemini-2.0-pro-exp-1121")
+    .default("gemini-1.5-flash,gemini-1.5-pro")
     .transform((value) => value.split(",").map((model) => model.trim()).filter(Boolean)),
   UPLOAD_DIR: z
     .string()
     .default(path.join(process.cwd(), "uploads"))
     .transform((dir) => path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)),
+  AI_ACCESS_CODE: z
+    .string()
+    .min(6, "AI_ACCESS_CODE must be at least 6 characters")
+    .default("dev123"),
 });
 
 const parsed = envSchema.safeParse(process.env);

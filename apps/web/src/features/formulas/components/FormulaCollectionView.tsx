@@ -146,7 +146,7 @@ export const FormulaCollectionView = ({ collection }: Props) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-8 px-4">
+    <div className="w-full">
       {/* Inject custom styles for textbook-quality math rendering */}
       <style>{mathStyles}</style>
       <div className="max-w-5xl mx-auto">
@@ -191,31 +191,6 @@ export const FormulaCollectionView = ({ collection }: Props) => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  openAi();
-                  // Trigger quiz setup by simulating a practice request
-                  setTimeout(() => {
-                    const aiInput = document.querySelector('textarea[placeholder="Ask the mentor anything..."]') as HTMLTextAreaElement;
-                    const aiForm = aiInput?.closest('form');
-                    if (aiInput && aiForm) {
-                      aiInput.value = 'I want to practice these formulas';
-                      aiInput.focus();
-                      // Trigger form submission
-                      setTimeout(() => {
-                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                        aiForm.dispatchEvent(submitEvent);
-                      }, 100);
-                    }
-                  }, 500);
-                }}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Practice Quiz
-              </button>
               <button
                 onClick={expandAll}
                 className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors"
@@ -596,6 +571,35 @@ export const FormulaCollectionView = ({ collection }: Props) => {
               </div>
             );
           })}
+        </div>
+
+        {/* Quiz History Shortcut */}
+        <div className="mt-8 glass-card rounded-2xl p-6 border border-slate-800/50">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Practice Quizzes
+              </h3>
+              <p className="text-sm text-slate-400 mt-1">
+                View all quizzes created from this collection
+              </p>
+            </div>
+            <a
+              href="/quiz-history"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary font-medium hover:from-primary/30 hover:to-purple-500/30 transition-all flex items-center gap-2"
+            >
+              View All Quizzes
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+          <p className="text-slate-500 text-sm">
+            Generated quizzes from this collection will appear here. Use the AI mentor to create practice quizzes!
+          </p>
         </div>
       </div>
     </div>

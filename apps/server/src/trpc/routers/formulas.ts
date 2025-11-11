@@ -335,6 +335,7 @@ Respond ONLY with valid JSON:
         prompt,
         imageBase64: input.imageBase64,
         mimeType: input.mimeType,
+        usePremiumOnly: true, // Only use gemini-2.5-pro for formula extraction
       });
 
       try {
@@ -538,6 +539,7 @@ Respond ONLY with a valid JSON array:
         prompt,
         imageBase64: input.imageBase64,
         mimeType: input.mimeType,
+        usePremiumOnly: true, // Only use gemini-2.5-pro for bulk extraction
       });
 
       try {

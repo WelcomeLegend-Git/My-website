@@ -63,6 +63,30 @@ export const mistakesRouter = router({
         aiMindMap: mistake.aiMindMap as unknown,
       }));
     }),
+  
+  getMistake: procedure
+    .use(requireUser)
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const mistake = await ctx.prisma.mistake.findUnique({
+        where: { id: input.id },
+        include: {
+          assets: true,
+          subject: true,
+          chapter: true,
+        },
+      });
+
+      if (!mistake || mistake.ownerId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Mistake not found" });
+      }
+
+      return {
+        ...mistake,
+        aiMindMap: mistake.aiMindMap as unknown,
+      };
+    }),
+
   create: procedure.use(requireUser).input(baseMistakeInput).mutation(async ({ ctx, input }) => {
     const chapter = await ctx.prisma.chapter.findUnique({
       where: { id: input.chapterId },
@@ -196,6 +220,79 @@ ${input.steps ? `Workings: ${input.steps}` : ""}`,
         return parsed;
       } catch (error) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to parse AI response", cause: error });
+      }
+    }),
+  analyzeWithImages: procedure
+    .use(requireUser)
+    .input(
+      z.object({
+        images: z.array(
+          z.object({
+            data: z.string(),
+            mimeType: z.string(),
+          })
+        ),
+        userContext: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const prompt = `You are an expert JEE (Joint Entrance Examination) tutor analyzing a student's mistake from their work.
+
+Carefully examine the uploaded images and provide a comprehensive analysis.
+
+${input.userContext ? `Additional Context: ${input.userContext}\n` : ""}
+
+Analyze and return ONLY valid JSON with this exact structure:
+{
+  "title": "Brief, descriptive title of the mistake (max 100 chars)",
+  "errorType": "conceptual" | "calculation" | "careless" | "unknown",
+  "difficulty": "easy" | "medium" | "hard",
+  "subject": "Physics" | "Chemistry" | "Mathematics",
+  "suggestedChapter": "Appropriate chapter name for this topic",
+  "analysis": {
+    "whatWentWrong": "Clear explanation of what the student did wrong",
+    "whyWrong": "Why this approach/answer is incorrect",
+    "correctApproach": "Step-by-step correct method to solve this",
+    "keyConcepts": ["concept1", "concept2", "concept3"]
+  },
+  "similarTopics": ["topic1", "topic2", "topic3"],
+  "bestImageIndex": 0,
+  "aiSummary": "Comprehensive summary of the mistake and learning points",
+  "aiMindMap": {
+    "root": "Main Concept",
+    "branches": [
+      {"label": "Branch 1", "children": []},
+      {"label": "Branch 2", "children": []}
+    ]
+  }
+}
+
+Important:
+- "bestImageIndex" should be the index (0-${input.images.length - 1}) of the image that best shows the error
+- Provide actionable, encouraging feedback
+- Focus on learning, not just correction
+- Return ONLY the JSON object, no markdown formatting`;
+
+      // Use upgraded geminiClient with multi-image support and 4-API fallback
+      const result = await ctx.gemini.generate({
+        prompt,
+        images: input.images, // Pass multiple images directly
+        usePremiumOnly: true, // Use Gemini 2.5 Pro with all 4 API keys
+      });
+
+      // Extract JSON from markdown if present
+      const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/) || result.text.match(/\{[\s\S]*\}/);
+      const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : result.text;
+      
+      try {
+        const analysis = JSON.parse(jsonText);
+        return analysis;
+      } catch (parseError) {
+        throw new TRPCError({ 
+          code: "INTERNAL_SERVER_ERROR", 
+          message: "Failed to parse AI analysis. Please try again.",
+          cause: parseError 
+        });
       }
     }),
 });

@@ -2,9 +2,7 @@ import { router, procedure } from "../trpc";
 import { requireUser } from "../middleware/auth";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import { geminiClient } from "../../services/ai/gemini-client";
 
 const quizConfigSchema = z.object({
   examType: z.enum(["mains", "advanced"]),
@@ -29,32 +27,30 @@ export const quizRouter = router({
           hasContext: !!input.context,
         });
 
-        // Check API key
-        if (!process.env.GEMINI_API_KEY) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Gemini API key not configured",
-          });
-        }
-
-        // Use Gemini 2.5 Pro for high-quality question generation
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
         // Build prompt based on context and configuration
         const prompt = buildQuizPrompt(input);
         console.log('Generated prompt length:', prompt.length);
 
-        const result = await model.generateContent(prompt);
-        const response = result.response.text();
-        console.log('Gemini response received, length:', response.length);
+        // Use geminiClient with premium-only mode (gemini-2.5-pro only)
+        const result = await geminiClient.generate({ 
+          prompt,
+          usePremiumOnly: true // Only use gemini-2.5-pro with all API keys
+        });
+        console.log('Gemini response received, length:', result.text.length, 'model:', result.model);
 
         // Parse the generated questions
-        const questions = parseQuizQuestions(response, input);
+        const questions = parseQuizQuestions(result.text, input);
+
+        // Determine source type from context
+        const sourceType = input.context?.entity === 'mistake' ? 'mistake' : 'formula';
+        const mistakeIds = input.context?.entity === 'mistake' && input.context?.id ? [input.context.id] : [];
+        const formulaIds = input.context?.entity === 'formula' && input.context?.id ? [input.context.id] : 
+                          input.context?.formulas ? input.context.formulas.map((f: any) => f.id) : [];
 
         // Create quiz in database
         const quiz = await ctx.prisma.practiceQuiz.create({
           data: {
-            title: `${input.examType === "mains" ? "JEE Mains" : "JEE Advanced"} Practice - ${
+            title: `${input.examType === "mains" ? "JEE Mains" : "JEE Advanced"} ${sourceType === 'mistake' ? 'Mistake' : ''} Practice - ${
               input.questionCount
             } Questions`,
             examType: input.examType,
@@ -63,6 +59,9 @@ export const quizRouter = router({
             includeTimer: input.includeTimer,
             timeMinutes: input.timeMinutes,
             scope: input.scope,
+            sourceType,
+            mistakeIds,
+            formulaIds,
             ownerId: ctx.user.id,
             questions: {
               create: questions.map((q, index) => ({
@@ -111,6 +110,11 @@ export const quizRouter = router({
           questions: {
             orderBy: { questionNumber: "asc" },
           },
+          attempts: {
+            where: { userId: ctx.user.id },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
         },
       });
 
@@ -121,7 +125,19 @@ export const quizRouter = router({
         });
       }
 
-      return quiz;
+      // Include user answers and stats from latest attempt if exists
+      const latestAttempt = quiz.attempts[0];
+      return {
+        ...quiz,
+        userAnswers: latestAttempt?.answers || {},
+        actualTimeSpent: latestAttempt?.timeSpent || 0,
+        score: latestAttempt?.score || 0,
+        accuracy: latestAttempt?.accuracy || 0,
+        correctCount: latestAttempt?.correctCount || 0,
+        partialCount: latestAttempt?.partialCount || 0,
+        attemptedCount: latestAttempt?.attemptedCount || 0,
+        detailedResults: latestAttempt?.detailedResults || [],
+      };
     }),
 
   submitQuiz: procedure
@@ -134,7 +150,7 @@ export const quizRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const quiz = await ctx.prisma.quiz.findUnique({
+      const quiz = await ctx.prisma.practiceQuiz.findUnique({
         where: { id: input.quizId },
         include: {
           questions: true,
@@ -277,7 +293,13 @@ Requirements:
 - Include detailed explanations
 - Use proper LaTeX notation: inline $...$ and display $$...$$
 
-Format your response as a JSON array:
+CRITICAL JSON FORMATTING RULES:
+1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text
+2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\\\ in the JSON string
+3. Example valid JSON: "questionText": "Calculate $$\\\\frac{1}{2}mv^2$$"
+4. Escape all quotes and special characters properly
+
+Example format:
 [
   {
     "questionText": "Question with LaTeX: $x^2 + y^2 = r^2$",
@@ -287,40 +309,118 @@ Format your response as a JSON array:
       "Option C",
       "Option D"
     ],
-    "correctAnswers": [0], // 0-indexed, can be multiple for multiple correct
+    "correctAnswers": [0],
     "explanation": "Detailed explanation with LaTeX: $$F = ma$$",
     "difficulty": "medium",
     "topic": "Kinematics"
   }
 ]
 
-Generate EXACTLY ${input.questionCount} questions in valid JSON format.`;
+Generate EXACTLY ${input.questionCount} questions. Output ONLY the JSON array, nothing else.`;
 }
 
 // Helper function to parse quiz questions from AI response
 function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSchema>) {
   try {
-    // Extract JSON from response (AI might add extra text)
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    // Log the response for debugging
+    console.log('=== PARSING AI RESPONSE ===');
+    console.log('Full response length:', response.length);
+    console.log('First 1000 chars:', response.substring(0, 1000));
+    console.log('Last 500 chars:', response.substring(Math.max(0, response.length - 500)));
+    
+    // Clean response - remove markdown code blocks if present
+    let cleanedResponse = response.trim();
+    
+    // Remove various markdown code block formats
+    cleanedResponse = cleanedResponse
+      .replace(/^```json\s*/g, '')
+      .replace(/^```\s*/g, '')
+      .replace(/```\s*$/g, '')
+      .trim();
+    
+    console.log('Cleaned response (first 500 chars):', cleanedResponse.substring(0, 500));
+    
+    // Try to find JSON array with more flexible regex
+    let jsonMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    
     if (!jsonMatch) {
-      throw new Error("No valid JSON found in response");
+      // Try alternative: Maybe it starts with array directly
+      if (cleanedResponse.startsWith('[')) {
+        jsonMatch = [cleanedResponse];
+      } else {
+        console.error('=== NO JSON ARRAY FOUND ===');
+        console.error('Cleaned response:', cleanedResponse);
+        throw new Error("No valid JSON array found in response. AI may have returned text instead of JSON.");
+      }
     }
 
-    const questions = JSON.parse(jsonMatch[0]);
+    console.log('Attempting to parse JSON...');
+    
+    // Additional cleaning: Fix common LaTeX-related JSON issues
+    let jsonString = jsonMatch[0];
+    
+    // Try parsing with multiple strategies
+    let questions;
+    try {
+      questions = JSON.parse(jsonString);
+    } catch (firstError) {
+      console.log('First parse failed, trying to fix LaTeX escaping...');
+      
+      // Strategy: Use a more lenient JSON parser or fix common issues
+      // Fix: Replace problematic escape sequences (but preserve valid ones)
+      try {
+        // Alternative: Try parsing with relaxed JSON (JSON5-like approach)
+        // For now, try to fix common LaTeX issues
+        const fixed = jsonString
+          // Fix incomplete escape sequences at the end of strings
+          .replace(/\\(?=\s*["'])/g, '\\\\')
+          // Fix single backslashes followed by non-escape chars
+          .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+        
+        questions = JSON.parse(fixed);
+        console.log('✅ Fixed JSON parsing with LaTeX cleanup');
+      } catch (secondError) {
+        console.error('Second parse also failed:', secondError);
+        throw new Error(
+          `Failed to parse JSON even after cleanup. Original error: ${
+            firstError instanceof Error ? firstError.message : 'Unknown'
+          }. This usually means the AI generated malformed JSON with LaTeX notation. Try generating again.`
+        );
+      }
+    }
+    console.log(`✅ Successfully parsed ${questions.length} questions`);
+
+    // Validate that we have enough questions
+    if (questions.length === 0) {
+      throw new Error("No questions generated");
+    }
 
     // Validate and format questions
-    return questions.map((q: any) => ({
-      questionText: q.questionText || q.question || "",
-      options: Array.isArray(q.options) ? q.options : [],
-      correctAnswers: Array.isArray(q.correctAnswers)
-        ? q.correctAnswers
-        : [q.correctAnswer || 0],
-      explanation: q.explanation || "",
-      difficulty: q.difficulty || "medium",
-      topic: q.topic || "General",
-    }));
+    return questions.map((q: any, index: number) => {
+      if (!q.questionText && !q.question) {
+        console.warn(`Question ${index + 1} missing text`);
+      }
+      if (!Array.isArray(q.options) || q.options.length === 0) {
+        console.warn(`Question ${index + 1} missing options`);
+      }
+      
+      return {
+        questionText: q.questionText || q.question || "",
+        options: Array.isArray(q.options) ? q.options : [],
+        correctAnswers: Array.isArray(q.correctAnswers)
+          ? q.correctAnswers
+          : [q.correctAnswer || 0],
+        explanation: q.explanation || "",
+        difficulty: q.difficulty || "medium",
+        topic: q.topic || "General",
+      };
+    });
   } catch (error) {
-    console.error("Failed to parse quiz questions:", error);
-    throw new Error("Failed to parse generated questions");
+    console.error("=== PARSING ERROR ===");
+    console.error("Error details:", error);
+    console.error("Full response:", response);
+    
+    const errorMsg = error instanceof Error ? error.message : "Unknown parsing error";
+    throw new Error(`Failed to parse generated questions: ${errorMsg}. Check server logs for full response.`);
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -6,6 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from "../../../lib/trpc";
 import { QuizConfigForm, type QuizConfig } from '../../quiz/components/QuizConfigForm';
+import { AiAccessModal } from './AiAccessModal';
 
 // Helper to ensure LaTeX delimiters are correct
 const ensureMathDelimiters = (text: string): string => {
@@ -46,6 +47,23 @@ export const AiSidebar = ({ open, section, context }: Props) => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+
+  // Check if user has verified AI access on mount
+  useEffect(() => {
+    const verified = localStorage.getItem("ai_access_verified") === "true";
+    setIsVerified(verified);
+    if (!verified && open) {
+      setShowVerification(true);
+    }
+  }, [open]);
+
+  const handleVerified = () => {
+    setIsVerified(true);
+    setShowVerification(false);
+  };
+
   const mutation = trpc.studyApi.contextualAssistant.useMutation({
     onSuccess: (data) => {
       setMessages((prev) => [
@@ -60,16 +78,7 @@ export const AiSidebar = ({ open, section, context }: Props) => {
       // Navigate to quiz page
       navigate(`/quiz/${data.quizId}`);
     },
-    onError: (error) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: createId(),
-          role: "assistant",
-          content: `Failed to generate quiz: ${error.message}`,
-        },
-      ]);
-    },
+    // Don't use onError - we handle errors in handleQuizSubmit catch block
   });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -85,7 +94,7 @@ export const AiSidebar = ({ open, section, context }: Props) => {
       content.toLowerCase().includes(keyword)
     );
     
-    if (wantsPractice && section === 'formulas') {
+    if (wantsPractice && (section === 'formulas' || section === 'mistakes')) {
       setShowQuizConfig(true);
       setMessages((prev) => [
         ...prev,
@@ -93,7 +102,9 @@ export const AiSidebar = ({ open, section, context }: Props) => {
         {
           id: createId(),
           role: "assistant",
-          content: "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+          content: section === 'mistakes' 
+            ? "Great! Let's create a practice quiz targeting this mistake type. Configure your quiz below:"
+            : "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
         },
       ]);
       setInput("");
@@ -118,23 +129,38 @@ export const AiSidebar = ({ open, section, context }: Props) => {
   };
 
   const handleQuizSubmit = async (config: QuizConfig) => {
+    setShowQuizConfig(false);
+    
+    // Add generating message
+    const generatingMsgId = createId();
     setMessages((prev) => [
       ...prev,
       {
-        id: createId(),
+        id: generatingMsgId,
         role: "assistant",
         content: `Perfect! Generating ${config.questionCount} ${config.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'} questions with ${config.answerType} correct answers. This will take a moment...`,
       },
     ]);
-    setShowQuizConfig(false);
     
     try {
       await quizMutation.mutateAsync({
         ...config,
         context: context as any,
       });
+      // Success - remove generating message as we navigate away
     } catch (error) {
-      // Error handled by mutation
+      // Remove the "generating" message and show error
+      setMessages((prev) => {
+        const filtered = prev.filter(m => m.id !== generatingMsgId);
+        return [
+          ...filtered,
+          {
+            id: createId(),
+            role: "assistant",
+            content: `Failed to generate quiz: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          },
+        ];
+      });
     }
   };
 
@@ -143,9 +169,12 @@ export const AiSidebar = ({ open, section, context }: Props) => {
   }
 
   return (
-    <aside className="hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right min-h-0 max-h-[calc(100vh-6rem)] overflow-hidden">
-      {/* Header with gradient accent */}
-      <div className="relative mb-5">
+    <>
+      {showVerification && <AiAccessModal onVerified={handleVerified} />}
+      
+      <aside className="hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start">
+      {/* Header with gradient accent - Fixed at top */}
+      <div className="relative mb-5 flex-shrink-0">
         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
         <div className="relative glass-card rounded-2xl p-4 border border-emerald-500/20">
           <div className="flex items-center gap-3">
@@ -254,20 +283,22 @@ export const AiSidebar = ({ open, section, context }: Props) => {
               onSubmit={handleQuizSubmit}
               onCancel={() => setShowQuizConfig(false)}
               isLoading={quizMutation.isPending}
+              section={section}
             />
           </div>
         )}
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={handleSubmit} className="mt-5 space-y-3 shrink-0">
+      {/* Input Form - Fixed at bottom */}
+      <form onSubmit={handleSubmit} className="mt-5 space-y-3 flex-shrink-0">
         <div className="relative">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             rows={3}
-            className="w-full resize-none rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-            placeholder="Ask the mentor anything..."
+            disabled={!isVerified || mutation.isPending || quizMutation.isPending}
+            className="w-full resize-none rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder={isVerified ? "Ask the mentor anything..." : "Verify access to use AI Mentor..."}
           />
           <div className="absolute bottom-3 right-3 text-xs text-slate-500">
             {input.length}/500
@@ -276,15 +307,15 @@ export const AiSidebar = ({ open, section, context }: Props) => {
         <button
           type="submit"
           className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
-          disabled={mutation.isPending}
+          disabled={!isVerified || mutation.isPending || quizMutation.isPending}
         >
-          {mutation.isPending ? (
+          {mutation.isPending || quizMutation.isPending ? (
             <>
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Thinking...
+              {quizMutation.isPending ? 'Generating Quiz...' : 'Thinking...'}
             </>
           ) : (
             <>
@@ -297,5 +328,6 @@ export const AiSidebar = ({ open, section, context }: Props) => {
         </button>
       </form>
     </aside>
+    </>
   );
 };

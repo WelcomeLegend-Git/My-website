@@ -225,6 +225,8 @@ model QuizSession {
   timeTaken   Int?        // in seconds
   scope       String?     // 'single_formula', 'chapter', 'cross_chapter'
   formulaIds  Json        @default("[]") // Array of formula IDs used
+  mistakeIds  Json        @default("[]") // Array of mistake IDs used (for mistake-based quizzes)
+  sourceType  String      @default("formula") // 'formula' or 'mistake' - tracks quiz origin
   analysis    Json?       // Detailed performance analysis
   
   ownerId     String
@@ -234,6 +236,7 @@ model QuizSession {
   updatedAt   DateTime    @updatedAt
 
   @@index([ownerId])
+  @@index([sourceType])
 }
 
 model QuizQuestion {
@@ -268,6 +271,9 @@ model PracticeQuiz {
   includeTimer  Boolean           @default(false)
   timeMinutes   Int?
   scope         String            // "current", "all", "cross-chapter"
+  sourceType    String            @default("formula") // "formula" or "mistake" - tracks quiz origin
+  mistakeIds    Json              @default("[]") // Array of mistake IDs (for mistake-based quizzes)
+  formulaIds    Json              @default("[]") // Array of formula IDs (for formula-based quizzes)
   ownerId       String
   owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   questions     PracticeQuestion[]
@@ -281,6 +287,7 @@ model PracticeQuiz {
 
   @@index([ownerId])
   @@index([createdAt])
+  @@index([sourceType])
 }
 
 model PracticeQuestion {

@@ -10,6 +10,7 @@
     ]
   },
   "scripts": {
+    "preinstall": "npm install -g patch-package || true",
     "postinstall": "prisma generate --schema apps/server/prisma/schema.prisma",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

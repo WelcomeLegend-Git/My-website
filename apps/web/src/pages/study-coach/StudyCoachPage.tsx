@@ -33,7 +33,10 @@ export const StudyCoachPage = () => {
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [historyQuery, setHistoryQuery] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false); // mobile drawer
+  const [sidebarVisible, setSidebarVisible] = useState(true); // desktop collapse/expand
+  const [images, setImages] = useState<{ data: string; mimeType: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setAiSection("study");
@@ -92,13 +95,14 @@ export const StudyCoachPage = () => {
     setMessages((prev) => [...prev, { id: createId(), role: "user", content }]);
     setInput("");
     try {
-      await mutation.mutateAsync({ section: "study", context: undefined, message: content });
+      await mutation.mutateAsync({ section: "study", context: undefined, message: content, images: images.length ? images : undefined });
     } catch (error) {
       setMessages((prev) => [
         ...prev,
         { id: createId(), role: "assistant", content: error instanceof Error ? error.message : "Something went wrong. Try again." },
       ]);
     }
+    setImages([]);
   };
 
   const handleQuizSubmit = async (config: QuizConfig) => {
@@ -139,8 +143,26 @@ export const StudyCoachPage = () => {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
+  const onPickImagesClick = () => fileInputRef.current?.click();
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const list = Array.from(files).slice(0, Math.max(0, 10 - images.length));
+    const readers = await Promise.all(
+      list.map(
+        (file) =>
+          new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve({ data: String(fr.result), mimeType: file.type || "image/*" });
+            fr.onerror = reject;
+            fr.readAsDataURL(file);
+          })
+      )
+    );
+    setImages((prev) => [...prev, ...readers].slice(0, 10));
+  };
+
   return (
-    <section className="flex gap-4 lg:gap-6">
+    <section className="flex gap-4 lg:gap-6 w-full min-h-[calc(100dvh-6rem)]">
       {/* Mobile history drawer */}
       {historyOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
@@ -181,17 +203,25 @@ export const StudyCoachPage = () => {
       )}
 
       {/* Desktop left history */}
-      <aside className="hidden lg:block w-72 xl:w-80 glass-card border border-slate-800/60 bg-slate-950/80 rounded-2xl p-3 h-fit self-start">
+      {sidebarVisible && (
+      <aside className="hidden lg:block w-72 xl:w-80 glass-card border border-slate-800/60 bg-slate-950/80 rounded-2xl p-3 h-fit self-start -ml-3 sm:-ml-6 lg:-ml-8">
         <div className="p-3 border-b border-slate-800/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
             <h3 className="text-sm font-semibold text-slate-200">New chat</h3>
           </div>
+          <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => { setMessages([]); try { sessionStorage.setItem("ai_messages_v1_study", JSON.stringify([])); } catch {} }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
           >New</button>
+          <button
+            type="button"
+            onClick={() => setSidebarVisible(false)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-slate-500/60 transition"
+          >Hide</button>
+          </div>
         </div>
         <div className="p-3">
           <div className="relative mb-3">
@@ -207,6 +237,7 @@ export const StudyCoachPage = () => {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main chat area */}
       <div className="flex-1 min-w-0 flex flex-col">
@@ -222,6 +253,20 @@ export const StudyCoachPage = () => {
           </button>
           <h1 className="text-xl font-semibold text-slate-200">Study Coach</h1>
         </div>
+        {/* Desktop show button when sidebar hidden */}
+        {!sidebarVisible && (
+          <div className="hidden lg:flex mb-3">
+            <button
+              type="button"
+              onClick={() => setSidebarVisible(true)}
+              className="px-3 py-2 rounded-lg border border-slate-700/60 text-slate-300 bg-slate-900/50"
+              aria-label="Show history"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
+              <span className="ml-2 text-sm">Show history</span>
+            </button>
+          </div>
+        )}
 
         {/* Messages or Hero */}
         {messages.length === 0 ? (
@@ -331,11 +376,35 @@ export const StudyCoachPage = () => {
             <div className="absolute bottom-3 right-3 text-xs text-slate-500">{input.length}/500</div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
             <button
               type="button"
-              onClick={() => pastePrompt(bubblePrompt)}
-              className="px-3 py-2 rounded-lg border border-slate-700/60 bg-slate-900/50 text-slate-300 text-xs"
-            >Suggest</button>
+              onClick={onPickImagesClick}
+              className="px-3 py-2 rounded-lg border border-slate-700/60 bg-slate-900/50 text-slate-300 text-sm flex items-center gap-2"
+              aria-label="Add images"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+              <span className="hidden sm:inline">Add</span>
+            </button>
+            {!!images.length && (
+              <div className="flex items-center gap-2 overflow-x-auto">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative w-10 h-10 rounded-md overflow-hidden border border-slate-700/60">
+                    <img src={img.data} alt="attachment" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+                <span className="text-xs text-slate-400">{images.length}/10</span>
+                <button type="button" onClick={() => setImages([])} className="text-xs text-slate-300 underline">Clear</button>
+              </div>
+            )}
             <button
               type="submit"
               className="flex-1 rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"

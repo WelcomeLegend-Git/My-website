@@ -87,6 +87,15 @@ ${context}`,
         section: z.enum(["formulas", "mistakes", "study"]),
         context: z.record(z.any()).optional(),
         message: z.string().min(1),
+        images: z
+          .array(
+            z.object({
+              data: z.string().min(1),
+              mimeType: z.string().min(1),
+            })
+          )
+          .max(10)
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -100,6 +109,7 @@ Provide a concise, structured response with actionable guidance.`;
       
       const response = await ctx.gemini.generate({ 
         prompt,
+        images: input.images,
         usePremiumOnly: usePremium, // Use gemini-2.5-pro for deep quiz analysis
       });
       return { reply: response.text };

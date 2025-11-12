@@ -35,6 +35,7 @@ type Props = {
   context?: Record<string, unknown>;
   variant?: "desktop" | "mobile";
   onRequestClose?: () => void;
+  openHistorySignal?: number;
 };
 
 const createId = () => {
@@ -44,13 +45,14 @@ const createId = () => {
   return Math.random().toString(36).slice(2);
 };
 
-export const AiSidebar = ({ open, section, context, variant = "desktop", onRequestClose }: Props) => {
+export const AiSidebar = ({ open, section, context, variant = "desktop", onRequestClose, openHistorySignal }: Props) => {
   const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -195,8 +197,8 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
   const containerClass =
     variant === "mobile"
-      ? "flex w-full flex-col glass-card p-5"
-      : "hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start";
+      ? "relative flex w-full flex-col glass-card p-5"
+      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start";
 
   return (
     <>
@@ -207,7 +209,18 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
       <div className="relative mb-5 flex-shrink-0">
         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
         <div className="relative glass-card rounded-2xl p-4 border border-emerald-500/20">
-          <div className="flex items-center gap-3">
+          {/* History trigger - tiny three horizontal lines at left */}
+          <button
+            type="button"
+            className="absolute left-2 top-2 p-2 rounded-lg hover:bg-slate-800/60 transition-colors"
+            title="History"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <div className="flex items-center justify-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center float">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -232,6 +245,48 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
           </button>
         )}
       </div>
+
+      {/* History overlay */}
+      {historyOpen && (
+        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex">
+          <div className="m-auto w-full max-w-md glass-card rounded-2xl border border-slate-700/60 p-4 sm:p-5 max-h-[85%] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-200">Conversation History</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    try { sessionStorage.removeItem(`ai_messages_v1_${section}`); } catch {}
+                    setMessages([]);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-red-500/50 hover:text-red-400 transition"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-primary/50 hover:text-primary transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {messages.length === 0 ? (
+                <p className="text-xs text-slate-400">No messages yet in this section.</p>
+              ) : (
+                messages.map((m) => (
+                  <div key={m.id} className={`rounded-lg border px-3 py-2 text-xs ${m.role === 'user' ? 'border-slate-700/60 bg-slate-800/30' : 'border-emerald-500/30 bg-emerald-500/10'}`}>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">{m.role === 'user' ? 'You' : 'Mentor'}</p>
+                    <p className="text-slate-200 whitespace-pre-wrap">{m.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages Container */}
       <div className="flex-1 min-h-0 space-y-3 overflow-y-auto rounded-2xl border border-slate-800/50 glass p-4 text-sm custom-scrollbar">

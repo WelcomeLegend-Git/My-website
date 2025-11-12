@@ -77,6 +77,8 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
   const quizMutation = trpc.quiz.generateQuiz.useMutation({
     onSuccess: (data) => {
+      // Auto-close mentor on mobile overlay if close handler provided
+      onRequestClose?.();
       // Navigate to quiz page
       navigate(`/quiz/${data.quizId}`);
     },
@@ -129,6 +131,27 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
       ]);
     }
   };
+
+  // Persist conversation per section in sessionStorage (until tab closed)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`ai_messages_v1_${section}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Message[];
+        if (Array.isArray(parsed)) {
+          setMessages(parsed);
+        }
+      }
+    } catch {}
+    // Do not include messages here; only load on mount/section change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`ai_messages_v1_${section}`, JSON.stringify(messages));
+    } catch {}
+  }, [messages, section]);
 
   const handleQuizSubmit = async (config: QuizConfig) => {
     setShowQuizConfig(false);

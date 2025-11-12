@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AuthUser } from "../../lib/auth-storage";
 import { authStorage } from "../../lib/auth-storage";
-import { trpc } from "../../lib/trpc";
+import { trpc, refreshTokens } from "../../lib/trpc";
 
 type AuthPayload = {
   user: AuthUser;
@@ -51,6 +51,8 @@ export const AuthProvider = ({ children }: Props) => {
     refetchOnWindowFocus: false,
   });
 
+  const refreshAttempted = useRef(false);
+
   useEffect(() => {
     // For guest users, skip backend validation entirely
     if (isGuest) {
@@ -64,9 +66,35 @@ export const AuthProvider = ({ children }: Props) => {
       authStorage.setUser(meQuery.data);
       setStatus("authenticated");
     } else if (meQuery.isError) {
-      authStorage.clear();
-      setUser(null);
-      setStatus("unauthenticated");
+      const code = (meQuery.error as any)?.data?.code as string | undefined;
+      const message = ((meQuery.error as any)?.message ?? "").toString();
+      const isUnauthorized = code === "UNAUTHORIZED" || /unauthorized|401/i.test(message);
+
+      if (isUnauthorized) {
+        // Try refresh once before logging out
+        if (!refreshAttempted.current && authStorage.getRefreshToken()) {
+          refreshAttempted.current = true;
+          (async () => {
+            await refreshTokens();
+            const token = authStorage.getAccessToken();
+            if (token) {
+              await meQuery.refetch();
+              setStatus("authenticated");
+            } else {
+              authStorage.clear();
+              setUser(null);
+              setStatus("unauthenticated");
+            }
+          })();
+        } else {
+          authStorage.clear();
+          setUser(null);
+          setStatus("unauthenticated");
+        }
+      } else {
+        // Transient/network error (e.g., backend waking up). Keep session.
+        setStatus(authStorage.getAccessToken() && authStorage.getUser() ? "authenticated" : "loading");
+      }
     }
   }, [meQuery.isSuccess, meQuery.isError, meQuery.data, isGuest]);
 

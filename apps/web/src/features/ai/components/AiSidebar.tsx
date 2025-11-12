@@ -172,7 +172,7 @@ export const AiSidebar = ({ open, section, context }: Props) => {
     <>
       {showVerification && <AiAccessModal onVerified={handleVerified} />}
       
-      <aside className="hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start">
+      <aside className="hidden xl:w-96 2xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 xl:flex fade-in-right sticky top-0 h-screen self-start">
       {/* Header with gradient accent - Fixed at top */}
       <div className="relative mb-5 flex-shrink-0">
         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>

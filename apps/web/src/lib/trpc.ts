@@ -80,6 +80,15 @@ const ensureFreshTokens = async () => {
   return refreshPromise;
 };
 
+// Expose a safe helper for manual refresh attempts
+export const refreshTokens = async () => {
+  try {
+    await ensureFreshTokens();
+  } catch {
+    // ignore here; caller decides next steps
+  }
+};
+
 const customFetch: typeof fetch = async (input, init) => {
   const originalResponse = await fetch(input, init);
   if (originalResponse.status !== 401 || !authStorage.getRefreshToken()) {

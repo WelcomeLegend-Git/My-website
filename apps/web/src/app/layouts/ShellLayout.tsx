@@ -80,7 +80,7 @@ export const ShellLayout = () => {
 
       {/* Mobile/Tablet AI Sidebar Overlay */}
       {aiOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
+        <div className="xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
           <div className="w-full sm:max-w-lg sm:mx-4 max-h-[85vh] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export const ShellLayout = () => {
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
-                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
+                  className={`hidden xl:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
                     !showMentor
                       ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
                       : aiOpen
@@ -208,7 +208,7 @@ export const ShellLayout = () => {
                 <button
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
-                  className="lg:hidden px-3 py-2 rounded-xl border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary transition-all"
+                  className="xl:hidden px-3 py-2 rounded-xl border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary transition-all"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: jee-study-backend
+    runtime: node
+    region: singapore
+    buildCommand: npm install --prefix=apps/server && npx prisma generate --schema apps/server/prisma/schema.prisma
+    startCommand: npx tsx apps/server/src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
+      - key: GEMINI_MODEL_PRIMARY
+        value: gemini-2.0-flash-exp
+      - key: GEMINI_MODEL_FALLBACK
+        value: gemini-1.5-flash
+      - key: AI_ACCESS_CODE
+        sync: false
+      - key: UPLOAD_DIR
+        value: /tmp/uploads
+
+  - type: static
+    name: jee-study-web
+    runtime: node
+    region: singapore
+    buildCommand: npm install && cd apps/web && npm run build
+    staticPublishPath: apps/web/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

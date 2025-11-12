@@ -194,15 +194,16 @@ export const DashboardPage = () => {
             <p className="text-xs text-slate-400 mt-1">Record a learning moment</p>
           </button>
           <button
-            onClick={() => navigate('/study-coach')}
-            className="p-4 rounded-2xl border border-slate-700/50 hover:border-purple-500/50 bg-slate-800/30 hover:bg-slate-800/50 transition-all duration-300 hover-lift text-left">
+            type="button"
+            disabled
+            className="p-4 rounded-2xl border border-slate-700/50 bg-slate-800/30 text-left opacity-50 cursor-not-allowed">
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mb-3">
               <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
             </div>
             <p className="font-semibold text-slate-200 text-sm">Study Coach</p>
-            <p className="text-xs text-slate-400 mt-1">Open now</p>
+            <p className="text-xs text-slate-400 mt-1">Coming soon</p>
           </button>
           <button
             type="button"

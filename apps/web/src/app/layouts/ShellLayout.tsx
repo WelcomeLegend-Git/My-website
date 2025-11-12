@@ -80,9 +80,9 @@ export const ShellLayout = () => {
 
       {/* Mobile/Tablet AI Sidebar Overlay */}
       {aiOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
-          <div className="w-full sm:max-w-lg sm:mx-4 max-h-[85vh] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="overflow-y-auto p-4 overscroll-contain pb-[env(safe-area-inset-bottom)]" style={{maxHeight: '85dvh'}}>
+        <div className="lg:hidden fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
+          <div className="w-full sm:max-w-lg sm:mx-4 mt-14 max-h-[calc(100dvh-4rem)] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="overflow-y-auto p-4 overscroll-contain pb-[env(safe-area-inset-bottom)]" style={{maxHeight: 'calc(100dvh - 4rem)'}}>
               <AiSidebar open={aiOpen} section={aiSection} context={aiContext} variant="mobile" onRequestClose={() => setAiOpen(false)} />
             </div>
           </div>
@@ -100,7 +100,7 @@ export const ShellLayout = () => {
               <div className="flex items-center gap-3 sm:gap-6 lg:gap-8">
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
-                  <div className="relative px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900 rounded-lg min-w-[9.5rem] sm:min-w-0">
+                  <div className="relative px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900 rounded-lg min-w-[14rem] sm:min-w-0">
                     <p className="text-[12px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-primary font-bold">JEE Companion</p>
                     <h1 className="text-[12px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
                   </div>

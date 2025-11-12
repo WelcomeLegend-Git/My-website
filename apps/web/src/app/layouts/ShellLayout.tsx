@@ -52,7 +52,7 @@ const resolveSection = (pathname: string): AiSection => {
 export const ShellLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const [aiOpen, setAiOpen] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
   const [showMentor, setShowMentor] = useState(true);
   const [aiContext, setAiContext] = useState<Record<string, unknown> | undefined>(undefined);
   const [aiSection, setAiSection] = useState<AiSection>(resolveSection(location.pathname));
@@ -95,14 +95,14 @@ export const ShellLayout = () => {
         {/* Modern Header with Glassmorphism */}
         <header className="sticky top-0 z-40 border-b border-slate-800/50 glass backdrop-blur-xl fade-in-down">
           <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
+            <div className="flex items-center justify-between h-16 sm:h-16 lg:h-20">
               {/* Logo & Brand */}
               <div className="flex items-center gap-3 sm:gap-6 lg:gap-8">
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
-                  <div className="relative px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900 rounded-lg min-w-[14rem] sm:min-w-0">
-                    <p className="text-[12px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-primary font-bold">JEE Companion</p>
-                    <h1 className="text-[12px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
+                  <div className="relative px-4 sm:px-4 py-2 sm:py-2 bg-slate-900 rounded-lg min-w-0">
+                    <p className="text-[14px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-primary font-bold">JEE Companion</p>
+                    <h1 className="text-[14px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
                   </div>
                 </div>
                 
@@ -177,11 +177,11 @@ export const ShellLayout = () => {
                 {/* Logout Button */}
                 <button
                   type="button"
-                  className="px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-700/50 text-xs sm:text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
+                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-xl border border-slate-700/50 text-sm sm:text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
                   onClick={logout}
                 >
                   <span className="hidden sm:inline">Log out</span>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-5 sm:h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 </button>
@@ -191,7 +191,7 @@ export const ShellLayout = () => {
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
-                  className={`lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
+                  className={`lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
                     !showMentor
                       ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
                       : aiOpen
@@ -199,7 +199,7 @@ export const ShellLayout = () => {
                       : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                   {aiOpen ? "Hide" : "Show"} Mentor

@@ -465,7 +465,7 @@ export const MistakeLogPage = () => {
       )}
 
       {!mistakesLoading && mistakes && mistakes.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
           {mistakes.map((mistake) => {
             const imageCount = mistake.assets.filter((a) => a.kind === 'image').length;
             const difficultyColors = {

@@ -358,24 +358,24 @@ export const MistakeLogPage = () => {
 
   return (
     <section className="space-y-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
-          <h2 className="text-2xl sm:text-3xl font-semibold text-slate-100">Learn from every slip</h2>
-          <p className="text-xs sm:text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
+          <h2 className="text-3xl font-semibold text-slate-100">Learn from every slip</h2>
+          <p className="text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
         </div>
         <button
           type="button"
-          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 w-full sm:w-auto"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
           onClick={() => setChoiceModalOpen(true)}
         >
           Log mistake
         </button>
       </header>
 
-      <div className="rounded-2xl sm:rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-4 sm:p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
-        <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end">
-          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
+      <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
             <GlowSelect
               id="mistake-subject"
@@ -387,7 +387,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
             <GlowSelect
               id="mistake-chapter"
@@ -399,7 +399,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-36 lg:w-40">
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Status</label>
             <GlowSelect
               id="mistake-status"
@@ -413,7 +413,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-36 lg:w-40">
+          <div className="flex-1 space-y-2 md:flex-none md:w-56">
             <label className="text-xs uppercase tracking-wide text-slate-400">Difficulty</label>
             <GlowSelect
               id="mistake-difficulty"

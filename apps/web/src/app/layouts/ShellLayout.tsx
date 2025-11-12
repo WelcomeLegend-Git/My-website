@@ -82,26 +82,8 @@ export const ShellLayout = () => {
       {aiOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
           <div className="w-full sm:max-w-lg sm:mx-4 max-h-[85vh] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs text-emerald-400 font-bold uppercase">AI Mentor</p>
-                  <p className="text-sm font-semibold text-slate-100">Gemini 2.5 Pro</p>
-                </div>
-              </div>
-              <button onClick={() => setAiOpen(false)} className="p-2 rounded-lg hover:bg-slate-800 transition-colors">
-                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="overflow-y-auto p-4" style={{maxHeight: 'calc(85vh - 80px)'}}>
-              <p className="text-sm text-slate-400 text-center py-8">AI Mentor coming soon on mobile!</p>
+            <div className="overflow-y-auto p-4" style={{maxHeight: '85vh'}}>
+              <AiSidebar open={aiOpen} section={aiSection} context={aiContext} variant="mobile" onRequestClose={() => setAiOpen(false)} />
             </div>
           </div>
         </div>

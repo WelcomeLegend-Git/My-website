@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useShellContext } from '../../../app/layouts/useShellContext';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -85,7 +84,6 @@ type Props = {
 };
 
 export const FormulaCollectionView = ({ collection }: Props) => {
-  const { openAi } = useShellContext();
   const [expandedFormulas, setExpandedFormulas] = useState<Set<string>>(new Set([collection.formulas[0]?.id]));
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
 
@@ -151,34 +149,34 @@ export const FormulaCollectionView = ({ collection }: Props) => {
       <style>{mathStyles}</style>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-8 shadow-2xl">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-4 sm:p-6 lg:p-8 shadow-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-100">{collection.title}</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-100 leading-tight">{collection.title}</h1>
               </div>
-              <div className="flex items-center gap-4 text-sm text-slate-400 ml-16">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-400 ml-0 sm:ml-14">
                 <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                   {collection.subject.name}
                 </span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600 hidden sm:inline">•</span>
                 <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                   </svg>
                   {collection.chapter.title}
                 </span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600 hidden sm:inline">•</span>
                 <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {new Date(collection.createdAt).toLocaleDateString('en-US', { 
@@ -190,67 +188,72 @@ export const FormulaCollectionView = ({ collection }: Props) => {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex sm:flex-col gap-2 sm:gap-2">
               <button
                 onClick={expandAll}
-                className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs sm:text-sm font-medium hover:bg-blue-500/20 transition-colors"
               >
                 Expand All
               </button>
               <button
                 onClick={collapseAll}
-                className="px-4 py-2 rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-700 transition-colors"
               >
                 Collapse All
               </button>
             </div>
           </div>
           {collection.description && (
-            <p className="text-slate-400 ml-16">{collection.description}</p>
+            <p className="text-slate-400 text-sm sm:text-base ml-0 sm:ml-14">{collection.description}</p>
           )}
-          <div className="mt-4 ml-16">
-            <span className="text-sm font-medium text-slate-500">
+          <div className="mt-3 sm:mt-4 ml-0 sm:ml-14">
+            <span className="text-xs sm:text-sm font-medium text-slate-500">
               {collection.formulas.length} formula{collection.formulas.length !== 1 ? 's' : ''} extracted
             </span>
           </div>
         </div>
 
         {/* Formulas */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {collection.formulas.map((formula, index) => {
             const isExpanded = expandedFormulas.has(formula.id);
             
             return (
               <div
                 key={formula.id}
-                className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur overflow-hidden shadow-xl hover:shadow-2xl transition-shadow"
+                className="rounded-xl sm:rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur overflow-hidden shadow-xl hover:shadow-2xl transition-shadow"
               >
                 {/* Formula Header */}
                 <button
                   onClick={() => toggleFormula(formula.id)}
-                  className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+                  className="w-full px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg bg-gradient-to-br ${
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg bg-gradient-to-br flex-shrink-0 ${
                       index % 3 === 0 ? 'from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' :
                       index % 3 === 1 ? 'from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25' :
                       'from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
                     }`}>
                       {index + 1}
                     </div>
-                    <div className="text-left">
-                      <h3 className="text-xl font-semibold text-slate-100">{formula.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${getDifficultyColor(formula.difficulty)}`}>
+                    <div className="text-left min-w-0 flex-1">
+                      <h3 className="text-lg sm:text-xl font-semibold text-slate-100 leading-tight">{formula.title}</h3>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getDifficultyColor(formula.difficulty)}`}>
                           {formula.difficulty}
                         </span>
                         {formula.tags && formula.tags.length > 0 && (
-                          <div className="flex gap-1">
-                            {formula.tags.slice(0, 3).map((tag, i) => (
-                              <span key={i} className="px-2 py-0.5 rounded-md text-xs text-slate-400 bg-slate-800/50">
+                          <div className="flex flex-wrap gap-1">
+                            {formula.tags.slice(0, 2).map((tag, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded text-xs text-slate-400 bg-slate-800/50">
                                 {tag}
                               </span>
                             ))}
+                            {formula.tags.length > 2 && (
+                              <span className="px-2 py-0.5 rounded text-xs text-slate-500 bg-slate-800/30">
+                                +{formula.tags.length - 2}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -268,14 +271,14 @@ export const FormulaCollectionView = ({ collection }: Props) => {
 
                 {/* Formula Content */}
                 {isExpanded && (
-                  <div className="px-6 pb-6 space-y-4">
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
                     {/* Expression */}
-                    <div className="p-6 rounded-xl bg-slate-950/60 border border-slate-700">
+                    <div className="p-4 sm:p-6 rounded-xl bg-slate-950/60 border border-slate-700">
                       <div className="formula-expression text-center text-slate-100">
                         <ReactMarkdown
                           remarkPlugins={[remarkMath, remarkGfm]}
                           rehypePlugins={[rehypeKatex]}
-                          className="text-3xl"
+                          className="text-xl sm:text-2xl lg:text-3xl"
                         >
                           {ensureMathDelimiters(formula.expression)}
                         </ReactMarkdown>
@@ -284,11 +287,11 @@ export const FormulaCollectionView = ({ collection }: Props) => {
 
                     {/* Explanation */}
                     {formula.explanation && (
-                      <div className="prose prose-invert max-w-none">
+                      <div className="prose prose-invert prose-sm sm:prose-base max-w-none">
                         <ReactMarkdown
                           remarkPlugins={[remarkMath, remarkGfm]}
                           rehypePlugins={[rehypeKatex]}
-                          className="text-slate-300 leading-relaxed"
+                          className="text-slate-300 leading-relaxed text-sm sm:text-base"
                         >
                           {ensureMathDelimiters(formula.explanation)}
                         </ReactMarkdown>
@@ -574,22 +577,22 @@ export const FormulaCollectionView = ({ collection }: Props) => {
         </div>
 
         {/* Quiz History Shortcut */}
-        <div className="mt-8 glass-card rounded-2xl p-6 border border-slate-800/50">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mt-6 sm:mt-8 glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-800/50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 Practice Quizzes
               </h3>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 View all quizzes created from this collection
               </p>
             </div>
             <a
               href="/quiz-history"
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary font-medium hover:from-primary/30 hover:to-purple-500/30 transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary font-medium hover:from-primary/30 hover:to-purple-500/30 transition-all flex items-center justify-center gap-2 text-sm"
             >
               View All Quizzes
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -597,7 +600,7 @@ export const FormulaCollectionView = ({ collection }: Props) => {
               </svg>
             </a>
           </div>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 text-xs sm:text-sm">
             Generated quizzes from this collection will appear here. Use the AI mentor to create practice quizzes!
           </p>
         </div>

@@ -144,17 +144,17 @@ export const QuizHistoryPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4">
+    <div className="max-w-7xl mx-auto py-6 px-4 min-w-0">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 min-w-0">
+          <div className="min-w-0">
             <h1 className="text-3xl font-bold text-white mb-2">Quiz History</h1>
             <p className="text-slate-400">Track your practice sessions and analyze performance</p>
           </div>
           <button
             onClick={() => openAi()}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/30 hover:to-cyan-500/30 transition-all flex items-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/30 hover:to-cyan-500/30 transition-all flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -194,9 +194,9 @@ export const QuizHistoryPage = () => {
         )}
 
         {/* Filters and Search */}
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-center min-w-0">
           {/* Search */}
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-0 sm:min-w-[200px]">
             <input
               type="text"
               value={searchQuery}
@@ -212,6 +212,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setSourceTypeFilter(value as SourceTypeFilter)}
             options={sourceTypeOptions}
             placeholder="All Quizzes"
+            className="min-w-0 flex-1 sm:flex-none md:w-56"
           />
 
           {/* Exam Type Filter */}
@@ -220,6 +221,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setExamTypeFilter(value as ExamTypeFilter)}
             options={examTypeOptions}
             placeholder="All Types"
+            className="min-w-0 flex-1 sm:flex-none md:w-56"
           />
 
           {/* Sort By */}
@@ -228,6 +230,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setSortBy(value as SortOption)}
             options={sortByOptions}
             placeholder="Newest First"
+            className="min-w-0 flex-1 sm:flex-none md:w-56"
           />
         </div>
       </div>
@@ -258,15 +261,15 @@ export const QuizHistoryPage = () => {
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {filteredQuizzes.map((quiz) => (
             <div
               key={quiz.id}
               onClick={() => navigate(`/quiz/${quiz.id}/results`)}
               className="glass-card rounded-xl p-6 border border-slate-800/50 hover:border-primary/30 transition-all cursor-pointer hover-lift"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
                     <span className={`px-2 py-1 rounded-lg text-xs font-medium ${

@@ -169,10 +169,9 @@ export const StudyCoachPage = () => {
     }
   };
 
-  const sectionClass = `flex gap-4 lg:gap-6 w-full min-h-[calc(100dvh-6rem)] ${sidebarVisible ? 'lg:ml-72 xl:ml-80' : ''}`;
 
   return (
-    <section className={sectionClass}>
+    <section className="flex w-full min-h-[calc(100dvh-6rem)]">
       {/* Mobile history drawer */}
       {historyOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
@@ -212,27 +211,25 @@ export const StudyCoachPage = () => {
         </div>
       )}
 
-      {/* Desktop left history (fixed, leftmost) */}
+      {/* Desktop left history */}
       {sidebarVisible && (
-      <aside className="hidden lg:block fixed left-0 top-14 sm:top-16 lg:top-20 w-72 xl:w-80 h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-5rem)] border-0 border-r border-slate-800/60 bg-slate-950 rounded-none rounded-r-2xl p-3 overflow-y-auto z-30 shadow-none">
-        <div className="p-3 border-b border-slate-800/60 flex items-center justify-between">
+      <aside className="hidden lg:flex w-80 flex-col border-r border-slate-800/60 bg-slate-950/95 backdrop-blur-sm p-4">
+        <div className="pb-4 border-b border-slate-800/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
             <h3 className="text-sm font-semibold text-slate-200">New chat</h3>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setMessages([]); try { sessionStorage.setItem("ai_messages_v1_study", JSON.stringify([])); } catch {} }}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
-            >New</button>
-          </div>
+          <button
+            type="button"
+            onClick={() => { setMessages([]); try { sessionStorage.setItem("ai_messages_v1_study", JSON.stringify([])); } catch {} }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
+          >New</button>
         </div>
-        <div className="p-3">
+        <div className="pt-4 flex-1 min-h-0">
           <div className="relative mb-3">
             <input value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="Search chats..." className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700/60 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
-          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-240px)]">
             {filteredHistory.map((m, idx) => (
               <div key={`${m.id}-${idx}`} className="px-3 py-2 rounded-lg hover:bg-slate-800/60 cursor-default">
                 <p className="text-xs text-slate-300 line-clamp-2">{m.content}</p>
@@ -246,16 +243,17 @@ export const StudyCoachPage = () => {
 
       {/* Main chat area */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top bar (unified history toggle) */}
-        <div className="mb-3 flex items-center gap-2">
+        {/* Top bar */}
+        <div className="flex-shrink-0 mb-4 flex items-center gap-3">
           <button
             type="button"
             onClick={toggleHistory}
-            className="px-3 py-2 rounded-lg border border-slate-700/60 text-slate-300 bg-slate-900/50"
+            className="flex items-center px-3 py-2 rounded-lg border border-slate-700/60 text-slate-300 bg-slate-900/50 hover:bg-slate-800/60 transition"
             aria-label="Toggle history"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
-            <span className="hidden lg:inline ml-2 text-sm">{sidebarVisible ? 'Hide history' : 'Show history'}</span>
+            <span className="lg:hidden sm:inline ml-2 text-sm">History</span>
+            <span className="hidden lg:inline ml-2 text-sm">{sidebarVisible ? 'Hide' : 'Show'}</span>
           </button>
           <h1 className="text-xl font-semibold text-slate-200">Study Coach</h1>
         </div>

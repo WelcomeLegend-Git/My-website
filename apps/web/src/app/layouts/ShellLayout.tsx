@@ -81,8 +81,8 @@ export const ShellLayout = () => {
       {/* Mobile/Tablet AI Sidebar Overlay */}
       {aiOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
-          <div className="w-full sm:max-w-lg sm:mx-4 mt-14 max-h-[calc(100dvh-4rem)] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="overflow-y-auto p-4 overscroll-contain pb-[env(safe-area-inset-bottom)]" style={{maxHeight: 'calc(100dvh - 4rem)'}}>
+          <div className="w-full sm:max-w-lg sm:mx-4 mt-14 mb-14 h-[calc(100dvh-7rem)] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="h-full overflow-hidden p-4 pb-[env(safe-area-inset-bottom)]">
               <AiSidebar open={aiOpen} section={aiSection} context={aiContext} variant="mobile" onRequestClose={() => setAiOpen(false)} />
             </div>
           </div>

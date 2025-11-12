@@ -197,7 +197,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
   const containerClass =
     variant === "mobile"
-      ? "relative flex w-full flex-col glass-card p-5"
+      ? "relative flex h-full w-full flex-col glass-card p-5"
       : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start";
 
   return (

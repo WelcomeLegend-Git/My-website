@@ -147,11 +147,11 @@ export const QuizPage = () => {
   const selectedOptions = answers[currentQuestion.id] || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-6 pb-20 sm:pb-0">
       {/* Header */}
       <div className="max-w-5xl mx-auto mb-4 sm:mb-6">
         <div className="glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-primary/20">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+          <div className="flex items-center justify-between gap-3 sm:gap-4 mb-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 leading-tight">{quiz.title}</h1>
               <p className="text-slate-400 text-xs sm:text-sm">
@@ -161,10 +161,10 @@ export const QuizPage = () => {
             </div>
             {timeRemaining !== null && (
               <div className="text-center flex-shrink-0">
-                <div className={`text-2xl sm:text-3xl font-bold ${timeRemaining < 60 ? 'text-red-400' : 'text-primary'}`}>
+                <div className={`text-xl sm:text-3xl font-bold ${timeRemaining < 60 ? 'text-red-400' : 'text-primary'}`}>
                   {formatTime(timeRemaining)}
                 </div>
-                <p className="text-xs text-slate-400 mt-1">Time Remaining</p>
+                <p className="hidden sm:block text-xs text-slate-400 mt-1">Time Remaining</p>
               </div>
             )}
           </div>
@@ -251,13 +251,13 @@ export const QuizPage = () => {
 
           {/* Navigation */}
           <div className="flex flex-col gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-800">
-            {/* Question Navigation - Mobile Scrollable */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {quiz.questions.map((_, index) => (
+            {/* Question Navigation - Desktop */}
+            <div className="hidden sm:flex gap-2 flex-wrap">
+              {quiz.questions.map((__unused: unknown, index: number) => (
                 <button
                   key={index}
                   onClick={() => setCurrentQuestionIndex(index)}
-                  className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-medium text-xs sm:text-sm transition-all ${
+                  className={`w-10 h-10 rounded-lg font-medium text-sm transition-all ${
                     index === currentQuestionIndex
                       ? 'bg-primary text-white shadow-lg shadow-primary/25'
                       : answers[quiz.questions[index].id]
@@ -269,7 +269,7 @@ export const QuizPage = () => {
                 </button>
               ))}
             </div>
-            
+          
             {/* Previous/Next Buttons */}
             <div className="flex items-center justify-between">
               <button
@@ -318,6 +318,33 @@ export const QuizPage = () => {
           </div>
         </div>
       </div>
+      {/* Mobile sticky bottom question nav */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-3 py-2">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {quiz.questions.map((__unused: unknown, index: number) => (
+              <button
+                key={index}
+                onClick={() => setCurrentQuestionIndex(index)}
+                className={`flex-shrink-0 w-9 h-9 rounded-lg font-medium text-xs transition-all ${
+                  index === currentQuestionIndex
+                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                    : answers[quiz.questions[index].id]
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+// Mobile-only sticky question nav
+// Rendered via portal-like placement at the bottom of the page container
+// to avoid overlapping content we added pb-20 to the main wrapper.
+

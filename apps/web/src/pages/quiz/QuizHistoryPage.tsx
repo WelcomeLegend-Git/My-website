@@ -185,7 +185,7 @@ export const QuizHistoryPage = () => {
         {/* Filters and Search */}
         <div className="flex flex-wrap gap-4 items-center min-w-0">
           {/* Search */}
-          <div className="flex-1 min-w-0 sm:min-w-[200px]">
+          <div className="flex-1 min-w-0 sm:min-w-[200px] order-4 sm:order-1">
             <input
               type="text"
               value={searchQuery}
@@ -201,7 +201,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setSourceTypeFilter(value as SourceTypeFilter)}
             options={sourceTypeOptions}
             placeholder="All Quizzes"
-            className="min-w-0 flex-1 sm:flex-none md:w-56"
+            className="min-w-0 flex-1 sm:flex-none md:w-56 order-2 sm:order-2"
           />
 
           {/* Exam Type Filter */}
@@ -210,7 +210,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setExamTypeFilter(value as ExamTypeFilter)}
             options={examTypeOptions}
             placeholder="All Types"
-            className="min-w-0 flex-1 sm:flex-none md:w-56"
+            className="min-w-0 flex-1 sm:flex-none md:w-56 order-3 sm:order-3"
           />
 
           {/* Sort By */}
@@ -219,7 +219,7 @@ export const QuizHistoryPage = () => {
             onChange={(value) => setSortBy(value as SortOption)}
             options={sortByOptions}
             placeholder="Newest First"
-            className="min-w-0 flex-1 sm:flex-none md:w-56"
+            className="min-w-0 flex-1 sm:flex-none md:w-56 order-1 sm:order-4"
           />
         </div>
       </div>

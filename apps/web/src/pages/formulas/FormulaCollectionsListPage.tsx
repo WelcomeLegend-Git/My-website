@@ -37,6 +37,7 @@ export const FormulaCollectionsListPage = () => {
   const [chapterId, setChapterId] = useState<string>();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: subjects } = trpc.subjects.list.useQuery();
@@ -125,6 +126,14 @@ export const FormulaCollectionsListPage = () => {
   }, [setAiContext, setAiSection]);
 
   useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
     const intent = searchParams.get('intent');
     if (intent === 'add-formula' && !isModalOpen) {
       setIsModalOpen(true);
@@ -188,7 +197,9 @@ export const FormulaCollectionsListPage = () => {
                   }}
                   options={subjectSelectOptions}
                   placeholder="All subjects"
-                  placement="right"
+                  placement={isMobile ? 'bottom' : 'right'}
+                  className="min-w-0"
+                  listClassName="min-w-0 sm:min-w-[12rem]"
                 />
               </div>
 
@@ -200,7 +211,9 @@ export const FormulaCollectionsListPage = () => {
                   options={chapterSelectOptions}
                   placeholder={subjectId ? 'All chapters' : 'Select a subject'}
                   disabled={!subjectId}
-                  placement="right"
+                  placement={isMobile ? 'bottom' : 'right'}
+                  className="min-w-0"
+                  listClassName="min-w-0 sm:min-w-[12rem]"
                 />
               </div>
 

@@ -446,7 +446,7 @@ export const MistakeLogPage = () => {
       </div>
 
       {/* Sort Options */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
         <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
         {[
           { value: 'recent', label: 'Most Recent' },
@@ -459,7 +459,7 @@ export const MistakeLogPage = () => {
             onClick={() => setSortBy(option.value as any)}
             className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
               sortBy === option.value
-                ? 'bg-red-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
             }`}
           >

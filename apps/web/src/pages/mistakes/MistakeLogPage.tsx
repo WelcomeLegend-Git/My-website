@@ -90,6 +90,7 @@ export const MistakeLogPage = () => {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<Mistake['assets']>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [analyzingMistake, setAnalyzingMistake] = useState<string | null>(null);
 
   const filters = useMemo<MistakeFilters | undefined>(() => {
     const active: MistakeFilters = {
@@ -356,7 +357,7 @@ export const MistakeLogPage = () => {
   const isSaving = formState?.mode === "edit" ? updateMutation.isPending : createMutation.isPending;
 
   return (
-    <section className="space-y-4 sm:space-y-6">
+    <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
@@ -427,7 +428,7 @@ export const MistakeLogPage = () => {
       </div>
 
       {/* Sort Options */}
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
+      <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-2">
         <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
         {[
           { value: 'recent', label: 'Most Recent' },
@@ -464,7 +465,7 @@ export const MistakeLogPage = () => {
       )}
 
       {!mistakesLoading && mistakes && mistakes.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {mistakes.map((mistake) => {
             const imageCount = mistake.assets.filter((a) => a.kind === 'image').length;
             const difficultyColors = {

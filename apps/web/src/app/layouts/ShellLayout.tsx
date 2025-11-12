@@ -80,7 +80,7 @@ export const ShellLayout = () => {
 
       {/* Mobile/Tablet AI Sidebar Overlay */}
       {aiOpen && (
-        <div className="xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
           <div className="w-full sm:max-w-lg sm:mx-4 max-h-[85vh] bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export const ShellLayout = () => {
               </button>
             </div>
             <div className="overflow-y-auto p-4" style={{maxHeight: 'calc(85vh - 80px)'}}>
-              <AiSidebar open={true} section={aiSection} context={aiContext} />
+              <p className="text-sm text-slate-400 text-center py-8">AI Mentor coming soon on mobile!</p>
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export const ShellLayout = () => {
                 </div>
                 
                 {/* Desktop Navigation */}
-                <nav className="hidden xl:flex items-center gap-2">
+                <nav className="hidden lg:flex items-center gap-2">
                   {navItems.map((item) => (
                     <NavLink
                       key={item.to}
@@ -167,7 +167,7 @@ export const ShellLayout = () => {
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
-                  className={`hidden xl:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
+                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
                     !showMentor
                       ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
                       : aiOpen
@@ -208,7 +208,7 @@ export const ShellLayout = () => {
                 <button
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
-                  className="xl:hidden px-3 py-2 rounded-xl border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary transition-all"
+                  className="lg:hidden px-3 py-2 rounded-xl border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary transition-all"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -218,7 +218,7 @@ export const ShellLayout = () => {
             </div>
 
             {/* Mobile Navigation */}
-            <nav className="xl:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
+            <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
               <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
                 {navItems.map((item) => (
                   <NavLink

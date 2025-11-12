@@ -8,10 +8,10 @@ type TokenPayload = {
 };
 
 export const createAccessToken = (payload: TokenPayload) =>
-  jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: "2h" });
+  jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
 
 export const createRefreshToken = (payload: TokenPayload) =>
-  jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
+  jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: "365d" });
 
 export const verifyAccessToken = (token: string) =>
   jwt.verify(token, env.JWT_ACCESS_SECRET) as TokenPayload;

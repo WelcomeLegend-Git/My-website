@@ -23,7 +23,7 @@ const toAiContext = (mistake: any) => ({
 export const MistakeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setAiContext, setAiSection, openAi } = useShellContext();
+  const { setAiContext, setAiSection } = useShellContext();
   const [imageViewerState, setImageViewerState] = useState<{
     open: boolean;
     initialIndex: number;
@@ -45,12 +45,10 @@ export const MistakeDetailPage = () => {
   useEffect(() => {
     if (mistake) {
       setAiContext(toAiContext(mistake));
-      // Auto-open AI sidebar
-      openAi();
     } else {
       setAiContext(undefined);
     }
-  }, [mistake, setAiContext, openAi]);
+  }, [mistake, setAiContext]);
 
   const handleImageClick = (_imageUrl: string, imageIndex: number, _allImages: string[]) => {
     setImageViewerState({

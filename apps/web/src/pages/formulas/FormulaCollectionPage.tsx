@@ -27,7 +27,7 @@ const toAiContext = (collection: any) => ({
 export const FormulaCollectionPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setAiContext, setAiSection, openAi } = useShellContext();
+  const { setAiContext, setAiSection } = useShellContext();
 
   const { data: collection, isLoading, error } = trpc.formulas.getCollection.useQuery(
     { id: id! },
@@ -45,12 +45,10 @@ export const FormulaCollectionPage = () => {
   useEffect(() => {
     if (collection) {
       setAiContext(toAiContext(collection));
-      // Auto-open AI sidebar to show it's ready
-      openAi();
     } else {
       setAiContext(undefined);
     }
-  }, [collection, setAiContext, openAi]);
+  }, [collection, setAiContext]);
 
   if (isLoading) {
     return (

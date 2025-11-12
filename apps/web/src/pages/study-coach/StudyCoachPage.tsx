@@ -171,7 +171,7 @@ export const StudyCoachPage = () => {
 
 
   return (
-    <section className="flex w-full min-h-[calc(100dvh-6rem)]">
+    <div className="flex h-screen">
       {/* Mobile history drawer */}
       {historyOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
@@ -213,7 +213,7 @@ export const StudyCoachPage = () => {
 
       {/* Desktop left history */}
       {sidebarVisible && (
-      <aside className="hidden lg:flex w-80 flex-col border-r border-slate-800/60 bg-slate-950/95 backdrop-blur-sm p-4">
+      <aside className="hidden lg:flex w-80 flex-col border-r border-slate-800/60 bg-slate-950 p-4 flex-shrink-0">
         <div className="pb-4 border-b border-slate-800/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -242,7 +242,7 @@ export const StudyCoachPage = () => {
       )}
 
       {/* Main chat area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+<div className="flex-1 min-w-0 flex flex-col p-4">
         {/* Top bar */}
         <div className="flex-shrink-0 mb-4 flex items-center gap-3">
           <button
@@ -253,7 +253,7 @@ export const StudyCoachPage = () => {
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
             <span className="lg:hidden sm:inline ml-2 text-sm">History</span>
-            <span className="hidden lg:inline ml-2 text-sm">{sidebarVisible ? 'Hide' : 'Show'}</span>
+            <span className="hidden lg:inline ml-2 text-sm">{sidebarVisible ? 'Hide history' : 'Show history'}</span>
           </button>
           <h1 className="text-xl font-semibold text-slate-200">Study Coach</h1>
         </div>
@@ -422,6 +422,6 @@ export const StudyCoachPage = () => {
       </div>
 
       {showVerification && <AiAccessModal onVerified={() => { setIsVerified(true); setShowVerification(false); }} />}
-    </section>
+    </div>
   );
 };

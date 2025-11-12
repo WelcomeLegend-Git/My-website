@@ -161,8 +161,10 @@ export const StudyCoachPage = () => {
     setImages((prev) => [...prev, ...readers].slice(0, 10));
   };
 
+  const sectionClass = `flex gap-4 lg:gap-6 w-full min-h-[calc(100dvh-6rem)] ${sidebarVisible ? 'lg:ml-72 xl:ml-80' : ''}`;
+
   return (
-    <section className="flex gap-4 lg:gap-6 w-full min-h-[calc(100dvh-6rem)]">
+    <section className={sectionClass}>
       {/* Mobile history drawer */}
       {historyOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
@@ -202,9 +204,9 @@ export const StudyCoachPage = () => {
         </div>
       )}
 
-      {/* Desktop left history */}
+      {/* Desktop left history (fixed, leftmost) */}
       {sidebarVisible && (
-      <aside className="hidden lg:block w-72 xl:w-80 glass-card border border-slate-800/60 bg-slate-950/80 rounded-2xl p-3 h-fit self-start -ml-3 sm:-ml-6 lg:-ml-8">
+      <aside className="hidden lg:block fixed left-0 top-20 w-72 xl:w-80 h-[calc(100dvh-80px)] glass-card border border-slate-800/60 bg-slate-950/80 rounded-none rounded-r-2xl p-3 overflow-y-auto z-30">
         <div className="p-3 border-b border-slate-800/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -220,7 +222,7 @@ export const StudyCoachPage = () => {
             type="button"
             onClick={() => setSidebarVisible(false)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-slate-500/60 transition"
-          >Hide</button>
+          >Hide history</button>
           </div>
         </div>
         <div className="p-3">
@@ -255,11 +257,11 @@ export const StudyCoachPage = () => {
         </div>
         {/* Desktop show button when sidebar hidden */}
         {!sidebarVisible && (
-          <div className="hidden lg:flex mb-3">
+          <div className="hidden lg:flex fixed left-3 top-[88px] z-50">
             <button
               type="button"
               onClick={() => setSidebarVisible(true)}
-              className="px-3 py-2 rounded-lg border border-slate-700/60 text-slate-300 bg-slate-900/50"
+              className="px-3 py-2 rounded-lg border border-slate-700/60 text-slate-300 bg-slate-900/70 backdrop-blur"
               aria-label="Show history"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -362,7 +364,7 @@ export const StudyCoachPage = () => {
         )}
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="mt-5 space-y-3 flex-shrink-0">
+        <form onSubmit={handleSubmit} className="mt-auto space-y-3 flex-shrink-0">
           <div className="relative">
             <textarea
               ref={textareaRef}

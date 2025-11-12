@@ -357,7 +357,7 @@ export const MistakeLogPage = () => {
   const isSaving = formState?.mode === "edit" ? updateMutation.isPending : createMutation.isPending;
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6 min-w-0">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
@@ -374,8 +374,8 @@ export const MistakeLogPage = () => {
       </header>
 
       <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end">
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
+          <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
             <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
             <GlowSelect
               id="mistake-subject"
@@ -387,7 +387,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+          <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
             <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
             <GlowSelect
               id="mistake-chapter"
@@ -399,7 +399,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+          <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
             <label className="text-xs uppercase tracking-wide text-slate-400">Status</label>
             <GlowSelect
               id="mistake-status"
@@ -413,7 +413,7 @@ export const MistakeLogPage = () => {
             />
           </div>
 
-          <div className="flex-1 space-y-2 md:flex-none md:w-56">
+          <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
             <label className="text-xs uppercase tracking-wide text-slate-400">Difficulty</label>
             <GlowSelect
               id="mistake-difficulty"
@@ -428,7 +428,7 @@ export const MistakeLogPage = () => {
       </div>
 
       {/* Sort Options */}
-      <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4 overflow-x-auto pb-2">
         <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
         {[
           { value: 'recent', label: 'Most Recent' },
@@ -465,7 +465,7 @@ export const MistakeLogPage = () => {
       )}
 
       {!mistakesLoading && mistakes && mistakes.length > 0 && (
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 gap-4 sm:gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {mistakes.map((mistake) => {
             const imageCount = mistake.assets.filter((a) => a.kind === 'image').length;
             const difficultyColors = {

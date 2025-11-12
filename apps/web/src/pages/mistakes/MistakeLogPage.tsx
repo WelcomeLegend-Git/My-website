@@ -91,6 +91,7 @@ export const MistakeLogPage = () => {
   const [viewerImages, setViewerImages] = useState<Mistake['assets']>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [analyzingMistake, setAnalyzingMistake] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const filters = useMemo<MistakeFilters | undefined>(() => {
     const active: MistakeFilters = {
@@ -193,6 +194,14 @@ export const MistakeLogPage = () => {
       }, { replace: true });
     }
   }, [choiceModalOpen, formState, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     if (!subjectId) {
@@ -383,7 +392,9 @@ export const MistakeLogPage = () => {
               onChange={(nextValue) => setSubjectId(nextValue || undefined)}
               options={subjectSelectOptions}
               placeholder="All subjects"
-              placement="right"
+              placement={isMobile ? "bottom" : "right"}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
 
@@ -396,6 +407,9 @@ export const MistakeLogPage = () => {
               options={chapterSelectOptions}
               placeholder={subjectId ? "All chapters" : "Select a subject"}
               disabled={!subjectId || !chapterOptions.length}
+              placement={isMobile ? "bottom" : undefined}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
 
@@ -409,7 +423,9 @@ export const MistakeLogPage = () => {
               }
               options={statusSelectOptions}
               placeholder="All status"
-              placement="right"
+              placement={isMobile ? "bottom" : "right"}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
 
@@ -421,7 +437,9 @@ export const MistakeLogPage = () => {
               onChange={(nextValue) => setDifficultyFilter((nextValue as "easy" | "medium" | "hard") || undefined)}
               options={difficultySelectOptions}
               placeholder="All difficulty"
-              placement="right"
+              placement={isMobile ? "bottom" : "right"}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
         </div>

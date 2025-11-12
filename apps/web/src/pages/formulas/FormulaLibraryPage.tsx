@@ -78,6 +78,7 @@ export const FormulaLibraryPage = () => {
   const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
   const [formState, setFormState] = useState<FormState | null>(null);
   const [pendingFormulaId, setPendingFormulaId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -148,6 +149,14 @@ export const FormulaLibraryPage = () => {
       setAiContext(undefined);
     };
   }, [setAiContext, setAiSection]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Auto-open add formula modal when navigating to /formulas/add
   useEffect(() => {
@@ -372,6 +381,9 @@ export const FormulaLibraryPage = () => {
               onChange={(nextValue) => setSubjectId(nextValue || undefined)}
               options={subjectSelectOptions}
               placeholder="All subjects"
+              placement={isMobile ? "bottom" : undefined}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
 
@@ -384,6 +396,9 @@ export const FormulaLibraryPage = () => {
               options={chapterSelectOptions}
               placeholder={subjectId ? "All chapters" : "Select a subject"}
               disabled={!subjectId || !chapterOptions.length}
+              placement={isMobile ? "bottom" : undefined}
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
 

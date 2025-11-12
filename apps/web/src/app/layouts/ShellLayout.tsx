@@ -101,7 +101,7 @@ export const ShellLayout = () => {
               </button>
             </div>
             <div className="overflow-y-auto p-4" style={{maxHeight: 'calc(85vh - 80px)'}}>
-              <p className="text-sm text-slate-400 text-center py-8">AI Mentor coming soon on mobile!</p>
+              <AiSidebar open={true} section={aiSection} context={aiContext} />
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export const ShellLayout = () => {
                 </div>
                 
                 {/* Desktop Navigation */}
-                <nav className="hidden lg:flex items-center gap-2">
+                <nav className="hidden xl:flex items-center gap-2">
                   {navItems.map((item) => (
                     <NavLink
                       key={item.to}
@@ -218,7 +218,7 @@ export const ShellLayout = () => {
             </div>
 
             {/* Mobile Navigation */}
-            <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
+            <nav className="xl:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
               <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
                 {navItems.map((item) => (
                   <NavLink

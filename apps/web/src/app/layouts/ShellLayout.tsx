@@ -62,6 +62,39 @@ export const ShellLayout = () => {
     setAiContext(undefined);
   }, [location.pathname]);
 
+  useEffect(() => {
+    try {
+      if (aiContext) {
+        sessionStorage.setItem(
+          `ai_context_v1_${aiSection}`,
+          JSON.stringify({ p: location.pathname, c: aiContext })
+        );
+      }
+    } catch {}
+  }, [aiContext, aiSection, location.pathname]);
+
+  // Restore last known context when opening mentor on mobile/tablet
+  useEffect(() => {
+    if (!aiOpen) return;
+    try {
+      // Only apply on < lg screens
+      const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+      if (isDesktop) return;
+    } catch {}
+
+    if (!aiContext) {
+      try {
+        const raw = sessionStorage.getItem(`ai_context_v1_${aiSection}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && parsed.p === location.pathname && parsed.c) {
+            setAiContext(parsed.c as Record<string, unknown>);
+          }
+        }
+      } catch {}
+    }
+  }, [aiOpen, aiContext, aiSection, setAiContext]);
+
   const outletContext: ShellOutletContext = {
     setAiContext,
     setAiSection,

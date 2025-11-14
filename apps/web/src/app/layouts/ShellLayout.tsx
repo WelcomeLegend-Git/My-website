@@ -87,13 +87,18 @@ export const ShellLayout = () => {
         const raw = sessionStorage.getItem(`ai_context_v1_${aiSection}`);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object' && parsed.p === location.pathname && parsed.c) {
-            setAiContext(parsed.c as Record<string, unknown>);
+          if (parsed && typeof parsed === 'object' && parsed.c) {
+            if (parsed.p === location.pathname) {
+              setAiContext(parsed.c as Record<string, unknown>);
+            } else {
+              // Fallback: if path doesn't match but section matches, still restore last section context
+              setAiContext(parsed.c as Record<string, unknown>);
+            }
           }
         }
       } catch {}
     }
-  }, [aiOpen, aiContext, aiSection, setAiContext]);
+  }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
 
   const outletContext: ShellOutletContext = {
     setAiContext,

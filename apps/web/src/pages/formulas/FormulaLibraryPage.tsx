@@ -40,6 +40,24 @@ const toAiContext = (formula: Formula) => ({
   explanation: formula.explanation,
 });
 
+const toAiListContext = (
+  items: Formula[],
+  filters: { subjectId?: string; chapterId?: string; search?: string }
+) => ({
+  entity: 'formulasList',
+  totalCount: items.length,
+  filters,
+  items: items.slice(0, 12).map((f) => ({
+    id: f.id,
+    title: f.title,
+    subject: f.subject.name,
+    chapter: f.chapter.title,
+    difficulty: f.difficulty,
+    hasExplanation: !!f.explanation,
+    tagCount: ((f.tags as unknown as string[]) || []).length,
+  })),
+});
+
 const ensureChapterOptions = (subjectId: string | undefined, subjects?: Subject[]) => {
   if (!subjectId) {
     return [];
@@ -172,6 +190,16 @@ export const FormulaLibraryPage = () => {
       setAiContext(undefined);
     }
   }, [selectedFormula, setAiContext]);
+
+  useEffect(() => {
+    if (selectedFormula) return;
+    const search = deferredSearch.trim();
+    if (formulas && formulas.length > 0) {
+      setAiContext(toAiListContext(formulas, { subjectId, chapterId, search: search || undefined }));
+    } else {
+      setAiContext(undefined);
+    }
+  }, [selectedFormula, formulas, subjectId, chapterId, deferredSearch, setAiContext]);
 
   useEffect(() => {
     if (!formulas || formulas.length === 0) {

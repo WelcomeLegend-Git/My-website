@@ -147,10 +147,11 @@ export const FormulaCollectionsListPage = () => {
 
   // Update AI context when collections or filters change
   useEffect(() => {
+    const filters = { subjectId, chapterId, searchTerm };
     if (sortedCollections && sortedCollections.length > 0) {
-      setAiContext(toAiContext(sortedCollections, { subjectId, chapterId, searchTerm }));
+      setAiContext(toAiContext(sortedCollections, filters));
     } else {
-      setAiContext(undefined);
+      setAiContext(toAiContext([], filters));
     }
   }, [sortedCollections, subjectId, chapterId, searchTerm, setAiContext]);
 

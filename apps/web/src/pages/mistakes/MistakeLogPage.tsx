@@ -44,6 +44,26 @@ const toAiContext = (mistake: Mistake) => ({
   aiSummary: mistake.aiSummary,
 });
 
+const toAiListContext = (
+  items: Mistake[],
+  filters: { subjectId?: string; chapterId?: string; status?: "new" | "reviewing" | "resolved"; difficulty?: "easy" | "medium" | "hard"; sortBy: 'recent' | 'oldest' | 'difficulty-high' | 'difficulty-low' }
+) => ({
+  entity: 'mistakesList',
+  totalCount: items.length,
+  filters,
+  items: items.slice(0, 12).map((m) => ({
+    id: m.id,
+    title: m.title,
+    subject: m.subject.name,
+    chapter: m.chapter.title,
+    difficulty: m.difficulty,
+    status: m.status,
+    errorType: m.errorType,
+    createdAt: m.createdAt,
+    imageCount: m.assets.filter((a: Mistake['assets'][number]) => a.kind === 'image').length,
+  })),
+});
+
 const ensureChapterOptions = (subjectId: string | undefined, subjects?: Subject[]) => {
   if (!subjectId) {
     return [];
@@ -61,7 +81,7 @@ const buildDraftFromMistake = (mistake: Mistake): MistakeDraft => ({
   errorType: mistake.errorType,
   aiSummary: mistake.aiSummary,
   aiMindMap: mistake.aiMindMap,
-  attachments: mistake.assets.map((asset) => ({
+  attachments: mistake.assets.map((asset: Mistake['assets'][number]) => ({
     id: asset.id,
     url: asset.url,
     kind: asset.kind,
@@ -124,15 +144,31 @@ export const MistakeLogPage = () => {
       case 'oldest':
         return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       case 'difficulty-high':
-        const difficultyOrder = { hard: 3, medium: 2, easy: 1 };
-        return sorted.sort((a, b) => (difficultyOrder[b.difficulty] || 0) - (difficultyOrder[a.difficulty] || 0));
+        const difficultyOrder: Record<'hard'|'medium'|'easy', number> = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrder[b.difficulty as 'hard'|'medium'|'easy']) - (difficultyOrder[a.difficulty as 'hard'|'medium'|'easy']));
       case 'difficulty-low':
-        const difficultyOrderLow = { hard: 3, medium: 2, easy: 1 };
-        return sorted.sort((a, b) => (difficultyOrderLow[a.difficulty] || 0) - (difficultyOrderLow[b.difficulty] || 0));
+        const difficultyOrderLow: Record<'hard'|'medium'|'easy', number> = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrderLow[a.difficulty as 'hard'|'medium'|'easy']) - (difficultyOrderLow[b.difficulty as 'hard'|'medium'|'easy']));
       default:
         return sorted;
     }
   }, [mistakesData, sortBy]);
+
+  useEffect(() => {
+    const currentFilters = {
+      subjectId,
+      chapterId,
+      status: statusFilter,
+      difficulty: difficultyFilter,
+      sortBy,
+    } as const;
+
+    if (mistakes && mistakes.length > 0) {
+      setAiContext(toAiListContext(mistakes, currentFilters));
+    } else {
+      setAiContext(undefined);
+    }
+  }, [mistakes, subjectId, chapterId, statusFilter, difficultyFilter, sortBy, setAiContext]);
 
   const createMutation = trpc.mistakes.create.useMutation();
   const updateMutation = trpc.mistakes.update.useMutation();

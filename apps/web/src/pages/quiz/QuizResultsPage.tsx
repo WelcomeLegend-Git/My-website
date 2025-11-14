@@ -50,9 +50,9 @@ export const QuizResultsPage = () => {
     );
   }
 
-  const score = quiz.score || 0;
-  const accuracy = quiz.accuracy || 0;
-  const timeSpent = (quiz as any).actualTimeSpent || quiz.timeSpent || 0;
+  const score = quiz?.score ?? 0;
+  const accuracy = quiz?.accuracy ?? 0;
+  const timeSpent = (quiz as any)?.actualTimeSpent ?? quiz?.timeSpent ?? 0;
 
   type QuestionInsight = {
     id: string;
@@ -67,9 +67,13 @@ export const QuizResultsPage = () => {
     explanation: string;
   };
 
-  const userAnswersMap = (quiz as any).userAnswers as Record<string, number[]> | undefined;
+  const userAnswersMap = quiz
+    ? ((quiz as any).userAnswers as Record<string, number[]> | undefined)
+    : undefined;
 
   const questionInsights = useMemo<QuestionInsight[]>(() => {
+    if (!quiz) return [];
+
     return quiz.questions.map((question, index) => {
       const userAnswers = userAnswersMap?.[question.id] || [];
       const correctAnswers = (question.correctAnswers as number[]) || [];
@@ -94,7 +98,7 @@ export const QuizResultsPage = () => {
         explanation: question.explanation ?? '',
       };
     });
-  }, [quiz.questions, userAnswersMap]);
+  }, [quiz, userAnswersMap]);
 
   useEffect(() => {
     if (!quiz) return;

@@ -36,8 +36,7 @@ const resolveContextPageLabel = (
   if (section === 'formulas') {
     if (entity === 'formulaCollectionsList') return 'Formula Collections';
     if (entity === 'formulaCollection') return 'Formula Collection';
-    if (entity === 'formulasList') return 'Formula Library';
-    if (entity === 'formula') return 'Formula Detail';
+    if (entity === 'formulasList' || entity === 'formula') return 'Formula Library';
   }
 
   if (section === 'mistakes') {

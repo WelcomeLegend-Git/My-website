@@ -15,7 +15,8 @@ export const StudyCoachPage = () => {
     };
   }, [setAiContext, setAiSection, setShowMentor]);
 
-  return <StudyGuruMobile />;
+  // Wrapper component for Study Guru mobile/desktop layout
+  return (<StudyGuruMobile />);
 };
 
 const StudyGuruMobile = () => {

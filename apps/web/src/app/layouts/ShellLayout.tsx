@@ -130,7 +130,7 @@ export const ShellLayout = () => {
         <div className="lg:hidden fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
           <div className="w-full sm:max-w-lg sm:mx-4 mt-14 mb-14 h-[calc(100dvh-7rem)] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="h-full overflow-hidden p-4 pb-[env(safe-area-inset-bottom)]">
-              <AiSidebar open={aiOpen} section={aiSection} context={aiContext} variant="mobile" onRequestClose={() => setAiOpen(false)} clearSignal={clearChatSignal.current} />
+              <AiSidebar open={aiOpen} section={aiSection} context={aiContext} routePath={location.pathname} variant="mobile" onRequestClose={() => setAiOpen(false)} clearSignal={clearChatSignal.current} />
             </div>
           </div>
         </div>
@@ -292,7 +292,7 @@ export const ShellLayout = () => {
               <Outlet context={outletContext} />
             </div>
           </main>
-          <AiSidebar open={aiOpen} section={aiSection} context={aiContext} clearSignal={clearChatSignal.current} />
+          <AiSidebar open={aiOpen} section={aiSection} context={aiContext} routePath={location.pathname} clearSignal={clearChatSignal.current} />
         </div>
       </div>
     </div>

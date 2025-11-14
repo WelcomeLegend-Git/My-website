@@ -77,12 +77,12 @@ const StudyGuruMobile = () => {
   };
 
   const suggestions = [
-    { icon: "", label: "Explain concept", color: "text-emerald-400" },
-    { icon: "", label: "Solve problem", color: "text-cyan-400" },
-    { icon: "", label: "Study tips", color: "text-yellow-400" },
-    { icon: "", label: "Practice quiz", color: "text-orange-400" },
-    { icon: "", label: "Help me write", color: "text-pink-400" },
-    { icon: "", label: "More", color: "text-slate-400" },
+    { icon: "🎨", label: "Explain concept", color: "text-emerald-400" },
+    { icon: "💻", label: "Solve problem", color: "text-cyan-400" },
+    { icon: "💡", label: "Study tips", color: "text-yellow-400" },
+    { icon: "📝", label: "Practice quiz", color: "text-orange-400" },
+    { icon: "✍️", label: "Help me write", color: "text-pink-400" },
+    { icon: "➕", label: "More", color: "text-slate-400" },
   ];
 
   const isEmptyChat = messages.length === 1 && messages[0].type === "assistant";

@@ -25,7 +25,8 @@ const ensureMathDelimiters = (text: string): string => {
 
 const resolveContextPageLabel = (
   section: "formulas" | "mistakes" | "study",
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  routePath?: string,
 ): string | null => {
   // If we have context, use it
   if (context) {
@@ -56,7 +57,13 @@ const resolveContextPageLabel = (
   // This handles the case when page is loading and context hasn't been set yet
   if (section === 'formulas') return 'Formulas';
   if (section === 'mistakes') return 'Mistakes';
-  if (section === 'study') return 'Dashboard';
+  if (section === 'study') {
+    const path = routePath || '';
+    if (path === '/' || path === '') return 'Dashboard';
+    if (path.startsWith('/quiz-history')) return 'Quiz History';
+    if (path.startsWith('/quiz')) return 'Quiz Results';
+    return 'Dashboard';
+  }
 
   return null;
 };
@@ -84,6 +91,8 @@ type Props = {
   open: boolean;
   section: "formulas" | "mistakes" | "study";
   context?: Record<string, unknown>;
+  /** Current route path (e.g. "/", "/quiz-history", "/quiz/123") */
+  routePath?: string;
   variant?: "desktop" | "mobile";
   onRequestClose?: () => void;
   openHistorySignal?: number;
@@ -97,7 +106,7 @@ const createId = () => {
   return Math.random().toString(36).slice(2);
 };
 
-export const AiSidebar = ({ open, section, context, variant = "desktop", onRequestClose, openHistorySignal, clearSignal }: Props) => {
+export const AiSidebar = ({ open, section, context, routePath, variant = "desktop", onRequestClose, openHistorySignal, clearSignal }: Props) => {
   const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,10 +122,10 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
   // Update pageLabel immediately on section OR context change
   useEffect(() => {
-    const newLabel = resolveContextPageLabel(section, context);
+    const newLabel = resolveContextPageLabel(section, context, routePath);
     setPageLabel(newLabel);
     forceUpdate(n => n + 1); // Force immediate re-render
-  }, [section, context]);
+  }, [section, context, routePath]);
   
   // Additional update when pageLabel changes (double safety)
   useEffect(() => {

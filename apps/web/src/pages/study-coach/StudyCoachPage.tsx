@@ -89,7 +89,7 @@ const StudyGuruMobile = () => {
   const isEmptyChat = messages.length === 1 && messages[0].type === "assistant";
 
   return (
-    <div className="flex w-full min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden rounded-xl lg:rounded-2xl border border-slate-800/60 shadow-xl">
+    <div className="flex w-full min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)] text-slate-100 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div

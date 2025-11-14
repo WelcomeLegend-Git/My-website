@@ -127,10 +127,24 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
     forceUpdate(n => n + 1); // Force immediate re-render
   }, [section, context, routePath]);
   
+  // Force chip re-check when sidebar opens (especially important on mobile)
+  useEffect(() => {
+    if (open) {
+      const newLabel = resolveContextPageLabel(section, context, routePath);
+      setPageLabel(newLabel);
+      forceUpdate(n => n + 1);
+    }
+  }, [open, section, context, routePath]);
+  
   // Additional update when pageLabel changes (double safety)
   useEffect(() => {
     forceUpdate(n => n + 1);
   }, [pageLabel]);
+  
+  // Force immediate chip update on any prop change (critical for mobile)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [section, context, routePath, open]);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -456,8 +470,8 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
           </div>
         </div>
         {variant === "mobile" && onRequestClose && (
-          <button onClick={onRequestClose} className="absolute top-2 right-2 p-2 rounded-lg hover:bg-slate-800 transition-colors">
-            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={onRequestClose} className="absolute -top-3 -right-3 p-3 rounded-full bg-slate-900/90 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all shadow-lg z-10">
+            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

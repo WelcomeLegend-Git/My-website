@@ -88,7 +88,7 @@ const StudyGuruMobile = () => {
   const isEmptyChat = messages.length === 1 && messages[0].type === "assistant";
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-100 overflow-hidden">
+    <div className="flex w-full min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden rounded-xl lg:rounded-2xl border border-slate-800/60 shadow-xl">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -214,7 +214,7 @@ const StudyGuruMobile = () => {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto px-4 lg:px-6">
-          <div className="max-w-3xl mx-auto py-4 lg:py-6">
+          <div className="max-w-3xl xl:max-w-4xl mx-auto py-4 lg:py-6">
             {isEmptyChat ? (
               // Empty State with Suggestions
               <div className="flex flex-col items-center justify-center min-h-full py-8">
@@ -265,8 +265,8 @@ const StudyGuruMobile = () => {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-800 p-3 lg:p-6 flex-shrink-0 bg-slate-900">
-          <div className="max-w-3xl mx-auto">
+        <div className="border-t border-slate-800 p-3 lg:p-6 flex-shrink-0 bg-slate-900/95">
+          <div className="max-w-3xl xl:max-w-4xl mx-auto">
             <div className="flex gap-2 lg:gap-3 bg-slate-900 rounded-3xl p-1.5 lg:p-2 items-center border border-slate-800">
               <button className="lg:hidden p-2 hover:bg-slate-800 rounded-full transition-colors flex-shrink-0 text-slate-100">
                 <Plus size={20} />

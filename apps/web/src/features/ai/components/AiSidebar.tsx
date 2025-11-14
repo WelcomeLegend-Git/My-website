@@ -27,28 +27,36 @@ const resolveContextPageLabel = (
   section: "formulas" | "mistakes" | "study",
   context?: Record<string, unknown>
 ): string | null => {
-  if (!context) return null;
-  const rawEntity = (context as any).entity;
-  const rawType = (context as any).type;
-  const entity = typeof rawEntity === 'string' ? rawEntity : undefined;
-  const type = typeof rawType === 'string' ? rawType : undefined;
+  // If we have context, use it
+  if (context) {
+    const rawEntity = (context as any).entity;
+    const rawType = (context as any).type;
+    const entity = typeof rawEntity === 'string' ? rawEntity : undefined;
+    const type = typeof rawType === 'string' ? rawType : undefined;
 
-  if (section === 'formulas') {
-    if (entity === 'formulaCollectionsList') return 'Formula Collections';
-    if (entity === 'formulaCollection') return 'Formula Collection';
-    if (entity === 'formulasList' || entity === 'formula') return 'Formula Library';
-  }
+    if (section === 'formulas') {
+      if (entity === 'formulaCollectionsList') return 'Formula Collections';
+      if (entity === 'formulaCollection') return 'Formula Collection';
+      if (entity === 'formulasList' || entity === 'formula') return 'Formula Library';
+    }
 
-  if (section === 'mistakes') {
-    if (entity === 'mistakesList') return 'Mistake Log';
-    if (entity === 'mistake') return 'Mistake Detail';
-  }
+    if (section === 'mistakes') {
+      if (entity === 'mistakesList') return 'Mistake Log';
+      if (entity === 'mistake') return 'Mistake Detail';
+    }
 
-  if (section === 'study') {
-    if (type === 'dashboard' || entity === 'dashboard') return 'Dashboard';
-    if (type === 'quiz_history') return 'Quiz History';
-    if (type === 'quiz_results') return 'Quiz Results';
+    if (section === 'study') {
+      if (type === 'dashboard' || entity === 'dashboard') return 'Dashboard';
+      if (type === 'quiz_history') return 'Quiz History';
+      if (type === 'quiz_results') return 'Quiz Results';
+    }
   }
+  
+  // Fallback: If no context yet, show section-based label
+  // This handles the case when page is loading and context hasn't been set yet
+  if (section === 'formulas') return 'Formulas';
+  if (section === 'mistakes') return 'Mistakes';
+  if (section === 'study') return 'Dashboard';
 
   return null;
 };

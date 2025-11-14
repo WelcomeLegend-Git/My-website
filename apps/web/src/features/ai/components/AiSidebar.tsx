@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -82,7 +82,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const [isVerified, setIsVerified] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const pageLabel = resolveContextPageLabel(section, context);
+  const pageLabel = useMemo(() => resolveContextPageLabel(section, context), [section, context]);
 
   // Check if user has verified AI access on mount
   useEffect(() => {

@@ -37,8 +37,16 @@ export const DashboardPage = () => {
 
   useEffect(() => {
     setAiSection("study");
-    setAiContext(undefined);
-  }, [setAiContext, setAiSection]);
+    // Set Dashboard context
+    setAiContext({
+      type: 'dashboard',
+      entity: 'dashboard',
+      stats: {
+        masteryPercentage: stats.masteryPercentage,
+        resolvedCount: stats.resolvedCount,
+      },
+    });
+  }, [setAiContext, setAiSection, stats.masteryPercentage, stats.resolvedCount]);
 
   return (
     <section className="space-y-8">

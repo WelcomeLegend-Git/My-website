@@ -61,6 +61,7 @@ export const ShellLayout = () => {
   const [menuVariant, setMenuVariant] = useState<'desktop' | 'mobile'>('desktop');
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const clearChatSignal = useRef(0);
+  const longPressTriggered = useRef(false);
 
   useEffect(() => {
     setAiSection(resolveSection(location.pathname));
@@ -116,24 +117,40 @@ export const ShellLayout = () => {
   };
 
   const handleLongPressStart = (variant: 'desktop' | 'mobile', event: React.PointerEvent) => {
-    event.preventDefault();
+    longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
       setMenuVariant(variant);
       setShowNewChatMenu(true);
-      longPressTimer.current = null; // Clear timer after menu shows
+      longPressTimer.current = null;
     }, 600); // 600ms for long press
   };
 
-  const handleLongPressEnd = (event?: React.PointerEvent) => {
+  const handleLongPressEnd = (event: React.PointerEvent) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
-      // Only toggle AI if menu is not showing
-      if (!showNewChatMenu && event) {
-        setAiOpen((prev) => !prev);
-      }
     }
-    event?.stopPropagation();
+    
+    // Prevent click/toggle if long press was triggered
+    if (longPressTriggered.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    
+    // Normal click - toggle AI
+    if (!showNewChatMenu) {
+      setAiOpen((prev) => !prev);
+    }
+  };
+
+  const handleLongPressCancel = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    longPressTriggered.current = false;
   };
 
   const handleNewChat = () => {
@@ -231,7 +248,8 @@ export const ShellLayout = () => {
                     type="button"
                     onPointerDown={(e) => handleLongPressStart('desktop', e)}
                     onPointerUp={(e) => handleLongPressEnd(e)}
-                    onPointerLeave={() => handleLongPressEnd()}
+                    onPointerLeave={handleLongPressCancel}
+                    onPointerCancel={handleLongPressCancel}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
                       !showMentor
@@ -294,7 +312,8 @@ export const ShellLayout = () => {
                     type="button"
                     onPointerDown={(e) => handleLongPressStart('mobile', e)}
                     onPointerUp={(e) => handleLongPressEnd(e)}
-                    onPointerLeave={() => handleLongPressEnd()}
+                    onPointerLeave={handleLongPressCancel}
+                    onPointerCancel={handleLongPressCancel}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
                       !showMentor

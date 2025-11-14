@@ -45,6 +45,7 @@ const resolveContextPageLabel = (
   }
 
   if (section === 'study') {
+    if (type === 'dashboard' || entity === 'dashboard') return 'Dashboard';
     if (type === 'quiz_history') return 'Quiz History';
     if (type === 'quiz_results') return 'Quiz Results';
   }
@@ -225,32 +226,44 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
   // Detect page switches and add notification message
   useEffect(() => {
-    if (!pageLabel) return;
-    
-    // Initialize previous page label on first render
-    if (previousPageLabel.current === null) {
+    // Initialize previous page label on first render (can be null for non-aware pages)
+    if (previousPageLabel.current === null && pageLabel !== null) {
       previousPageLabel.current = pageLabel;
       pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
       forceUpdate(n => n + 1); // Force re-render to show chip
       return;
     }
     
-    // Detect page switch
+    // Detect page switch (including from null to non-null and vice versa)
     if (previousPageLabel.current !== pageLabel) {
-      const switchMessage: Message = {
-        id: createId(),
-        role: 'assistant',
-        content: `📍 You switched from **${previousPageLabel.current}** to **${pageLabel}**`,
-        pageContext: pageLabel,
-        isPageSwitch: true,
-      };
+      const fromLabel = previousPageLabel.current || 'non-aware page';
+      const toLabel = pageLabel || 'non-aware page';
       
-      setMessages((prev) => [...prev, switchMessage]);
+      // Only add notification if both are different and at least one is page-aware
+      if (previousPageLabel.current || pageLabel) {
+        const switchMessage: Message = {
+          id: createId(),
+          role: 'assistant',
+          content: `📍 You switched from **${fromLabel}** to **${toLabel}**`,
+          pageContext: pageLabel,
+          isPageSwitch: true,
+        };
+        
+        setMessages((prev) => [...prev, switchMessage]);
+      }
+      
       pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
       previousPageLabel.current = pageLabel;
       forceUpdate(n => n + 1); // Force re-render to show chip
     }
   }, [pageLabel]);
+
+  // Recheck and update chip when mentor opens/closes
+  useEffect(() => {
+    if (open) {
+      forceUpdate(n => n + 1);
+    }
+  }, [open]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

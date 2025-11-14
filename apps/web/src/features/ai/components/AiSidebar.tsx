@@ -23,6 +23,36 @@ const ensureMathDelimiters = (text: string): string => {
   return processed;
 };
 
+const resolveContextPageLabel = (
+  section: "formulas" | "mistakes" | "study",
+  context?: Record<string, unknown>
+): string | null => {
+  if (!context) return null;
+  const rawEntity = (context as any).entity;
+  const rawType = (context as any).type;
+  const entity = typeof rawEntity === 'string' ? rawEntity : undefined;
+  const type = typeof rawType === 'string' ? rawType : undefined;
+
+  if (section === 'formulas') {
+    if (entity === 'formulaCollectionsList') return 'Formula Collections';
+    if (entity === 'formulaCollection') return 'Formula Collection';
+    if (entity === 'formulasList') return 'Formula Library';
+    if (entity === 'formula') return 'Formula Detail';
+  }
+
+  if (section === 'mistakes') {
+    if (entity === 'mistakesList') return 'Mistake Log';
+    if (entity === 'mistake') return 'Mistake Detail';
+  }
+
+  if (section === 'study') {
+    if (type === 'quiz_history') return 'Quiz History';
+    if (type === 'quiz_results') return 'Quiz Results';
+  }
+
+  return null;
+};
+
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -53,6 +83,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const [isVerified, setIsVerified] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const pageLabel = resolveContextPageLabel(section, context);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -391,6 +422,16 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
 
       {/* Input Form - Fixed at bottom */}
       <form onSubmit={handleSubmit} className="mt-5 space-y-3 flex-shrink-0">
+        {pageLabel && (
+          <div className="flex items-center justify-between text-[11px] text-emerald-300/80">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 max-w-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-medium truncate max-w-[14rem] sm:max-w-[18rem]">
+                {pageLabel}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="relative">
           <textarea
             value={input}

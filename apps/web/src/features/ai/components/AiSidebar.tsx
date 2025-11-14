@@ -111,14 +111,14 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [, forceUpdate] = useState(0);
 
-  // FORCE update pageLabel on EVERY section/context change
+  // Update pageLabel immediately on section OR context change
   useEffect(() => {
     const newLabel = resolveContextPageLabel(section, context);
-    console.log('[AI Chip] Section:', section, 'Context:', context, 'Label:', newLabel);
     setPageLabel(newLabel);
+    forceUpdate(n => n + 1); // Force immediate re-render
   }, [section, context]);
   
-  // FORCE re-render when pageLabel changes
+  // Additional update when pageLabel changes (double safety)
   useEffect(() => {
     forceUpdate(n => n + 1);
   }, [pageLabel]);

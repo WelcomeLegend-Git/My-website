@@ -60,8 +60,9 @@ export const ShellLayout = () => {
   const clearChatSignal = useRef(0);
 
   useEffect(() => {
-    setAiSection(resolveSection(location.pathname));
+    // Immediately clear context and update section on navigation
     setAiContext(undefined);
+    setAiSection(resolveSection(location.pathname));
   }, [location.pathname]);
 
   useEffect(() => {

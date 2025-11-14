@@ -66,6 +66,11 @@ type ConversationHistory = {
   lastUpdated: number;
 };
 
+type ArchivedConversation = ConversationHistory & {
+  id: string;
+  archivedAt: number;
+};
+
 type Props = {
   open: boolean;
   section: "formulas" | "mistakes" | "study";
@@ -95,6 +100,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const previousPageLabel = useRef<string | null>(null);
   const pageHistory = useRef<Array<{ label: string | null; timestamp: number }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [, forceUpdate] = useState(0);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -225,6 +231,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
     if (previousPageLabel.current === null) {
       previousPageLabel.current = pageLabel;
       pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
+      forceUpdate(n => n + 1); // Force re-render to show chip
       return;
     }
     
@@ -241,6 +248,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
       setMessages((prev) => [...prev, switchMessage]);
       pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
       previousPageLabel.current = pageLabel;
+      forceUpdate(n => n + 1); // Force re-render to show chip
     }
   }, [pageLabel]);
 
@@ -249,13 +257,40 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle external clear signal
+  // Handle external clear signal (from New Chat menu)
   useEffect(() => {
     if (!clearSignal || clearSignal === 0) return;
+    
+    // Save current conversation to history before clearing
+    if (messages.length > 0) {
+      try {
+        const existingHistory = localStorage.getItem('ai_conversation_history_v1');
+        const history: ArchivedConversation[] = existingHistory ? JSON.parse(existingHistory) : [];
+        
+        const archivedConversation: ArchivedConversation = {
+          id: createId(),
+          messages,
+          pageHistory: pageHistory.current,
+          lastUpdated: Date.now(),
+          archivedAt: Date.now(),
+        };
+        
+        history.unshift(archivedConversation);
+        
+        // Keep only last 20 conversations
+        if (history.length > 20) {
+          history.splice(20);
+        }
+        
+        localStorage.setItem('ai_conversation_history_v1', JSON.stringify(history));
+      } catch {}
+    }
+    
     setMessages([]);
     pageHistory.current = [];
     previousPageLabel.current = pageLabel;
-  }, [clearSignal, pageLabel]);
+    forceUpdate(n => n + 1);
+  }, [clearSignal, pageLabel, messages]);
 
   const handleQuizSubmit = async (config: QuizConfig) => {
     setShowQuizConfig(false);
@@ -379,12 +414,37 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
             <div className="p-3 border-b border-slate-800/60">
               <button
                 type="button"
-                onClick={() => { 
+                onClick={() => {
+                  // Save current conversation to history before clearing
+                  if (messages.length > 0) {
+                    try {
+                      const existingHistory = localStorage.getItem('ai_conversation_history_v1');
+                      const history: ArchivedConversation[] = existingHistory ? JSON.parse(existingHistory) : [];
+                      
+                      const archivedConversation: ArchivedConversation = {
+                        id: createId(),
+                        messages,
+                        pageHistory: pageHistory.current,
+                        lastUpdated: Date.now(),
+                        archivedAt: Date.now(),
+                      };
+                      
+                      history.unshift(archivedConversation);
+                      
+                      if (history.length > 20) {
+                        history.splice(20);
+                      }
+                      
+                      localStorage.setItem('ai_conversation_history_v1', JSON.stringify(history));
+                    } catch {}
+                  }
+                  
                   setMessages([]); 
                   pageHistory.current = []; 
                   previousPageLabel.current = pageLabel;
                   try { localStorage.removeItem('ai_conversation_v2'); } catch {}; 
-                  setHistoryOpen(false); 
+                  setHistoryOpen(false);
+                  forceUpdate(n => n + 1);
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
               >
@@ -392,15 +452,46 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
                 New chat
               </button>
             </div>
-            <div className="p-3 space-y-1 overflow-y-auto h-[calc(100%-112px)]">
-              {messages.filter(m => m.role === 'user').slice().reverse().map((m, idx) => (
-                <div key={`${m.id}-${idx}`} className="px-3 py-2 rounded-lg hover:bg-slate-800/60 cursor-default">
-                  <p className="text-xs text-slate-300 line-clamp-2">{m.content}</p>
-                </div>
-              ))}
-              {messages.filter(m => m.role === 'user').length === 0 && (
-                <p className="text-xs text-slate-500">No recent prompts.</p>
-              )}
+            <div className="p-3 space-y-2 overflow-y-auto h-[calc(100%-112px)]">
+              {(() => {
+                try {
+                  const raw = localStorage.getItem('ai_conversation_history_v1');
+                  const history: ArchivedConversation[] = raw ? JSON.parse(raw) : [];
+                  
+                  return history.length > 0 ? (
+                    history.map((conv) => {
+                      const firstUserMsg = conv.messages.find(m => m.role === 'user');
+                      const msgCount = conv.messages.filter(m => m.role === 'user').length;
+                      const date = new Date(conv.archivedAt);
+                      const timeStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                      
+                      return (
+                        <div 
+                          key={conv.id} 
+                          className="px-3 py-2 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/60 cursor-pointer transition"
+                          onClick={() => {
+                            setMessages(conv.messages);
+                            pageHistory.current = conv.pageHistory || [];
+                            setHistoryOpen(false);
+                          }}
+                        >
+                          <p className="text-xs text-slate-300 line-clamp-2 mb-1">
+                            {firstUserMsg?.content || 'Empty conversation'}
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500">
+                            <span>{msgCount} message{msgCount !== 1 ? 's' : ''}</span>
+                            <span>{timeStr}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-500 text-center py-4">No conversation history yet</p>
+                  );
+                } catch {
+                  return <p className="text-xs text-slate-500 text-center py-4">Failed to load history</p>;
+                }
+              })()}
             </div>
           </aside>
         </div>

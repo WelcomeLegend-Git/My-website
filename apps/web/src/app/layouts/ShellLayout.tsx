@@ -115,18 +115,25 @@ export const ShellLayout = () => {
     } catch {}
   };
 
-  const handleLongPressStart = (variant: 'desktop' | 'mobile') => {
+  const handleLongPressStart = (variant: 'desktop' | 'mobile', event: React.PointerEvent) => {
+    event.preventDefault();
     longPressTimer.current = setTimeout(() => {
       setMenuVariant(variant);
       setShowNewChatMenu(true);
+      longPressTimer.current = null; // Clear timer after menu shows
     }, 600); // 600ms for long press
   };
 
-  const handleLongPressEnd = () => {
+  const handleLongPressEnd = (event?: React.PointerEvent) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
+      // Only toggle AI if menu is not showing
+      if (!showNewChatMenu && event) {
+        setAiOpen((prev) => !prev);
+      }
     }
+    event?.stopPropagation();
   };
 
   const handleNewChat = () => {
@@ -222,10 +229,9 @@ export const ShellLayout = () => {
                 <div className="relative hidden lg:block">
                   <button
                     type="button"
-                    onClick={() => setAiOpen((prev) => !prev)}
-                    onPointerDown={() => handleLongPressStart('desktop')}
-                    onPointerUp={handleLongPressEnd}
-                    onPointerLeave={handleLongPressEnd}
+                    onPointerDown={(e) => handleLongPressStart('desktop', e)}
+                    onPointerUp={(e) => handleLongPressEnd(e)}
+                    onPointerLeave={() => handleLongPressEnd()}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
                       !showMentor
@@ -286,10 +292,9 @@ export const ShellLayout = () => {
                 <div className="relative lg:hidden">
                   <button
                     type="button"
-                    onClick={() => setAiOpen((prev) => !prev)}
-                    onPointerDown={() => handleLongPressStart('mobile')}
-                    onPointerUp={handleLongPressEnd}
-                    onPointerLeave={handleLongPressEnd}
+                    onPointerDown={(e) => handleLongPressStart('mobile', e)}
+                    onPointerUp={(e) => handleLongPressEnd(e)}
+                    onPointerLeave={() => handleLongPressEnd()}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
                       !showMentor

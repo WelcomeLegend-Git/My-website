@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -56,6 +56,14 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  pageContext?: string | null;
+  isPageSwitch?: boolean;
+};
+
+type ConversationHistory = {
+  messages: Message[];
+  pageHistory: Array<{ label: string | null; timestamp: number }>;
+  lastUpdated: number;
 };
 
 type Props = {
@@ -65,6 +73,7 @@ type Props = {
   variant?: "desktop" | "mobile";
   onRequestClose?: () => void;
   openHistorySignal?: number;
+  clearSignal?: number;
 };
 
 const createId = () => {
@@ -74,7 +83,7 @@ const createId = () => {
   return Math.random().toString(36).slice(2);
 };
 
-export const AiSidebar = ({ open, section, context, variant = "desktop", onRequestClose, openHistorySignal }: Props) => {
+export const AiSidebar = ({ open, section, context, variant = "desktop", onRequestClose, openHistorySignal, clearSignal }: Props) => {
   const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,6 +92,9 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const [showVerification, setShowVerification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const pageLabel = useMemo(() => resolveContextPageLabel(section, context), [section, context]);
+  const previousPageLabel = useRef<string | null>(null);
+  const pageHistory = useRef<Array<{ label: string | null; timestamp: number }>>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -147,11 +159,22 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
       return;
     }
     
-    const message: Message = { id: createId(), role: "user", content };
+    const message: Message = { 
+      id: createId(), 
+      role: "user", 
+      content,
+      pageContext: pageLabel,
+    };
     setMessages((prev) => [...prev, message]);
     setInput("");
     try {
-      await mutation.mutateAsync({ section, context, message: content });
+      // Include page history in the context sent to AI
+      const enhancedContext = {
+        ...context,
+        _pageHistory: pageHistory.current,
+        _currentPage: pageLabel,
+      };
+      await mutation.mutateAsync({ section, context: enhancedContext, message: content });
     } catch (error) {
       setMessages((prev) => [
         ...prev,
@@ -164,26 +187,75 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
     }
   };
 
-  // Persist conversation per section in sessionStorage (until tab closed)
+  // Load conversation from localStorage on mount (persists across refreshes)
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(`ai_messages_v1_${section}`);
+      const raw = localStorage.getItem('ai_conversation_v2');
       if (raw) {
-        const parsed = JSON.parse(raw) as Message[];
-        if (Array.isArray(parsed)) {
-          setMessages(parsed);
+        const parsed = JSON.parse(raw) as ConversationHistory;
+        if (parsed.messages && Array.isArray(parsed.messages)) {
+          setMessages(parsed.messages);
+          if (parsed.pageHistory) {
+            pageHistory.current = parsed.pageHistory;
+          }
         }
       }
     } catch {}
-    // Do not include messages here; only load on mount/section change
+    // Only load on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section]);
+  }, []);
 
+  // Save conversation to localStorage whenever messages change
   useEffect(() => {
     try {
-      sessionStorage.setItem(`ai_messages_v1_${section}`, JSON.stringify(messages));
+      const conversationData: ConversationHistory = {
+        messages,
+        pageHistory: pageHistory.current,
+        lastUpdated: Date.now(),
+      };
+      localStorage.setItem('ai_conversation_v2', JSON.stringify(conversationData));
     } catch {}
-  }, [messages, section]);
+  }, [messages]);
+
+  // Detect page switches and add notification message
+  useEffect(() => {
+    if (!pageLabel) return;
+    
+    // Initialize previous page label on first render
+    if (previousPageLabel.current === null) {
+      previousPageLabel.current = pageLabel;
+      pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
+      return;
+    }
+    
+    // Detect page switch
+    if (previousPageLabel.current !== pageLabel) {
+      const switchMessage: Message = {
+        id: createId(),
+        role: 'assistant',
+        content: `📍 You switched from **${previousPageLabel.current}** to **${pageLabel}**`,
+        pageContext: pageLabel,
+        isPageSwitch: true,
+      };
+      
+      setMessages((prev) => [...prev, switchMessage]);
+      pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
+      previousPageLabel.current = pageLabel;
+    }
+  }, [pageLabel]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Handle external clear signal
+  useEffect(() => {
+    if (!clearSignal || clearSignal === 0) return;
+    setMessages([]);
+    pageHistory.current = [];
+    previousPageLabel.current = pageLabel;
+  }, [clearSignal, pageLabel]);
 
   const handleQuizSubmit = async (config: QuizConfig) => {
     setShowQuizConfig(false);
@@ -286,8 +358,10 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
                 <button
                   type="button"
                   onClick={() => {
-                    try { sessionStorage.removeItem(`ai_messages_v1_${section}`); } catch {}
+                    try { localStorage.removeItem('ai_conversation_v2'); } catch {}
                     setMessages([]);
+                    pageHistory.current = [];
+                    previousPageLabel.current = pageLabel;
                   }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-red-500/50 hover:text-red-400 transition"
                 >
@@ -305,7 +379,13 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
             <div className="p-3 border-b border-slate-800/60">
               <button
                 type="button"
-                onClick={() => { setMessages([]); try { sessionStorage.setItem(`ai_messages_v1_${section}`, JSON.stringify([])); } catch {}; setHistoryOpen(false); }}
+                onClick={() => { 
+                  setMessages([]); 
+                  pageHistory.current = []; 
+                  previousPageLabel.current = pageLabel;
+                  try { localStorage.removeItem('ai_conversation_v2'); } catch {}; 
+                  setHistoryOpen(false); 
+                }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
@@ -342,10 +422,12 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
           messages.map((message, index) => (
             <div
               key={message.id}
-              className={`rounded-xl border p-4 transition-all duration-300 hover-lift stagger-item ${
-                message.role === "assistant"
-                  ? "bg-slate-950/80 border-emerald-500/25 shadow-[0_12px_40px_-20px_rgba(16,185,129,0.6)] backdrop-blur-sm"
-                  : "bg-slate-800/40 border-slate-700/50"
+              className={`rounded-xl border p-4 transition-all duration-300 stagger-item ${
+                message.isPageSwitch
+                  ? "bg-cyan-500/10 border-cyan-500/30 backdrop-blur-sm"
+                  : message.role === "assistant"
+                  ? "bg-slate-950/80 border-emerald-500/25 shadow-[0_12px_40px_-20px_rgba(16,185,129,0.6)] backdrop-blur-sm hover-lift"
+                  : "bg-slate-800/40 border-slate-700/50 hover-lift"
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -405,6 +487,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
             </div>
           ))
         )}
+        <div ref={messagesEndRef} />
         
         {/* Quiz Configuration Form */}
         {showQuizConfig && (

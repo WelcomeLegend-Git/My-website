@@ -101,12 +101,26 @@ export const ShellLayout = () => {
     }
   }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside (with delay to allow menu to appear)
   useEffect(() => {
     if (!showNewChatMenu) return;
-    const handleClickOutside = () => setShowNewChatMenu(false);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    
+    // Delay the click handler so menu can fully appear before detecting outside clicks
+    const delayTimer = setTimeout(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        // Don't close if clicking on the menu itself
+        if (!target.closest('[data-new-chat-menu]')) {
+          setShowNewChatMenu(false);
+        }
+      };
+      document.addEventListener('click', handleClickOutside);
+      
+      // Cleanup
+      return () => document.removeEventListener('click', handleClickOutside);
+    }, 100); // 100ms delay
+    
+    return () => clearTimeout(delayTimer);
   }, [showNewChatMenu]);
 
   const clearAiChat = () => {
@@ -265,7 +279,7 @@ export const ShellLayout = () => {
                     {aiOpen ? "Hide" : "Show"} Mentor
                   </button>
                   {showNewChatMenu && menuVariant === 'desktop' && (
-                    <div className="absolute top-full mt-2 right-0 z-50 fade-in">
+                    <div className="absolute top-full mt-2 right-0 z-50 fade-in" data-new-chat-menu>
                       <div className="relative">
                         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-xl blur"></div>
                         <div className="relative glass-card rounded-xl border border-emerald-500/20 overflow-hidden">
@@ -329,7 +343,7 @@ export const ShellLayout = () => {
                     {aiOpen ? "Hide" : "Show"} Mentor
                   </button>
                   {showNewChatMenu && menuVariant === 'mobile' && (
-                    <div className="absolute top-full mt-2 right-0 z-50 fade-in">
+                    <div className="absolute top-full mt-2 right-0 z-50 fade-in" data-new-chat-menu>
                       <div className="relative">
                         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-xl blur"></div>
                         <div className="relative glass-card rounded-xl border border-emerald-500/20 overflow-hidden">

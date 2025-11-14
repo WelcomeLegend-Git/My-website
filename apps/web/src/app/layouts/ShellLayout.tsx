@@ -57,9 +57,6 @@ export const ShellLayout = () => {
   const [showMentor, setShowMentor] = useState(true);
   const [aiContext, setAiContext] = useState<Record<string, unknown> | undefined>(undefined);
   const [aiSection, setAiSection] = useState<AiSection>(resolveSection(location.pathname));
-  const [showNewChatMenu, setShowNewChatMenu] = useState(false);
-  const [menuVariant, setMenuVariant] = useState<'desktop' | 'mobile'>('desktop');
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const clearChatSignal = useRef(0);
 
   useEffect(() => {
@@ -100,26 +97,6 @@ export const ShellLayout = () => {
     }
   }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
 
-  // Simple click outside handler
-  useEffect(() => {
-    if (!showNewChatMenu) return;
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('[data-new-chat-menu]') && !target.closest('[data-mentor-button]')) {
-        setShowNewChatMenu(false);
-      }
-    };
-    
-    // Add listener on next tick
-    setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 0);
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNewChatMenu]);
 
   const clearAiChat = () => {
     try {
@@ -128,43 +105,7 @@ export const ShellLayout = () => {
     } catch {}
   };
 
-  const handleButtonClick = (variant: 'desktop' | 'mobile') => {
-    // If menu is showing, hide it
-    if (showNewChatMenu) {
-      setShowNewChatMenu(false);
-    } else {
-      // Normal click - toggle AI
-      setAiOpen((prev) => !prev);
-    }
-  };
 
-  const handleLongPress = (variant: 'desktop' | 'mobile') => {
-    // Clear any existing timer
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-    }
-    
-    // Start long press timer
-    longPressTimer.current = setTimeout(() => {
-      setMenuVariant(variant);
-      setShowNewChatMenu(true);
-      longPressTimer.current = null;
-    }, 600);
-  };
-
-  const handleRelease = () => {
-    // Clear timer if still running (wasn't a long press)
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const handleNewChat = () => {
-    clearAiChat();
-    setShowNewChatMenu(false);
-    setAiOpen(true);
-  };
 
   const outletContext: ShellOutletContext = {
     setAiContext,
@@ -250,46 +191,23 @@ export const ShellLayout = () => {
               {/* Right Section: User & Actions */}
               <div className="flex items-center gap-1.5 sm:gap-3">
                 {/* AI Toggle - Desktop */}
-                <div className="relative hidden lg:block">
-                  <button
-                    type="button"
-                    data-mentor-button
-                    onClick={() => handleButtonClick('desktop')}
-                    onMouseDown={() => handleLongPress('desktop')}
-                    onMouseUp={handleRelease}
-                    onMouseLeave={handleRelease}
-                    disabled={!showMentor}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
-                      !showMentor
-                        ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
-                        : aiOpen
-                        ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
-                        : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    {aiOpen ? "Hide" : "Show"} Mentor
-                  </button>
-                  {showNewChatMenu && menuVariant === 'desktop' && (
-                    <div className="absolute top-full mt-2 right-0 z-50 fade-in" data-new-chat-menu>
-                      <div className="relative">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-xl blur"></div>
-                        <div className="relative glass-card rounded-xl border border-emerald-500/20 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={handleNewChat}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
-                            New Chat
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((prev) => !prev)}
+                  disabled={!showMentor}
+                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
+                    !showMentor
+                      ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                      : aiOpen
+                      ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
+                      : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  {aiOpen ? "Hide" : "Show"} Mentor
+                </button>
 
                 {/* User Info - Desktop */}
                 <div className="hidden md:flex items-center gap-3">
@@ -315,46 +233,23 @@ export const ShellLayout = () => {
                 </button>
 
                 {/* Mobile AI Toggle - same style as desktop */}
-                <div className="relative lg:hidden">
-                  <button
-                    type="button"
-                    data-mentor-button
-                    onClick={() => handleButtonClick('mobile')}
-                    onTouchStart={() => handleLongPress('mobile')}
-                    onTouchEnd={handleRelease}
-                    onTouchCancel={handleRelease}
-                    disabled={!showMentor}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
-                      !showMentor
-                        ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
-                        : aiOpen
-                        ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
-                        : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
-                    }`}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    {aiOpen ? "Hide" : "Show"} Mentor
-                  </button>
-                  {showNewChatMenu && menuVariant === 'mobile' && (
-                    <div className="absolute top-full mt-2 right-0 z-50 fade-in" data-new-chat-menu>
-                      <div className="relative">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-xl blur"></div>
-                        <div className="relative glass-card rounded-xl border border-emerald-500/20 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={handleNewChat}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
-                            New Chat
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((prev) => !prev)}
+                  disabled={!showMentor}
+                  className={`lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
+                    !showMentor
+                      ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                      : aiOpen
+                      ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
+                      : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  {aiOpen ? "Hide" : "Show"} Mentor
+                </button>
               </div>
             </div>
 

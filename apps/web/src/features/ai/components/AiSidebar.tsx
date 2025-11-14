@@ -103,24 +103,17 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [, forceUpdate] = useState(0);
 
-  // AGGRESSIVE: Update pageLabel on EVERY possible change
+  // FORCE update pageLabel on EVERY section/context change
   useEffect(() => {
-    const updateLabel = () => {
-      const newLabel = resolveContextPageLabel(section, context);
-      if (newLabel !== pageLabel) {
-        setPageLabel(newLabel);
-        forceUpdate(n => n + 1);
-      }
-    };
-    
-    // Initial update
-    updateLabel();
-    
-    // Update every 500ms to catch ANY changes
-    const interval = setInterval(updateLabel, 500);
-    
-    return () => clearInterval(interval);
-  }, [section, context, pageLabel]);
+    const newLabel = resolveContextPageLabel(section, context);
+    console.log('[AI Chip] Section:', section, 'Context:', context, 'Label:', newLabel);
+    setPageLabel(newLabel);
+  }, [section, context]);
+  
+  // FORCE re-render when pageLabel changes
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [pageLabel]);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -318,6 +311,38 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
     forceUpdate(n => n + 1);
   }, [clearSignal, pageLabel, messages]);
 
+  const handleNewChat = () => {
+    // Save current conversation to history before clearing
+    if (messages.length > 0) {
+      try {
+        const existingHistory = localStorage.getItem('ai_conversation_history_v1');
+        const history: ArchivedConversation[] = existingHistory ? JSON.parse(existingHistory) : [];
+        
+        const archivedConversation: ArchivedConversation = {
+          id: createId(),
+          messages,
+          pageHistory: pageHistory.current,
+          lastUpdated: Date.now(),
+          archivedAt: Date.now(),
+        };
+        
+        history.unshift(archivedConversation);
+        
+        if (history.length > 20) {
+          history.splice(20);
+        }
+        
+        localStorage.setItem('ai_conversation_history_v1', JSON.stringify(history));
+      } catch {}
+    }
+    
+    setMessages([]);
+    pageHistory.current = [];
+    previousPageLabel.current = pageLabel;
+    try { localStorage.removeItem('ai_conversation_v2'); } catch {};
+    forceUpdate(n => n + 1);
+  };
+
   const handleQuizSubmit = async (config: QuizConfig) => {
     setShowQuizConfig(false);
     
@@ -383,21 +408,34 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
-          <div className="flex items-center justify-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center float">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center float">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-emerald-400 font-bold">AI Mentor</p>
+                <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                  Gemini 2.5 Pro
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                  </span>
+                </h2>
+              </div>
+            </div>
+            {/* New Chat Button */}
+            <button
+              type="button"
+              onClick={handleNewChat}
+              className="p-2 rounded-lg hover:bg-emerald-500/10 transition-colors group"
+              title="New Chat"
+            >
+              <svg className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-emerald-400 font-bold">AI Mentor</p>
-              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                Gemini 2.5 Pro
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                </span>
-              </h2>
-            </div>
+            </button>
           </div>
         </div>
         {variant === "mobile" && onRequestClose && (

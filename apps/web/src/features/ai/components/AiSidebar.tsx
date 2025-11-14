@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -97,11 +97,18 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const [isVerified, setIsVerified] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const pageLabel = useMemo(() => resolveContextPageLabel(section, context), [section, context]);
+  const [pageLabel, setPageLabel] = useState<string | null>(null);
   const previousPageLabel = useRef<string | null>(null);
   const pageHistory = useRef<Array<{ label: string | null; timestamp: number }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [, forceUpdate] = useState(0);
+
+  // Update pageLabel whenever section or context changes
+  useEffect(() => {
+    const newLabel = resolveContextPageLabel(section, context);
+    setPageLabel(newLabel);
+    forceUpdate(n => n + 1); // Force re-render to ensure chip updates
+  }, [section, context]);
 
   // Check if user has verified AI access on mount
   useEffect(() => {

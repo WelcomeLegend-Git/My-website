@@ -62,33 +62,6 @@ export const QuizResultsPage = () => {
     }
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading results...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!quiz) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <div className="text-center">
-          <p className="text-red-400 text-lg">Results not found</p>
-          <button
-            onClick={() => navigate('/formulas')}
-            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const score = quiz?.score ?? 0;
   const accuracy = quiz?.accuracy ?? 0;
   const timeSpent = (quiz as any)?.actualTimeSpent ?? quiz?.timeSpent ?? 0;
@@ -166,6 +139,34 @@ export const QuizResultsPage = () => {
       setAiContext(undefined);
     };
   }, [attemptId, questionInsights, quiz, score, setAiContext, setAiSection, timeSpent]);
+
+  // Keep hooks above, and branch on loading / missing data after hooks
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!quiz) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="text-center">
+          <p className="text-red-400 text-lg">Results not found</p>
+          <button
+            onClick={() => navigate('/formulas')}
+            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

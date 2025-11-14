@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -6,6 +6,45 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
 import type { ShellOutletContext } from '../../app/layouts/ShellLayout';
+
+type QuizResultsSectionBoundaryProps = {
+  children: ReactNode;
+};
+
+type QuizResultsSectionBoundaryState = {
+  hasError: boolean;
+};
+
+class QuizResultsSectionBoundary extends React.Component<
+  QuizResultsSectionBoundaryProps,
+  QuizResultsSectionBoundaryState
+> {
+  constructor(props: QuizResultsSectionBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('Quiz results render error', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-200">
+          We couldn't render the detailed question analysis for this attempt. You can still review the
+          score summary above or go back to Quiz History.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export const QuizResultsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -223,10 +262,11 @@ export const QuizResultsPage = () => {
         </div>
 
         {/* Detailed Question Analysis */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-white mb-4">Question Analysis</h2>
-          
-          {quiz.questions.map((question, index) => {
+        <QuizResultsSectionBoundary>
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-white mb-4">Question Analysis</h2>
+            
+            {quiz.questions.map((question, index) => {
             const insight = questionInsights[index];
             const userAnswers = insight.userAnswers;
             const correctAnswers = insight.correctAnswers;
@@ -364,7 +404,8 @@ export const QuizResultsPage = () => {
               </div>
             );
           })}
-        </div>
+          </div>
+        </QuizResultsSectionBoundary>
     </div>
   );
 };

@@ -61,7 +61,6 @@ export const ShellLayout = () => {
   const [menuVariant, setMenuVariant] = useState<'desktop' | 'mobile'>('desktop');
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const clearChatSignal = useRef(0);
-  const longPressTriggered = useRef(false);
 
   useEffect(() => {
     setAiSection(resolveSection(location.pathname));
@@ -101,26 +100,25 @@ export const ShellLayout = () => {
     }
   }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
 
-  // Close menu when clicking outside (with delay to allow menu to appear)
+  // Simple click outside handler
   useEffect(() => {
     if (!showNewChatMenu) return;
     
-    // Delay the click handler so menu can fully appear before detecting outside clicks
-    const delayTimer = setTimeout(() => {
-      const handleClickOutside = (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        // Don't close if clicking on the menu itself
-        if (!target.closest('[data-new-chat-menu]')) {
-          setShowNewChatMenu(false);
-        }
-      };
-      document.addEventListener('click', handleClickOutside);
-      
-      // Cleanup
-      return () => document.removeEventListener('click', handleClickOutside);
-    }, 100); // 100ms delay
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-new-chat-menu]') && !target.closest('[data-mentor-button]')) {
+        setShowNewChatMenu(false);
+      }
+    };
     
-    return () => clearTimeout(delayTimer);
+    // Add listener on next tick
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [showNewChatMenu]);
 
   const clearAiChat = () => {
@@ -130,41 +128,36 @@ export const ShellLayout = () => {
     } catch {}
   };
 
-  const handleLongPressStart = (variant: 'desktop' | 'mobile', event: React.PointerEvent) => {
-    longPressTriggered.current = false;
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true;
-      setMenuVariant(variant);
-      setShowNewChatMenu(true);
-      longPressTimer.current = null;
-    }, 600); // 600ms for long press
-  };
-
-  const handleLongPressEnd = (event: React.PointerEvent) => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    
-    // Prevent click/toggle if long press was triggered
-    if (longPressTriggered.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    
-    // Normal click - toggle AI
-    if (!showNewChatMenu) {
+  const handleButtonClick = (variant: 'desktop' | 'mobile') => {
+    // If menu is showing, hide it
+    if (showNewChatMenu) {
+      setShowNewChatMenu(false);
+    } else {
+      // Normal click - toggle AI
       setAiOpen((prev) => !prev);
     }
   };
 
-  const handleLongPressCancel = () => {
+  const handleLongPress = (variant: 'desktop' | 'mobile') => {
+    // Clear any existing timer
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+    
+    // Start long press timer
+    longPressTimer.current = setTimeout(() => {
+      setMenuVariant(variant);
+      setShowNewChatMenu(true);
+      longPressTimer.current = null;
+    }, 600);
+  };
+
+  const handleRelease = () => {
+    // Clear timer if still running (wasn't a long press)
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-    longPressTriggered.current = false;
   };
 
   const handleNewChat = () => {
@@ -260,10 +253,11 @@ export const ShellLayout = () => {
                 <div className="relative hidden lg:block">
                   <button
                     type="button"
-                    onPointerDown={(e) => handleLongPressStart('desktop', e)}
-                    onPointerUp={(e) => handleLongPressEnd(e)}
-                    onPointerLeave={handleLongPressCancel}
-                    onPointerCancel={handleLongPressCancel}
+                    data-mentor-button
+                    onClick={() => handleButtonClick('desktop')}
+                    onMouseDown={() => handleLongPress('desktop')}
+                    onMouseUp={handleRelease}
+                    onMouseLeave={handleRelease}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
                       !showMentor
@@ -324,10 +318,11 @@ export const ShellLayout = () => {
                 <div className="relative lg:hidden">
                   <button
                     type="button"
-                    onPointerDown={(e) => handleLongPressStart('mobile', e)}
-                    onPointerUp={(e) => handleLongPressEnd(e)}
-                    onPointerLeave={handleLongPressCancel}
-                    onPointerCancel={handleLongPressCancel}
+                    data-mentor-button
+                    onClick={() => handleButtonClick('mobile')}
+                    onTouchStart={() => handleLongPress('mobile')}
+                    onTouchEnd={handleRelease}
+                    onTouchCancel={handleRelease}
                     disabled={!showMentor}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
                       !showMentor

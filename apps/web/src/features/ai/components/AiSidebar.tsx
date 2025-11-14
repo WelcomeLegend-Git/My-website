@@ -103,12 +103,24 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [, forceUpdate] = useState(0);
 
-  // Update pageLabel whenever section or context changes
+  // AGGRESSIVE: Update pageLabel on EVERY possible change
   useEffect(() => {
-    const newLabel = resolveContextPageLabel(section, context);
-    setPageLabel(newLabel);
-    forceUpdate(n => n + 1); // Force re-render to ensure chip updates
-  }, [section, context]);
+    const updateLabel = () => {
+      const newLabel = resolveContextPageLabel(section, context);
+      if (newLabel !== pageLabel) {
+        setPageLabel(newLabel);
+        forceUpdate(n => n + 1);
+      }
+    };
+    
+    // Initial update
+    updateLabel();
+    
+    // Update every 500ms to catch ANY changes
+    const interval = setInterval(updateLabel, 500);
+    
+    return () => clearInterval(interval);
+  }, [section, context, pageLabel]);
 
   // Check if user has verified AI access on mount
   useEffect(() => {
@@ -264,15 +276,7 @@ export const AiSidebar = ({ open, section, context, variant = "desktop", onReque
     }
   }, [pageLabel]);
 
-  // Recheck and update chip when mentor opens/closes
-  useEffect(() => {
-    if (open) {
-      // Recalculate pageLabel from scratch
-      const freshLabel = resolveContextPageLabel(section, context);
-      setPageLabel(freshLabel);
-      forceUpdate(n => n + 1);
-    }
-  }, [open, section, context]);
+  // REMOVED - Now handled by the interval updater above
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

@@ -444,7 +444,7 @@ const StudyGuruInterface = () => {
                               code: ({node, inline, ...props}) => 
                                 inline 
                                   ? <code className="px-1.5 py-0.5 rounded bg-slate-800/70 text-primary text-xs font-mono" {...props} />
-                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...props} />
+                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...props} />,
                               p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
                               strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
                               em: ({node, ...props}) => <em className="italic" {...props} />,

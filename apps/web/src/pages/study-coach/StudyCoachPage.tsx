@@ -278,40 +278,46 @@ const StudyGuruInterface = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)] w-full bg-slate-950 text-slate-100 relative">
-      {/* Mobile Sidebar Overlay */}
+    <div className="flex h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 relative overflow-hidden">
+      {/* Background gradient effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+      </div>
+      
+      {/* Sidebar Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - Mobile & Desktop */}
+      {/* Sidebar - Always visible on desktop, toggleable on mobile */}
       <div
         className={`
-        fixed lg:static inset-y-0 left-0 z-50 h-full
+        fixed lg:relative inset-y-0 left-0 z-50 h-full
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        transition-transform duration-200 ease-in-out
-        w-64 lg:w-72 xl:w-80 bg-slate-900 border-r border-slate-800 flex flex-col
+        transition-transform duration-300 ease-in-out
+        w-64 lg:w-72 xl:w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/50 flex flex-col
       `}
       >
         {/* Sidebar Header with New Chat */}
-        <div className="p-4 border-b border-slate-800">
+        <div className="p-4 border-b border-slate-800/50">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary/10 to-purple-600/10 hover:from-primary/20 hover:to-purple-600/20 border border-primary/20 rounded-xl transition-all duration-200"
           >
-            <Plus size={20} className="text-slate-300" />
-            <span className="text-sm font-medium">New Chat</span>
+            <Plus size={20} className="text-primary" />
+            <span className="text-sm font-semibold text-slate-100">New Chat</span>
           </button>
         </div>
 
 
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto py-2">
-          <div className="px-3 py-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recent</p>
+          <div className="px-4 py-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recent Chats</p>
           </div>
           {chatHistory.length > 0 ? (
             chatHistory.map((conv) => {
@@ -324,11 +330,12 @@ const StudyGuruInterface = () => {
                 <div
                   key={conv.id}
                   onClick={() => loadArchivedConversation(conv)}
-                  className="group px-4 py-3 hover:bg-slate-800 cursor-pointer transition-colors"
+                  className="group mx-2 px-4 py-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all duration-200"
                 >
                   <p className="text-sm truncate text-slate-300 group-hover:text-slate-100">
                     {firstUserMsg?.content || 'Empty conversation'}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1">{msgCount} messages</p>
                 </div>
               );
             })
@@ -337,48 +344,64 @@ const StudyGuruInterface = () => {
           )}
         </div>
 
-        {/* Bottom Section */}
-        <div className="border-t border-slate-800 p-4">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <span className="text-xs font-semibold">{getUserInitials()}</span>
+        {/* Bottom Section - User Profile */}
+        <div className="border-t border-slate-800/50 p-4 bg-slate-900/50">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-xs font-bold text-white">{getUserInitials()}</span>
             </div>
-            <span className="text-sm text-slate-300">{user?.name || 'User'}</span>
+            <div className="flex-1">
+              <span className="text-sm font-medium text-slate-200">{user?.name || 'User'}</span>
+              <p className="text-xs text-slate-400">{user?.isGuest ? 'Guest' : 'Student'}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
-        {/* Header - Only visible on mobile */}
-        <div className="lg:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900">
+      <div className="flex-1 flex flex-col relative bg-gradient-to-b from-transparent to-slate-900/20">
+        {/* Header with Hamburger Menu - Always visible */}
+        <div className="h-14 lg:h-16 border-b border-slate-800/50 flex items-center px-4 lg:px-6 bg-slate-900/50 backdrop-blur-sm">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-800/50 rounded-lg transition-all duration-200 group"
+            aria-label="Toggle sidebar"
           >
-            <Menu size={20} className="text-slate-300" />
+            <div className="flex flex-col gap-1.5">
+              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
+              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
+              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
+            </div>
           </button>
-          <span className="ml-3 text-lg font-semibold">Study Guru</span>
+          <div className="ml-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg">
+              <BookOpen size={20} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-100">Study Guru</h1>
+              <p className="text-xs text-slate-400 hidden lg:block">AI Learning Assistant</p>
+            </div>
+          </div>
         </div>
 
         {/* Messages Area - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-4 py-6 lg:py-12">
+          <div className="max-w-4xl mx-auto px-4 py-6 lg:py-8">
             {isEmptyChat ? (
               // Empty State
-              <div className="flex flex-col items-center justify-center py-20">
-                <h1 className="text-4xl lg:text-5xl font-light mb-8 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  Hello, {user?.name?.split(' ')[0] || 'there'}
+              <div className="flex flex-col items-center justify-center min-h-[400px] py-12">
+                <h1 className="text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                  Hello, {user?.name?.split(' ')[0] || 'legend'}
                 </h1>
-                <p className="text-slate-400 mb-12">How can I help you today?</p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-3xl">
+                <p className="text-slate-400 mb-12 text-lg">How can I help you today?</p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-3xl">
                   {suggestions.slice(0, 4).map((suggestion, index) => (
                     <button
                       key={index}
-                      className="p-4 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl transition-all text-left border border-slate-700 hover:border-slate-600"
+                      className="group p-5 bg-slate-800/30 hover:bg-slate-800/50 backdrop-blur-sm rounded-2xl transition-all duration-300 text-left border border-slate-700/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transform hover:-translate-y-1"
                     >
-                      <div className="text-2xl mb-2">{suggestion.icon}</div>
-                      <div className="text-sm text-slate-300">{suggestion.label}</div>
+                      <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{suggestion.icon}</div>
+                      <div className="text-sm font-medium text-slate-300 group-hover:text-slate-100">{suggestion.label}</div>
                     </button>
                   ))}
                 </div>
@@ -387,21 +410,23 @@ const StudyGuruInterface = () => {
               // Messages
               <div className="space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id} className="flex gap-3">
+                  <div key={message.id} className="flex gap-4">
                     <div className="flex-shrink-0">
                       {message.role === "assistant" ? (
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                          <BookOpen size={16} className="text-white" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                          <BookOpen size={18} className="text-white" />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-semibold text-slate-300">{getUserInitials()}</span>
+                        <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-bold text-slate-200">{getUserInitials()}</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="font-semibold text-sm text-slate-300 mb-1">
-                        {message.role === "assistant" ? "Study Guru" : (user?.name || "You")}
+                    <div className="flex-1 space-y-1">
+                      <div className="font-semibold text-sm mb-2">
+                        <span className={message.role === "assistant" ? "text-primary" : "text-slate-300"}>
+                          {message.role === "assistant" ? "Study Guru" : (user?.name || "You")}
+                        </span>
                       </div>
                       {message.role === "assistant" ? (
                         <div className="prose prose-invert prose-sm max-w-none">
@@ -418,8 +443,8 @@ const StudyGuruInterface = () => {
                               li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
                               code: ({node, inline, ...props}) => 
                                 inline 
-                                  ? <code className="px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-xs font-mono" {...props} />
-                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900 text-blue-300 text-xs font-mono overflow-x-auto" {...props} />,
+                                  ? <code className="px-1.5 py-0.5 rounded bg-slate-800/70 text-primary text-xs font-mono" {...props} />
+                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...props} />
                               p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
                               strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
                               em: ({node, ...props}) => <em className="italic" {...props} />,
@@ -455,8 +480,8 @@ const StudyGuruInterface = () => {
         </div>
 
         {/* Input Area - Fixed at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent pt-6 pb-4">
-          <div className="max-w-3xl mx-auto px-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-900 to-transparent pt-8 pb-4">
+          <div className="max-w-4xl mx-auto px-4">
             <div className="relative">
               <div className="flex gap-2 items-end">
                 <div className="flex-1 relative">
@@ -472,7 +497,7 @@ const StudyGuruInterface = () => {
                     placeholder="Message Study Guru..."
                     disabled={mutation.isPending || quizMutation.isPending}
                     rows={1}
-                    className="w-full resize-none bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 pr-12 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-slate-600 disabled:opacity-50"
+                    className="w-full resize-none bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl px-4 py-3 pr-12 text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 disabled:opacity-50 transition-all"
                     style={{ minHeight: '52px', maxHeight: '200px' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
@@ -483,20 +508,20 @@ const StudyGuruInterface = () => {
                   <button
                     onClick={handleSend}
                     disabled={!inputValue.trim() || mutation.isPending || quizMutation.isPending}
-                    className="absolute right-2 bottom-2 p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="absolute right-2 bottom-2 p-2 rounded-lg bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
                   >
                     {mutation.isPending || quizMutation.isPending ? (
-                      <svg className="w-5 h-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     ) : (
-                      <Send size={20} className="text-slate-300" />
+                      <Send size={20} className="text-white" />
                     )}
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 text-center mt-2">
+              <p className="text-xs text-slate-400 text-center mt-2">
                 Study Guru can make mistakes. Check important info.
               </p>
             </div>

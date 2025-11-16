@@ -278,40 +278,47 @@ const StudyGuruInterface = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 relative overflow-hidden">
-      {/* Background gradient effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-      </div>
-      
-      {/* Sidebar Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <section className="min-w-0">
+      <div className="relative flex w-full text-slate-100 rounded-3xl border border-slate-800/60 bg-slate-950/80 overflow-hidden">
+        {/* Sidebar Overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-      {/* Sidebar - Always visible on desktop, toggleable on mobile */}
-      <div
-        className={`
+        {/* Sidebar - Always visible on desktop, toggleable on mobile */}
+        <div
+          className={`
         fixed lg:relative inset-y-0 left-0 z-50 h-full
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         transition-transform duration-300 ease-in-out
-        w-64 lg:w-72 xl:w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/50 flex flex-col
+        w-64 lg:w-72 xl:w-80 bg-slate-900 border-r border-slate-800 flex flex-col
       `}
-      >
-        {/* Sidebar Header with New Chat */}
-        <div className="p-4 border-b border-slate-800/50">
-          <button
-            onClick={handleNewChat}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary/10 to-purple-600/10 hover:from-primary/20 hover:to-purple-600/20 border border-primary/20 rounded-xl transition-all duration-200"
-          >
-            <Plus size={20} className="text-primary" />
-            <span className="text-sm font-semibold text-slate-100">New Chat</span>
-          </button>
-        </div>
+        >
+          {/* Sidebar Header with Hamburger and New Chat */}
+          <div className="flex items-center gap-3 p-4 border-b border-slate-800">
+            {/* Hamburger Menu Button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              aria-label="Close sidebar"
+            >
+              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            
+            {/* New Chat Button */}
+            <button
+              onClick={handleNewChat}
+              className="flex-1 flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+            >
+              <Plus size={20} className="text-slate-300" />
+              <span className="text-sm font-medium">New Chat</span>
+            </button>
+          </div>
 
 
         {/* Chat History */}
@@ -345,9 +352,9 @@ const StudyGuruInterface = () => {
         </div>
 
         {/* Bottom Section - User Profile */}
-        <div className="border-t border-slate-800/50 p-4 bg-slate-900/50">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+        <div className="border-t border-slate-800 p-4">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">
               <span className="text-xs font-bold text-white">{getUserInitials()}</span>
             </div>
             <div className="flex-1">
@@ -356,31 +363,26 @@ const StudyGuruInterface = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative bg-gradient-to-b from-transparent to-slate-900/20">
-        {/* Header with Hamburger Menu - Always visible */}
-        <div className="h-14 lg:h-16 border-b border-slate-800/50 flex items-center px-4 lg:px-6 bg-slate-900/50 backdrop-blur-sm">
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col relative">
+        {/* Header - Mobile only with hamburger */}
+        <div className="lg:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-slate-800/50 rounded-lg transition-all duration-200 group"
-            aria-label="Toggle sidebar"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            aria-label="Open sidebar"
           >
-            <div className="flex flex-col gap-1.5">
-              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
-              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
-              <span className="block w-5 h-0.5 bg-slate-400 group-hover:bg-primary transition-colors"></span>
-            </div>
+            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
-          <div className="ml-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg">
-              <BookOpen size={20} className="text-white" />
+          <div className="ml-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
+              <BookOpen size={16} className="text-white" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-100">Study Guru</h1>
-              <p className="text-xs text-slate-400 hidden lg:block">AI Learning Assistant</p>
-            </div>
+            <h1 className="text-lg font-semibold">Study Guru</h1>
           </div>
         </div>
 
@@ -410,24 +412,26 @@ const StudyGuruInterface = () => {
               // Messages
               <div className="space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id} className="flex gap-4">
-                    <div className="flex-shrink-0">
-                      {message.role === "assistant" ? (
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                          <BookOpen size={18} className="text-white" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-slate-200">{getUserInitials()}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="font-semibold text-sm mb-2">
-                        <span className={message.role === "assistant" ? "text-primary" : "text-slate-300"}>
-                          {message.role === "assistant" ? "Study Guru" : (user?.name || "You")}
-                        </span>
+                  // Skip page switch messages
+                  message.content?.includes('You switched from') ? null : (
+                    <div key={message.id} className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        {message.role === "assistant" ? (
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <BookOpen size={18} className="text-white" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-slate-200">{getUserInitials()}</span>
+                          </div>
+                        )}
                       </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="font-semibold text-sm mb-2">
+                          <span className={message.role === "assistant" ? "text-primary" : "text-slate-300"}>
+                            {message.role === "assistant" ? "Study Guru" : (user?.name || "You")}
+                          </span>
+                        </div>
                       {message.role === "assistant" ? (
                         <div className="prose prose-invert prose-sm max-w-none">
                           <ReactMarkdown
@@ -457,8 +461,9 @@ const StudyGuruInterface = () => {
                       ) : (
                         <p className="text-slate-200">{message.content}</p>
                       )}
+                      </div>
                     </div>
-                  </div>
+                  )
                 ))}
                 
                 {/* Quiz Configuration Form */}
@@ -480,7 +485,7 @@ const StudyGuruInterface = () => {
         </div>
 
         {/* Input Area - Fixed at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-900 to-transparent pt-8 pb-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950/95 to-transparent pt-6 pb-4">
           <div className="max-w-4xl mx-auto px-4">
             <div className="relative">
               <div className="flex gap-2 items-end">
@@ -528,6 +533,6 @@ const StudyGuruInterface = () => {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

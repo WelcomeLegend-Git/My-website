@@ -53,6 +53,7 @@ const resolveSection = (pathname: string): AiSection => {
 export const ShellLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const isStudyCoach = location.pathname.startsWith("/study-coach");
   const [aiOpen, setAiOpen] = useState(false);
   const [showMentor, setShowMentor] = useState(true);
   const [aiContext, setAiContext] = useState<Record<string, unknown> | undefined>(undefined);
@@ -287,8 +288,15 @@ export const ShellLayout = () => {
 
         {/* Main Content Area */}
         <div className="flex flex-1 max-w-[1920px] mx-auto w-full">
-          <main className="flex-1 w-full min-w-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 fade-in-up">
-            <div className="max-w-7xl mx-auto">
+          <main
+            className={
+              "flex-1 w-full min-w-0 fade-in-up " +
+              (isStudyCoach
+                ? "px-0 py-4 sm:py-6 lg:py-8"
+                : "px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8")
+            }
+          >
+            <div className={isStudyCoach ? "w-full" : "max-w-7xl mx-auto"}>
               <Outlet context={outletContext} />
             </div>
           </main>

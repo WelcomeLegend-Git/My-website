@@ -96,6 +96,16 @@ const StudyGuruInterface = () => {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      if (isDesktop) {
+        setSidebarOpen(true);
+      }
+    } catch {}
+  }, []);
+
   // Save conversation to localStorage whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
@@ -278,14 +288,14 @@ const StudyGuruInterface = () => {
 
   const sidebarClasses = [
     "fixed lg:relative inset-y-0 left-0 z-50 h-full",
-    sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+    sidebarOpen ? "translate-x-0 lg:translate-x-0" : "-translate-x-full lg:-translate-x-full",
     "transition-transform duration-300 ease-in-out",
     "w-64 lg:w-72 xl:w-80 bg-slate-900 border-r border-slate-800 flex flex-col",
   ].join(" ");
 
   return (
-    <div className="min-w-0">
-      <div className="relative flex w-full text-slate-100 rounded-3xl border border-slate-800/60 bg-slate-950/80 overflow-hidden">
+    <div className="min-w-0 h-full">
+      <div className="relative flex h-full w-full text-slate-100 rounded-3xl border border-slate-800/60 bg-slate-950/80 overflow-hidden">
         {/* Sidebar Overlay for mobile */}
         {sidebarOpen && (
           <div
@@ -368,8 +378,8 @@ const StudyGuruInterface = () => {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col relative">
-        {/* Header - Mobile only with hamburger */}
-        <div className="lg:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900">
+        {/* Header with hamburger */}
+        <div className="h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors"

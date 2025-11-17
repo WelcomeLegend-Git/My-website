@@ -379,7 +379,7 @@ const StudyGuruInterface = () => {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col relative">
         {/* Header */}
-        <div className="h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900">
+        <div className="h-14 border-b border-slate-800 flex items-center px-6 bg-slate-900">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors"
@@ -389,7 +389,7 @@ const StudyGuruInterface = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex items-center gap-3" style={{marginLeft: sidebarOpen ? '0.75rem' : '0'}}>
+          <div className="ml-3 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
               <span className="text-xs font-bold text-white">SG</span>
             </div>
@@ -399,7 +399,7 @@ const StudyGuruInterface = () => {
 
         {/* Messages Area - Scrollable */}
         <div className="flex-1 overflow-y-auto pb-32">
-          <div className="max-w-4xl mx-auto px-4 py-6 lg:py-8">
+          <div className="w-full px-6 py-6 lg:py-8">
             {isEmptyChat ? (
               // Empty State
               <div className="flex flex-col items-center justify-center min-h-[400px] py-12">
@@ -497,7 +497,7 @@ const StudyGuruInterface = () => {
 
         {/* Input Area - Fixed at bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-sm border-t border-slate-800/50 pt-4 pb-4">
-          <div className="max-w-4xl mx-auto px-4">
+          <div className="w-full px-6">
             <div className="relative">
               <div className="flex gap-2 items-end">
                 <div className="flex-1 relative">

@@ -325,9 +325,9 @@ export const StudyGuruChat = () => {
           </div>
         </div>
 
-        {/* Input Area fixed at viewport bottom */}
-        <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 p-4 sm:p-6 bg-black/95">
-          <div className="max-w-3xl mx-auto">
+        {/* Input Area pinned to bottom of chat column */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="max-w-3xl mx-auto border-t border-zinc-800 bg-black/95 rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 pb-3">
             <div className="relative">
               <input
                 type="text"
@@ -354,7 +354,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v8
+        SG v9
       </div>
     </div>
   );

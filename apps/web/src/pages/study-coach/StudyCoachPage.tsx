@@ -23,22 +23,6 @@ export const StudyCoachPage = () => {
     };
   }, [setAiContext, setAiSection, setShowMentor]);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const html = document.documentElement;
-    const previousHtmlOverflow = html.style.overflow;
-    const previousBodyOverflow = document.body.style.overflow;
-
-    html.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      html.style.overflow = previousHtmlOverflow;
-      document.body.style.overflow = previousBodyOverflow;
-    };
-  }, []);
-
   // Wrapper component for Study Guru layout
   // Currently renders the new StudyGuruChat design while keeping the
   // existing StudyGuruInterface implementation available for future use.

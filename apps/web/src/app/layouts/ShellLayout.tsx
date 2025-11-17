@@ -118,7 +118,12 @@ export const ShellLayout = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+    <div
+      className={
+        "relative flex bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 " +
+        (isStudyCoach ? "h-screen overflow-hidden" : "min-h-screen")
+      }
+    >
       {/* Background decorative elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>

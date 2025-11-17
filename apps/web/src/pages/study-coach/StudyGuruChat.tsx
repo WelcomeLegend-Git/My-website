@@ -354,7 +354,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v10
+        SG v11
       </div>
     </div>
   );

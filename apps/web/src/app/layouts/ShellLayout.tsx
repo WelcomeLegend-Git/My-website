@@ -144,7 +144,7 @@ export const ShellLayout = () => {
 
       <InstallPrompt />
       
-      <div className="relative flex min-h-screen flex-1 flex-col z-10">
+      <div className="relative flex flex-1 flex-col min-h-0 z-10">
         {/* Modern Header with Glassmorphism */}
         <header className="sticky top-0 z-40 border-b border-slate-800/50 glass backdrop-blur-xl fade-in-down">
           <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
@@ -292,7 +292,7 @@ export const ShellLayout = () => {
         </header>
 
         {/* Main Content Area */}
-        <div className="flex flex-1 max-w-[1920px] mx-auto w-full">
+        <div className="flex flex-1 min-h-0 max-w-[1920px] mx-auto w-full">
           <main
             className={
               "flex-1 w-full min-w-0 fade-in-up " +

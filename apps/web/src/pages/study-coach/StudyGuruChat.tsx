@@ -165,21 +165,21 @@ export const StudyGuruChat = () => {
   };
 
   return (
-    <div className="relative flex h-full min-h-0 w-full bg-black text-white">
+    <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-80" : "w-0"} bg-zinc-900 border-r border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${sidebarOpen ? "w-80" : "w-0"} bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-zinc-800 flex-shrink-0">
+        <div className="p-4 border-b border-slate-800/80 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition"
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
             >
               <Menu className="w-6 h-6" />
             </button>
-            <button className="p-2 hover:bg-zinc-800 rounded-lg transition">
+            <button className="p-2 hover:bg-slate-800/80 rounded-lg transition">
               <Search className="w-6 h-6" />
             </button>
           </div>
@@ -187,7 +187,7 @@ export const StudyGuruChat = () => {
           {/* New Chat Button */}
           <button
             onClick={handleNewChat}
-            className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg flex items-center gap-3 transition border border-zinc-700"
+            className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
           >
             <Plus className="w-5 h-5" />
             <span className="font-medium">New chat</span>
@@ -195,10 +195,10 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* Chat History - Scrollable */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {/* Recent Section */}
           <div className="p-4">
-            <h3 className="text-sm font-semibold text-zinc-500 mb-3">Recent</h3>
+            <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
             <div className="space-y-1">
               {chats
                 .filter((chat) => chat.recent)
@@ -206,8 +206,10 @@ export const StudyGuruChat = () => {
                   <div key={chat.id} className="flex items-center gap-2">
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
-                        activeChatId === chat.id ? "bg-zinc-800" : ""
+                      className={`flex-1 px-4 py-2.5 text-left rounded-lg text-sm transition ${
+                        activeChatId === chat.id
+                          ? "bg-slate-800/90 text-slate-100 border border-slate-600/80"
+                          : "bg-slate-900/80 text-slate-300 hover:bg-slate-800/80 border border-slate-800/80"
                       }`}
                     >
                       {chat.title}
@@ -217,7 +219,7 @@ export const StudyGuruChat = () => {
                         e.stopPropagation();
                         handleDeleteChat(chat.id);
                       }}
-                      className="p-1 text-[11px] text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded-lg transition"
+                      className="p-1 text-[11px] text-slate-500 hover:text-red-400 hover:bg-slate-900 rounded-lg transition"
                       aria-label="Delete chat"
                     >
                       ✕
@@ -228,7 +230,7 @@ export const StudyGuruChat = () => {
           </div>
 
           {/* Other Chats */}
-          <div className="p-4 border-t border-zinc-800">
+          <div className="p-4 border-t border-slate-800/80">
             <div className="space-y-1">
               {chats
                 .filter((chat) => !chat.recent)
@@ -259,9 +261,9 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-t border-zinc-800 flex-shrink-0">
+        <div className="p-4 border-t border-slate-800/80 flex-shrink-0">
           <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-sm font-semibold">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
               SK
             </div>
             <span className="font-medium">Sanjay Kumar</span>
@@ -272,7 +274,7 @@ export const StudyGuruChat = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative">
         {/* Top Header */}
-        <div className="h-16 border-b border-zinc-800 flex items-center px-6">
+        <div className="h-16 border-b border-slate-800/80 flex items-center px-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-slate-950/95">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -285,18 +287,18 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* Scrollable Chat Section */}
-        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40">
+        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar">
           <div className="max-w-3xl mx-auto space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-2xl">💡</span>
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">
                     Start a new conversation
                   </h2>
-                  <p className="text-zinc-500">Ask me anything about your studies!</p>
+                  <p className="text-slate-400">Ask me anything about your studies!</p>
                 </div>
               </div>
             ) : (
@@ -304,17 +306,17 @@ export const StudyGuruChat = () => {
               activeChat.messages.map((msg, index) =>
                 msg.role === "user" ? (
                   <div key={index} className="flex justify-end">
-                    <div className="bg-zinc-800 rounded-2xl rounded-tr-sm px-6 py-4 max-w-lg">
-                      <p className="text-white">{msg.content}</p>
+                    <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 max-w-lg border border-primary/60 shadow-md shadow-primary/40">
+                      <p className="text-slate-100">{msg.content}</p>
                     </div>
                   </div>
                 ) : (
                   <div key={index} className="flex justify-start">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl">
+                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex-shrink-0 mt-1" />
+                        <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
                         <div>
-                          <p className="text-white leading-relaxed">{msg.content}</p>
+                          <p className="text-slate-100 leading-relaxed">{msg.content}</p>
                         </div>
                       </div>
                     </div>
@@ -327,7 +329,7 @@ export const StudyGuruChat = () => {
 
         {/* Input Area pinned to bottom of chat column */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6">
-          <div className="max-w-3xl mx-auto border-t border-zinc-800 bg-black/95 rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 pb-3">
+          <div className="max-w-3xl mx-auto border-t border-slate-800/80 bg-gradient-to-t from-slate-950/95 via-slate-900/95 to-slate-950/95 rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 pb-3">
             <div className="relative">
               <input
                 type="text"
@@ -340,13 +342,13 @@ export const StudyGuruChat = () => {
                   }
                 }}
                 placeholder="Ask study guru"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-full px-6 py-4 pr-14 text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition"
+                className="w-full bg-slate-900/80 border border-slate-700/70 rounded-full px-6 py-4 pr-14 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/40 transition"
               />
               <button
                 onClick={handleSend}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white hover:bg-zinc-200 rounded-full flex items-center justify-center transition"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30"
               >
-                <Send className="w-5 h-5 text-black" />
+                <Send className="w-5 h-5 text-white" />
               </button>
             </div>
           </div>
@@ -354,7 +356,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v11
+        SG v12
       </div>
     </div>
   );

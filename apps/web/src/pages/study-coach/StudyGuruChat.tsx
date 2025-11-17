@@ -285,7 +285,7 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* Scrollable Chat Section */}
-        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-32">
+        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40">
           <div className="max-w-3xl mx-auto space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -325,8 +325,8 @@ export const StudyGuruChat = () => {
           </div>
         </div>
 
-        {/* Input Area at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 p-6 bg-black">
+        {/* Input Area fixed at viewport bottom */}
+        <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 p-4 sm:p-6 bg-black/95">
           <div className="max-w-3xl mx-auto">
             <div className="relative">
               <input
@@ -354,7 +354,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v6
+        SG v7
       </div>
     </div>
   );

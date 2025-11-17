@@ -127,6 +127,16 @@ export const StudyGuruChat = () => {
     setActiveChatId(newChat.id);
   };
 
+  const handleDeleteChat = (id: number) => {
+    setChats((prev) => {
+      const updated = prev.filter((chat) => chat.id !== id);
+      if (!updated.some((chat) => chat.id === activeChatId)) {
+        setActiveChatId(updated.length ? updated[0].id : 0);
+      }
+      return updated;
+    });
+  };
+
   const handleSend = () => {
     if (message.trim() && activeChat) {
       const updatedChats = chats.map((chat) => {
@@ -190,15 +200,26 @@ export const StudyGuruChat = () => {
               {chats
                 .filter((chat) => chat.recent)
                 .map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
-                      activeChatId === chat.id ? "bg-zinc-800" : ""
-                    }`}
-                  >
-                    {chat.title}
-                  </button>
+                  <div key={chat.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
+                        activeChatId === chat.id ? "bg-zinc-800" : ""
+                      }`}
+                    >
+                      {chat.title}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChat(chat.id);
+                      }}
+                      className="p-1 text-[11px] text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded-lg transition"
+                      aria-label="Delete chat"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
             </div>
           </div>
@@ -209,15 +230,26 @@ export const StudyGuruChat = () => {
               {chats
                 .filter((chat) => !chat.recent)
                 .map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
-                      activeChatId === chat.id ? "bg-zinc-800" : ""
-                    }`}
-                  >
-                    {chat.title}
-                  </button>
+                  <div key={chat.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
+                        activeChatId === chat.id ? "bg-zinc-800" : ""
+                      }`}
+                    >
+                      {chat.title}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChat(chat.id);
+                      }}
+                      className="p-1 text-[11px] text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded-lg transition"
+                      aria-label="Delete chat"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
             </div>
           </div>
@@ -319,7 +351,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v2
+        SG v3
       </div>
     </div>
   );

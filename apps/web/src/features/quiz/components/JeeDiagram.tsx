@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
 import JXG from 'jsxgraph';
-import 'jsxgraph/distrib/jsxgraph.css';
 
 export type JeeDiagramConfig = {
   boundingBox?: [number, number, number, number];
@@ -54,7 +53,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
       showCopyright: false,
       pan: { enabled: true },
       zoom: { enabled: true },
-    });
+    } as any);
 
     boardRef.current = board;
 

@@ -8,6 +8,7 @@ import { useAuth } from "../../app/providers/AuthProvider";
 import { trpc } from "../../lib/trpc";
 import { useNavigate } from 'react-router-dom';
 import { QuizConfigForm, type QuizConfig } from '../../features/quiz/components/QuizConfigForm';
+import { StudyGuruChat } from "./StudyGuruChat";
 
 export const StudyCoachPage = () => {
   const { setAiSection, setAiContext, setShowMentor } = useShellContext();
@@ -22,8 +23,10 @@ export const StudyCoachPage = () => {
     };
   }, [setAiContext, setAiSection, setShowMentor]);
 
-  // Wrapper component for Study Guru mobile/desktop layout
-  return <StudyGuruInterface />;
+  // Wrapper component for Study Guru layout
+  // Currently renders the new StudyGuruChat design while keeping the
+  // existing StudyGuruInterface implementation available for future use.
+  return <StudyGuruChat />;
 };
 
 // Helper to ensure LaTeX delimiters are correct

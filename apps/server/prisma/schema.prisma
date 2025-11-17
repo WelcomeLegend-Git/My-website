@@ -132,6 +132,7 @@ model Formula {
   tags            Json
   difficulty      FormulaDifficulty @default(medium)
   mindMap         Json?
+  diagram         Json?
   // Enhanced learning fields
   applications    String?           // Where this formula is applied
   examples        Json              @default("[]") // Array of worked examples
@@ -178,6 +179,7 @@ model Mistake {
   errorType  MistakeErrorType  @default(unknown)
   aiSummary  String?
   aiMindMap  Json?
+  aiDiagram  Json?
   ownerId    String
   owner      User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   subjectId  String
@@ -301,6 +303,7 @@ model PracticeQuestion {
   explanation    String        @db.Text
   difficulty     String        // "easy", "medium", "hard"
   topic          String
+  diagram        Json?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

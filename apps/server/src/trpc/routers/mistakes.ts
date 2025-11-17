@@ -14,6 +14,7 @@ const baseMistakeInput = z.object({
   errorType: z.enum(["conceptual", "calculation", "careless", "unknown"]).default("unknown"),
   aiSummary: z.string().optional().nullable(),
   aiMindMap: z.any().optional().nullable(),
+  aiDiagram: z.any().optional().nullable(),
   attachments: z
     .array(
       z.object({
@@ -61,6 +62,7 @@ export const mistakesRouter = router({
       return mistakes.map((mistake) => ({
         ...mistake,
         aiMindMap: mistake.aiMindMap as unknown,
+        aiDiagram: mistake.aiDiagram as unknown,
       }));
     }),
   
@@ -84,6 +86,7 @@ export const mistakesRouter = router({
       return {
         ...mistake,
         aiMindMap: mistake.aiMindMap as unknown,
+        aiDiagram: mistake.aiDiagram as unknown,
       };
     }),
 
@@ -108,6 +111,7 @@ export const mistakesRouter = router({
         errorType: input.errorType,
         aiSummary: input.aiSummary,
         aiMindMap: input.aiMindMap ?? undefined,
+        aiDiagram: input.aiDiagram ?? undefined,
         assets: {
           create: input.attachments.map((attachment) => ({
             url: attachment.url,
@@ -150,6 +154,7 @@ export const mistakesRouter = router({
           errorType: input.errorType,
           aiSummary: input.aiSummary,
           aiMindMap: input.aiMindMap ?? undefined,
+          aiDiagram: input.aiDiagram ?? undefined,
           assets: {
             create: input.attachments.map((attachment) => ({
               url: attachment.url,
@@ -264,6 +269,15 @@ Analyze and return ONLY valid JSON with this exact structure:
       {"label": "Branch 1", "children": []},
       {"label": "Branch 2", "children": []}
     ]
+  },
+  "aiDiagram": {
+    "type": "jsxgraph",
+    "title": "Optional diagram illustrating the mistake or correct concept",
+    "description": "Short description of what the diagram shows",
+    "config": {
+      "boundingBox": [-5, 5, 5, -5],
+      "axes": true
+    }
   }
 }
 

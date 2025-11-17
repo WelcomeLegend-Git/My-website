@@ -162,7 +162,7 @@ export const StudyGuruChat = () => {
   };
 
   return (
-    <div className="relative flex min-h-[calc(100vh-6rem)] w-full bg-black text-white">
+    <div className="relative flex h-full min-h-0 w-full bg-black text-white">
       {/* Sidebar */}
       <div
         className={`${sidebarOpen ? "w-80" : "w-0"} bg-zinc-900 border-r border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
@@ -351,7 +351,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v3
+        SG v4
       </div>
     </div>
   );

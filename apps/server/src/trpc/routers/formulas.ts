@@ -38,6 +38,7 @@ const baseFormulaInput = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
   tags: z.array(z.string().min(1)).default([]),
   mindMap: mindMapInput.optional().nullable(),
+  diagram: z.any().optional().nullable(),
   attachments: z
     .array(
       z.object({
@@ -122,6 +123,7 @@ export const formulasRouter = router({
           derivationSteps: formula.derivationSteps as string[],
           tags: (formula.tags as string[]) ?? [],
           mindMap: formula.mindMap as unknown,
+          diagram: formula.diagram as unknown,
         }));
     }),
   create: procedure.use(requireUser).input(baseFormulaInput).mutation(async ({ ctx, input }) => {
@@ -145,6 +147,7 @@ export const formulasRouter = router({
           derivationSteps: input.derivationSteps,
           tags: input.tags,
           mindMap: input.mindMap ?? undefined,
+          diagram: input.diagram ?? undefined,
           // Enhanced fields
           applications: input.applications ?? undefined,
           examples: input.examples ?? [],
@@ -213,6 +216,7 @@ export const formulasRouter = router({
           derivationSteps: input.derivationSteps,
           tags: input.tags,
           mindMap: input.mindMap ?? undefined,
+          diagram: input.diagram ?? undefined,
           // Enhanced fields
           applications: input.applications ?? undefined,
           examples: input.examples ?? [],
@@ -304,6 +308,7 @@ Provide a rich, structured response with:
 8. **relatedFormulas**: Array of related formula titles
 9. **commonMistakes**: Array of common errors students make with explanation
 10. **tags**: Relevant topic tags
+11. **diagram** (optional): A JSXGraph-compatible diagram spec when a graph/geometry/diagram would make this formula easier to understand.
 
 IMPORTANT:
 - Use LaTeX notation wrapped in \\( \\) for inline math or \\[ \\] for display math
@@ -328,7 +333,19 @@ Respond ONLY with valid JSON:
     "mistake": "...",
     "correction": "..."
   }],
-  "tags": ["mechanics", "dynamics"]
+  "tags": ["mechanics", "dynamics"],
+  "diagram": {
+    "type": "jsxgraph",
+    "title": "Example graph",
+    "description": "Graph of a typical relation used with this formula",
+    "config": {
+      "boundingBox": [-5, 5, 5, -5],
+      "axes": true,
+      "points": [
+        { "x": 0, "y": 0, "name": "O" }
+      ]
+    }
+  }
 }`;
 
       const response = await ctx.gemini.generate({
@@ -355,6 +372,7 @@ Respond ONLY with valid JSON:
           relatedFormulas: Array.isArray(parsed.relatedFormulas) ? parsed.relatedFormulas : [],
           commonMistakes: Array.isArray(parsed.commonMistakes) ? parsed.commonMistakes : [],
           tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          diagram: parsed.diagram || null,
         };
       } catch (error) {
         throw new TRPCError({ 
@@ -467,6 +485,7 @@ Respond ONLY with valid JSON:
           prerequisites: f.prerequisites as string[],
           relatedFormulas: f.relatedFormulas as string[],
           commonMistakes: f.commonMistakes as unknown[],
+          diagram: f.diagram as unknown,
         })),
       };
     }),
@@ -510,6 +529,7 @@ Return a JSON array where each element has:
 9. **commonMistakes**: Array of objects with mistake and correction
 10. **difficulty**: "easy", "medium", or "hard"
 11. **tags**: Relevant topic tags
+12. **diagram** (optional): A JSXGraph-compatible diagram spec when a graph/diagram is natural for this formula.
 
 Respond ONLY with a valid JSON array:
 [
@@ -531,7 +551,16 @@ Respond ONLY with a valid JSON array:
       "correction": "..."
     }],
     "difficulty": "medium",
-    "tags": ["mechanics", "dynamics"]
+    "tags": ["mechanics", "dynamics"],
+    "diagram": {
+      "type": "jsxgraph",
+      "title": "Example graph",
+      "description": "Graph of a relation used with this formula",
+      "config": {
+        "boundingBox": [-5, 5, 5, -5],
+        "axes": true
+      }
+    }
   }
 ]`;
 
@@ -608,6 +637,7 @@ Respond ONLY with a valid JSON array:
                   prerequisites: formulaData.prerequisites || [],
                   relatedFormulas: formulaData.relatedFormulas || [],
                   commonMistakes: formulaData.commonMistakes || [],
+                  diagram: formulaData.diagram || null,
                   subjectId: input.subjectId,
                   chapterId: input.chapterId,
                   ownerId: ctx.user.id,

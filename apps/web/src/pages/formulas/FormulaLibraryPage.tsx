@@ -9,6 +9,7 @@ import {
 } from "../../features/formulas/components/FormulaFormDialog";
 import { trpc } from "../../lib/trpc";
 import type { RouterInputs, RouterOutputs } from "../../types/trpc";
+import { JeeDiagram } from "../../features/quiz/components/JeeDiagram";
 
 type Formula = RouterOutputs["formulas"]["list"][number];
 type Subject = RouterOutputs["subjects"]["list"][number];
@@ -499,6 +500,11 @@ export const FormulaLibraryPage = () => {
                 </span>
               </div>
               <p className="mt-4 whitespace-pre-wrap font-mono text-sm text-slate-200">{selectedFormula.expression}</p>
+              {selectedFormula.diagram ? (
+                <div className="mt-4">
+                  <JeeDiagram diagram={selectedFormula.diagram as any} />
+                </div>
+              ) : null}
               {selectedFormula.explanation && (
                 <p className="mt-4 text-sm leading-relaxed text-slate-300">{selectedFormula.explanation}</p>
               )}

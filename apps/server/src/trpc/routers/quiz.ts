@@ -11,7 +11,8 @@ const quizConfigSchema = z.object({
   includeTimer: z.boolean(),
   timeMinutes: z.number().optional(),
   scope: z.enum(["current", "all", "cross-chapter"]),
-  context: z.any(), // Formula collection context
+  context: z.any(),
+  pictureQuestionRatio: z.number().min(0).max(1).optional(),
 });
 
 export const quizRouter = router({
@@ -72,6 +73,7 @@ export const quizRouter = router({
                 explanation: q.explanation,
                 difficulty: q.difficulty,
                 topic: q.topic,
+                diagram: q.diagram ?? undefined,
               })),
             },
           },
@@ -253,6 +255,12 @@ export const quizRouter = router({
 // Helper function to build prompt based on context
 function buildQuizPrompt(input: z.infer<typeof quizConfigSchema>): string {
   const context = input.context;
+  const pictureRatio =
+    typeof input.pictureQuestionRatio === "number"
+      ? input.pictureQuestionRatio
+      : input.examType === "advanced"
+      ? 0.3
+      : 0.2;
   
   // Extract formula information from context
   let formulaInfo = "";
@@ -292,6 +300,9 @@ Requirements:
 - ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}
 - Include detailed explanations
 - Use proper LaTeX notation: inline $...$ and display $$...$$
+- When a visual diagram or graph is natural (geometry, graphs, circuits, ray diagrams, vectors), include a JSXGraph-style diagram specification. Aim for roughly ${Math.round(
+    pictureRatio * 100
+  )}% of questions to include a diagram when it genuinely helps understanding.
 
 CRITICAL JSON FORMATTING RULES:
 1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text
@@ -312,7 +323,23 @@ Example format:
     "correctAnswers": [0],
     "explanation": "Detailed explanation with LaTeX: $$F = ma$$",
     "difficulty": "medium",
-    "topic": "Kinematics"
+    "topic": "Kinematics",
+    "diagram": {
+      "type": "jsxgraph",
+      "title": "Sample graph",
+      "description": "Graph of $y = x^2$",
+      "config": {
+        "boundingBox": [-5, 5, 5, -5],
+        "axes": true,
+        "points": [
+          { "x": 0, "y": 0, "name": "O" },
+          { "x": 2, "y": 4, "name": "A" }
+        ],
+        "segments": [
+          { "from": 0, "to": 1 }
+        ]
+      }
+    }
   }
 ]
 
@@ -413,6 +440,7 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
         explanation: q.explanation || "",
         difficulty: q.difficulty || "medium",
         topic: q.topic || "General",
+        diagram: q.diagram || undefined,
       };
     });
   } catch (error) {

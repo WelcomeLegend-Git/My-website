@@ -7,6 +7,7 @@ export type QuizConfig = {
   includeTimer: boolean;
   timeMinutes?: number;
   scope: 'current' | 'all' | 'cross-chapter';
+  pictureQuestionRatio?: number;
 };
 
 type Props = {
@@ -24,6 +25,13 @@ export const QuizConfigForm = ({ onSubmit, onCancel, isLoading, section = 'formu
     includeTimer: false,
     scope: 'current',
   });
+
+  const currentPictureRatio =
+    typeof config.pictureQuestionRatio === 'number'
+      ? config.pictureQuestionRatio
+      : config.examType === 'advanced'
+      ? 0.3
+      : 0.2;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +80,36 @@ export const QuizConfigForm = ({ onSubmit, onCancel, isLoading, section = 'formu
               JEE Advanced
             </button>
           </div>
+        </div>
+
+        {/* Picture Questions % */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            Picture Questions (%)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={10}
+              value={Math.round(currentPictureRatio * 100)}
+              onChange={(e) => {
+                const value = Number(e.target.value) || 0;
+                setConfig({
+                  ...config,
+                  pictureQuestionRatio: Math.max(0, Math.min(1, value / 100)),
+                });
+              }}
+              className="flex-1 accent-primary"
+            />
+            <span className="text-xs font-semibold text-slate-200 w-10 text-right">
+              {Math.round(currentPictureRatio * 100)}%
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">
+            Higher values create more JEE-style diagram/graph questions. For very visual chapters, try 70–90%.
+          </p>
         </div>
 
         {/* Question Count */}

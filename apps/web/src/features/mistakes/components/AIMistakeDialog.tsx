@@ -37,6 +37,7 @@ interface AIAnalysisResult {
   bestImageIndex: number;
   aiSummary: string;
   aiMindMap: any;
+  aiDiagram?: any;
 }
 
 export const AIMistakeDialog = ({
@@ -179,6 +180,7 @@ export const AIMistakeDialog = ({
         errorType: aiResult.errorType,
         aiSummary: aiResult.aiSummary,
         aiMindMap: aiResult.aiMindMap,
+        aiDiagram: aiResult.aiDiagram,
         attachments: uploadedUrls,
       });
 

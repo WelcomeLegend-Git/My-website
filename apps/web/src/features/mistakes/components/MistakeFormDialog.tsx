@@ -19,6 +19,7 @@ export type MistakeDraft = {
   errorType: "conceptual" | "calculation" | "careless" | "unknown";
   aiSummary?: string | null;
   aiMindMap?: unknown | null;
+  aiDiagram?: unknown | null;
   attachments: Array<{
     id: string;
     url: string;
@@ -167,6 +168,7 @@ export const MistakeFormDialog = ({
       ...values,
       aiSummary: defaultValues?.aiSummary,
       aiMindMap: defaultValues?.aiMindMap,
+      aiDiagram: defaultValues?.aiDiagram,
       attachments,
     };
     void onSubmit(draft);

@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { JeeDiagram } from '../../quiz/components/JeeDiagram';
 
 const mathStyles = `
   .katex { font-size: 1.1em; }
@@ -38,6 +39,7 @@ type Mistake = {
   status: string;
   aiSummary?: string | null;
   aiMindMap?: any;
+   aiDiagram?: any;
   subject: { name: string };
   chapter: { title: string };
   assets: MistakeAsset[];
@@ -174,6 +176,16 @@ export const MistakeDetailView = ({ mistake, onImageClick }: Props) => {
                   <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-bold">{index + 1}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* AI Diagram (optional) */}
+        {mistake.aiDiagram && (
+          <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 overflow-hidden">
+            <div className="px-4 pt-4">
+              <h3 className="text-sm font-medium text-purple-300 mb-2">AI Diagram</h3>
+              <JeeDiagram diagram={mistake.aiDiagram as any} />
             </div>
           </div>
         )}

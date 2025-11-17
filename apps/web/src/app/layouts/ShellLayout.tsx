@@ -292,11 +292,17 @@ export const ShellLayout = () => {
             className={
               "flex-1 w-full min-w-0 fade-in-up " +
               (isStudyCoach
-                ? "px-0 py-4 sm:py-6 lg:py-8"
+                ? "px-0 py-0 flex flex-col min-h-0"
                 : "px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8")
             }
           >
-            <div className={isStudyCoach ? "w-full" : "max-w-7xl mx-auto"}>
+            <div
+              className={
+                isStudyCoach
+                  ? "flex-1 min-h-0 overflow-hidden"
+                  : "max-w-7xl mx-auto"
+              }
+            >
               <Outlet context={outletContext} />
             </div>
           </main>

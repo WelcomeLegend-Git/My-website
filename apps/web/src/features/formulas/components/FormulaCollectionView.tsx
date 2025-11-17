@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { JeeDiagram } from '../../quiz/components/JeeDiagram';
 
 // Add custom styles for better math rendering
 const mathStyles = `
@@ -67,6 +68,7 @@ type Formula = {
   relatedFormulas?: string[];
   commonMistakes?: CommonMistake[];
   tags?: string[];
+  diagram?: unknown;
 };
 
 type Collection = {
@@ -283,6 +285,11 @@ export const FormulaCollectionView = ({ collection }: Props) => {
                           {ensureMathDelimiters(formula.expression)}
                         </ReactMarkdown>
                       </div>
+                      {formula.diagram ? (
+                        <div className="mt-4">
+                          <JeeDiagram diagram={formula.diagram as any} />
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Explanation */}

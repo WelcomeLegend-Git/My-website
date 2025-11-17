@@ -5,6 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
+import { JeeDiagram } from '../../features/quiz/components/JeeDiagram';
 
 type Answer = number[]; // Array of selected option indices
 
@@ -208,6 +209,13 @@ export const QuizPage = () => {
               {currentQuestion.questionText}
             </ReactMarkdown>
           </div>
+
+          {/* Optional diagram (JSXGraph via Gemini config) */}
+          {currentQuestion.diagram && (
+            <div className="mb-6 sm:mb-8">
+              <JeeDiagram diagram={currentQuestion.diagram as any} />
+            </div>
+          )}
 
           {/* Options */}
           <div className="space-y-2 sm:space-y-3">

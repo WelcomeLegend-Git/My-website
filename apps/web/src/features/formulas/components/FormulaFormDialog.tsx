@@ -44,6 +44,7 @@ export type FormulaDraft = {
   prerequisites?: string[];
   relatedFormulas?: string[];
   commonMistakes?: CommonMistake[];
+  diagram?: unknown;
 };
 
 type Props = {
@@ -363,13 +364,14 @@ export const FormulaFormDialog = ({
       setValue('tagsText', result.tags.join(', '), { shouldDirty: true });
       setValue('stepsText', result.derivationSteps.join('\n'), { shouldDirty: true });
       
-      // Store enhanced AI data
+      // Store enhanced AI data, including optional diagram spec for JSXGraph
       setAiEnhancedData({
         applications: result.applications,
         examples: result.examples,
         prerequisites: result.prerequisites,
         relatedFormulas: result.relatedFormulas,
         commonMistakes: result.commonMistakes,
+        diagram: result.diagram,
       });
 
       // Switch to manual mode so user can review and set difficulty

@@ -547,6 +547,10 @@ const StudyGuruInterface = () => {
             </div>
           </div>
         </div>
+        {/* Version marker for deployment verification */}
+        <div className="absolute bottom-1 right-3 text-[10px] text-slate-500/70 pointer-events-none select-none">
+          SG v1
+        </div>
       </div>
     </div>
   </div>

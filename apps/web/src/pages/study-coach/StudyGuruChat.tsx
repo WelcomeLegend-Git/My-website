@@ -288,42 +288,44 @@ export const StudyGuruChat = () => {
 
         {/* Scrollable Chat Section */}
         <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {activeChat && activeChat.messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">💡</span>
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Start a new conversation
-                  </h2>
-                  <p className="text-slate-400">Ask me anything about your studies!</p>
-                </div>
-              </div>
-            ) : (
-              activeChat &&
-              activeChat.messages.map((msg, index) =>
-                msg.role === "user" ? (
-                  <div key={index} className="flex justify-end">
-                    <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 max-w-lg border border-primary/60 shadow-md shadow-primary/40">
-                      <p className="text-slate-100">{msg.content}</p>
+          <div className="max-w-3xl mx-auto">
+            <div className="glass-card rounded-3xl border border-slate-800/70 px-4 sm:px-6 py-6 space-y-6">
+              {activeChat && activeChat.messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">💡</span>
                     </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">
+                      Start a new conversation
+                    </h2>
+                    <p className="text-slate-400">Ask me anything about your studies!</p>
                   </div>
-                ) : (
-                  <div key={index} className="flex justify-start">
-                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
-                        <div>
-                          <p className="text-slate-100 leading-relaxed">{msg.content}</p>
+                </div>
+              ) : (
+                activeChat &&
+                activeChat.messages.map((msg, index) =>
+                  msg.role === "user" ? (
+                    <div key={index} className="flex justify-end">
+                      <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 max-w-lg border border-primary/60 shadow-md shadow-primary/40">
+                        <p className="text-slate-100">{msg.content}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={index} className="flex justify-start">
+                      <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
+                          <div>
+                            <p className="text-slate-100 leading-relaxed">{msg.content}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )
                 )
-              )
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -356,7 +358,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v12
+        SG v13
       </div>
     </div>
   );

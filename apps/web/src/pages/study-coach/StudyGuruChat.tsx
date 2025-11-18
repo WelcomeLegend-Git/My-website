@@ -102,6 +102,8 @@ type ChatMessage = {
   content: string;
 };
 
+type ModelId = "gemini a" | "gemini b" | "gemini c";
+
 type Chat = {
   id: number;
   title: string;
@@ -156,6 +158,8 @@ export const StudyGuruChat = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ModelId>("gemini a");
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
   const displayName = user?.name || "Guest User";
   const firstName = displayName.split(" ")[0] || "legend";
@@ -290,6 +294,8 @@ export const StudyGuruChat = () => {
     setMessage(prompt);
     inputRef.current?.focus();
   };
+
+  const modelOptions: ModelId[] = ["gemini a", "gemini b", "gemini c"];
 
   return (
     <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
@@ -566,6 +572,42 @@ export const StudyGuruChat = () => {
           </div>
         </div>
 
+        <div className="px-4 pt-1 pb-0 flex-shrink-0">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsModelMenuOpen((prev) => !prev)}
+              className="w-full inline-flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs text-slate-100 hover:border-primary/70 hover:bg-slate-900 transition"
+            >
+              <span className="text-[10px] uppercase tracking-wide text-slate-400">Model</span>
+              <span className="flex-1 text-right truncate text-xs sm:text-[13px] text-slate-100">
+                {selectedModel}
+              </span>
+            </button>
+            {isModelMenuOpen && (
+              <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl bg-slate-950/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs text-slate-100 z-30">
+                {modelOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setSelectedModel(option);
+                      setIsModelMenuOpen(false);
+                    }}
+                    className={`w-full px-3 py-1.5 text-left truncate transition ${
+                      selectedModel === option
+                        ? "bg-slate-800/90 text-primary"
+                        : "hover:bg-slate-800/70"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* User Profile */}
         <div className="p-4 flex-shrink-0">
           <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
@@ -763,7 +805,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v30
+        SG v31
       </div>
     </div>
   );

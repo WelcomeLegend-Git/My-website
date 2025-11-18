@@ -19,6 +19,22 @@ const Menu = (props: IconProps) => (
   </svg>
 );
 
+const MoreVertical = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </svg>
+);
+
 const Mic = (props: IconProps) => (
   <svg
     viewBox="0 0 24 24"
@@ -91,6 +107,7 @@ type Chat = {
   title: string;
   recent: boolean;
   messages: ChatMessage[];
+  pinned?: boolean;
 };
 
 export const StudyGuruChat = () => {
@@ -138,6 +155,7 @@ export const StudyGuruChat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
 
   const displayName = user?.name || "Guest User";
   const firstName = displayName.split(" ")[0] || "legend";
@@ -170,6 +188,56 @@ export const StudyGuruChat = () => {
       }
       return updated;
     });
+  };
+
+  const handleRenameChat = (id: number) => {
+    const chat = chats.find((c) => c.id === id);
+    if (!chat) return;
+
+    const newTitle = window.prompt("Rename chat", chat.title);
+    if (!newTitle || !newTitle.trim()) return;
+
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              title: newTitle.trim(),
+            }
+          : c
+      )
+    );
+  };
+
+  const togglePinChat = (id: number) => {
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== id) return chat;
+        const nextPinned = !chat.pinned;
+        return {
+          ...chat,
+          pinned: nextPinned,
+          // Ensure pinned chats stay in Recent
+          recent: nextPinned ? true : chat.recent,
+        };
+      })
+    );
+  };
+
+  const handleShareChat = (chat: Chat) => {
+    const lines: string[] = [
+      `Study Guru chat: ${chat.title}`,
+      "",
+      ...chat.messages.map((m) => `${m.role === "user" ? "You" : "Study Guru"}: ${m.content}`),
+    ];
+
+    const text = lines.join("\n");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch((error) => {
+        console.error("Failed to copy chat to clipboard", error);
+      });
+    }
   };
 
   const handleSend = () => {
@@ -293,15 +361,16 @@ export const StudyGuruChat = () => {
           <div className="p-4">
             <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
             <div className="space-y-1">
-              {chats
+              {[...chats]
                 .filter((chat) => chat.recent)
                 .filter((chat) =>
                   historySearch.trim()
                     ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
                     : true
                 )
+                .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
                 .map((chat) => (
-                  <div key={chat.id} className="flex items-center gap-2">
+                  <div key={chat.id} className="group relative flex items-center gap-2">
                     <button
                       onClick={() => setActiveChatId(chat.id)}
                       className={`flex-1 px-4 py-2.5 text-left rounded-lg text-sm transition ${
@@ -310,18 +379,77 @@ export const StudyGuruChat = () => {
                           : "bg-slate-900/80 text-slate-300 hover:bg-slate-800/80 border border-slate-800/80"
                       }`}
                     >
-                      {chat.title}
+                      <span className="inline-flex items-center gap-1">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteChat(chat.id);
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
                       }}
-                      className="p-1 text-[11px] text-slate-500 hover:text-red-400 hover:bg-slate-900 rounded-lg transition"
-                      aria-label="Delete chat"
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
                     >
-                      ✕
+                      <MoreVertical className="w-4 h-4" />
                     </button>
+
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -338,25 +466,84 @@ export const StudyGuruChat = () => {
                     : true
                 )
                 .map((chat) => (
-                  <div key={chat.id} className="flex items-center gap-2">
+                  <div key={chat.id} className="group relative flex items-center gap-2">
                     <button
                       onClick={() => setActiveChatId(chat.id)}
                       className={`flex-1 px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
                         activeChatId === chat.id ? "bg-zinc-800" : ""
                       }`}
                     >
-                      {chat.title}
+                      <span className="inline-flex items-center gap-1">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteChat(chat.id);
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
                       }}
-                      className="p-1 text-[11px] text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded-lg transition"
-                      aria-label="Delete chat"
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
                     >
-                      ✕
+                      <MoreVertical className="w-4 h-4" />
                     </button>
+
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -560,7 +747,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v25
+        SG v26
       </div>
     </div>
   );

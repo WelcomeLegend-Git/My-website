@@ -1,4 +1,4 @@
-import { useState, type SVGProps } from "react";
+import { useState, useRef, type SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -113,8 +113,14 @@ export const StudyGuruChat = () => {
     },
   ]);
   const [activeChatId, setActiveChatId] = useState<number>(1);
+  const [historySearch, setHistorySearch] = useState("");
+  const historySearchRef = useRef<HTMLInputElement | null>(null);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null;
+  const normalizedSearch = historySearch.trim().toLowerCase();
+  const filteredChats = normalizedSearch
+    ? chats.filter((chat) => chat.title.toLowerCase().includes(normalizedSearch))
+    : chats;
 
   const handleNewChat = () => {
     const newChat: Chat = {
@@ -179,7 +185,10 @@ export const StudyGuruChat = () => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <button className="p-2 hover:bg-slate-800/80 rounded-lg transition">
+            <button
+              onClick={() => historySearchRef.current?.focus()}
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+            >
               <Search className="w-6 h-6" />
             </button>
           </div>
@@ -198,9 +207,22 @@ export const StudyGuruChat = () => {
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {/* Recent Section */}
           <div className="p-4">
+            <div className="mb-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={historySearchRef}
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search history"
+                  className="w-full bg-slate-900/80 border border-slate-700/70 rounded-full pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
+                />
+              </div>
+            </div>
             <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
             <div className="space-y-1">
-              {chats
+              {filteredChats
                 .filter((chat) => chat.recent)
                 .map((chat) => (
                   <div key={chat.id} className="flex items-center gap-2">
@@ -232,7 +254,7 @@ export const StudyGuruChat = () => {
           {/* Other Chats */}
           <div className="p-4 border-t border-slate-800/80">
             <div className="space-y-1">
-              {chats
+              {filteredChats
                 .filter((chat) => !chat.recent)
                 .map((chat) => (
                   <div key={chat.id} className="flex items-center gap-2">
@@ -358,7 +380,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v16
+        SG v17
       </div>
     </div>
   );

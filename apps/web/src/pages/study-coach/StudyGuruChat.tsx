@@ -400,7 +400,7 @@ export const StudyGuruChat = () => {
                   <div>
                     <h2 className="text-3xl sm:text-4xl font-bold">
                       <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-                        Hello, {firstName.toLowerCase() === "guest" ? "legend" : firstName}
+                        Hello, {firstName}
                       </span>
                     </h2>
                     <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
@@ -526,10 +526,10 @@ export const StudyGuruChat = () => {
                 <button
                   type="button"
                   onClick={toggleRecording}
-                  className={`w-8 h-8 rounded-full border flex items-center justify-center transition flex-shrink-0 ${
+                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${
                     isRecording
-                      ? "border-primary/70 bg-primary/10 text-primary"
-                      : "border-slate-700/80 hover:bg-slate-800/80 hover:border-primary/60 text-slate-400"
+                      ? "border-primary/80 bg-primary/10 text-primary"
+                      : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
                   }`}
                   title="Voice input (UI only)"
                 >
@@ -560,7 +560,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v22
+        SG v23
       </div>
     </div>
   );

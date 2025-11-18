@@ -48,6 +48,18 @@ export const quizRouter = router({
         const formulaIds = input.context?.entity === 'formula' && input.context?.id ? [input.context.id] : 
                           input.context?.formulas ? input.context.formulas.map((f: any) => f.id) : [];
 
+        // Ensure there is a backing User row for this ownerId (important for guest sessions)
+        await ctx.prisma.user.upsert({
+          where: { id: ctx.user.id },
+          create: {
+            id: ctx.user.id,
+            email: ctx.user.email,
+            name: ctx.user.email,
+            passwordHash: "guest",
+          },
+          update: {},
+        });
+
         // Create quiz in database
         const quiz = await ctx.prisma.practiceQuiz.create({
           data: {

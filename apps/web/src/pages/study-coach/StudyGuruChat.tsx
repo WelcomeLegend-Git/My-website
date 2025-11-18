@@ -298,7 +298,7 @@ export const StudyGuruChat = () => {
         className={`${sidebarOpen ? "w-80" : "w-0"} bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-800/80 flex-shrink-0">
+        <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -456,7 +456,7 @@ export const StudyGuruChat = () => {
           </div>
 
           {/* Other Chats */}
-          <div className="p-4 border-t border-slate-800/80">
+          <div className="p-4">
             <div className="space-y-1">
               {chats
                 .filter((chat) => !chat.recent)
@@ -551,7 +551,7 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-t border-slate-800/80 flex-shrink-0">
+        <div className="p-4 flex-shrink-0">
           <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
               {initials}
@@ -747,7 +747,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v26
+        SG v27
       </div>
     </div>
   );

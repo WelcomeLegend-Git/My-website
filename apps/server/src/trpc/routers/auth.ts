@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from "../../auth/tokens";
+import { sendPasswordResetEmail } from "../../services/email";
 import { procedure, router } from "../trpc";
 
 const credentialsSchema = z.object({
@@ -101,6 +102,105 @@ export const authRouter = router({
         },
         ...tokens,
       };
+    }),
+  requestPasswordReset: procedure
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
+
+      if (user) {
+        const otp = Math.floor(100000 + Math.random() * 900000)
+          .toString()
+          .slice(0, 6);
+        const otpHash = await bcrypt.hash(otp, 12);
+
+        await ctx.prisma.passwordResetToken.updateMany({
+          where: {
+            userId: user.id,
+            used: false,
+            expiresAt: {
+              gt: new Date(),
+            },
+          },
+          data: {
+            used: true,
+          },
+        });
+
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        await ctx.prisma.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            otpHash,
+            expiresAt,
+          },
+        });
+
+        try {
+          await sendPasswordResetEmail({
+            to: user.email,
+            code: otp,
+            expiresInMinutes: 10,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to send reset email. Please try again later.",
+            cause: error,
+          });
+        }
+      }
+
+      return { success: true };
+    }),
+  resetPasswordWithOtp: procedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        otp: z.string().min(4).max(8),
+        newPassword: z.string().min(8),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
+      if (!user) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid code or email" });
+      }
+
+      const token = await ctx.prisma.passwordResetToken.findFirst({
+        where: {
+          userId: user.id,
+          used: false,
+          expiresAt: {
+            gt: new Date(),
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired code" });
+      }
+
+      const valid = await bcrypt.compare(input.otp, token.otpHash);
+      if (!valid) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired code" });
+      }
+
+      const passwordHash = await bcrypt.hash(input.newPassword, 12);
+
+      await ctx.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      await ctx.prisma.passwordResetToken.update({
+        where: { id: token.id },
+        data: { used: true },
+      });
+
+      return { success: true };
     }),
   login: procedure.input(credentialsSchema).mutation(async ({ ctx, input }) => {
     const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });

@@ -6,6 +6,7 @@ import { PublicRoute } from "./app/routes/PublicRoute";
 import { useRegisterPwa } from "./hooks/useRegisterPwa";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { FormulaCollectionPage } from "./pages/formulas/FormulaCollectionPage";
 import { FormulaCollectionsListPage } from "./pages/formulas/FormulaCollectionsListPage";
@@ -25,6 +26,7 @@ const App = () => {
       <Route element={<PublicRoute />}>
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/register" element={<RegisterPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>

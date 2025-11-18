@@ -1,7 +1,7 @@
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import express from "express";
 import helmet from "helmet";
 
@@ -16,7 +16,14 @@ export const createApp = () => {
 
   // Disable helmet in Vercel as we handle CORS manually in api/index.ts
   const isVercel = process.env.VERCEL === '1';
-  
+
+  const corsOptions: CorsOptions = {
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  };
+
   if (!isVercel) {
     app.use(helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -26,38 +33,11 @@ export const createApp = () => {
   // Only apply CORS middleware when not on Vercel
   // On Vercel, CORS is handled in api/index.ts
   if (!isVercel) {
-    // Handle preflight requests
-    app.options("*", cors({
-      origin: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://localhost:3003",
-        "http://localhost:5173",
-        /\.vercel\.app$/,
-        /\.onrender\.com$/,
-      ],
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-    }));
-    
-    app.use(
-      cors({
-        origin: [
-          "http://localhost:3000",
-          "http://localhost:3001",
-          "http://localhost:3002",
-          "http://localhost:3003",
-          "http://localhost:5173",
-          /\.vercel\.app$/,
-          /\.onrender\.com$/,
-        ],
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-      })
-    );
+    // Handle preflight requests with shared CORS options
+    app.options("*", cors(corsOptions));
+
+    // Apply CORS for all routes
+    app.use(cors(corsOptions));
   }
   
   app.use(cookieParser());

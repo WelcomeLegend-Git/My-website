@@ -131,6 +131,14 @@ export const LoginPage = () => {
                   {errors.password.message}
                 </p>
               )}
+              <div className="flex justify-end">
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-xs text-primary hover:text-purple-400 font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             {mutation.error && (

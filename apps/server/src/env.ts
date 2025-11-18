@@ -22,6 +22,11 @@ const envSchema = z.object({
     .string()
     .default("gemini-1.5-flash,gemini-1.5-pro")
     .transform((value) => value.split(",").map((model) => model.trim()).filter(Boolean)),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
   UPLOAD_DIR: z
     .string()
     .default(path.join(process.cwd(), "uploads"))

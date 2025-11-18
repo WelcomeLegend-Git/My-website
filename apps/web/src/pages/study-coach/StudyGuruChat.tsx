@@ -1,4 +1,4 @@
-import { useState, type SVGProps } from "react";
+import { useState, useRef, type SVGProps, type ChangeEvent } from "react";
 import { useAuth } from "../../app/providers/AuthProvider";
 
 type IconProps = SVGProps<SVGSVGElement>;
@@ -16,6 +16,23 @@ const Menu = (props: IconProps) => (
     <line x1="4" y1="6" x2="20" y2="6" />
     <line x1="4" y1="12" x2="20" y2="12" />
     <line x1="4" y1="18" x2="20" y2="18" />
+  </svg>
+);
+
+const Mic = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" />
+    <path d="M19 10a7 7 0 0 1-14 0" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+    <line x1="8" y1="21" x2="16" y2="21" />
   </svg>
 );
 
@@ -76,6 +93,8 @@ type Chat = {
   messages: ChatMessage[];
 };
 
+type ModelId = "gemini a" | "gemini b" | "gemini c";
+
 export const StudyGuruChat = () => {
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -117,6 +136,12 @@ export const StudyGuruChat = () => {
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const { user } = useAuth();
+  const [selectedModel, setSelectedModel] = useState<ModelId>("gemini a");
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const modelOptions: ModelId[] = ["gemini a", "gemini b", "gemini c"];
 
   const displayName = user?.name || "Guest User";
   const initials =
@@ -175,6 +200,25 @@ export const StudyGuruChat = () => {
     );
 
     setMessage("");
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachedFiles((prev) => {
+      const combined = [...prev, ...files];
+      return combined.slice(0, 10);
+    });
+    // Allow selecting the same file again by resetting the input
+    event.target.value = "";
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const toggleRecording = () => {
+    setIsRecording((prev) => !prev);
   };
 
   return (
@@ -388,34 +432,98 @@ export const StudyGuruChat = () => {
 
         {/* Input Area pinned to bottom of chat column */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6">
-          <div className="max-w-3xl mx-auto border-t border-slate-800/80 bg-gradient-to-t from-slate-950/95 via-slate-900/95 to-slate-950/95 rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 pb-3">
-            <div className="relative">
+          <div className="max-w-3xl mx-auto">
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4 space-y-2">
+              {/* Top row: input + send */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask study guru"
+                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition"
+                />
+                <button
+                  onClick={handleSend}
+                  className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0"
+                >
+                  <Send className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              {/* Bottom row: attachments, model selector, voice */}
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                {/* Attachments */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAttachmentClick}
+                    className="w-7 h-7 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition"
+                    title="Add photos (up to 10)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                  {attachedFiles.length > 0 && (
+                    <span className="text-[11px] text-slate-500">
+                      {attachedFiles.length} photo{attachedFiles.length > 1 ? "s" : ""} selected
+                    </span>
+                  )}
+                </div>
+
+                {/* Model dropdown */}
+                <div className="flex-1 flex justify-center">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value as ModelId)}
+                    className="min-w-[120px] bg-slate-900/90 border border-slate-700/80 rounded-full px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 appearance-none [background-image:linear-gradient(45deg,transparent_50%,#a5b4fc_50%),linear-gradient(135deg,#a5b4fc_50%,transparent_50%)],[background-position:calc(100%-14px)_50%,calc(100%-9px)_50%],[background-size:5px_5px,5px_5px,1.5rem_1.5rem]; [background-repeat:no-repeat]"
+                  >
+                    {modelOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Voice */}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={toggleRecording}
+                    className={`w-7 h-7 rounded-full border flex items-center justify-center transition ${
+                      isRecording
+                        ? "border-primary/70 bg-primary/10 text-primary"
+                        : "border-slate-700/80 hover:bg-slate-800/80 hover:border-primary/60 text-slate-400"
+                    }`}
+                    title="Voice input (UI only)"
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Hidden file input for attachments */}
               <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Ask study guru"
-                className="w-full bg-slate-900/80 border border-slate-700/70 rounded-full px-6 py-4 pr-14 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/40 transition"
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
               />
-              <button
-                onClick={handleSend}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30"
-              >
-                <Send className="w-5 h-5 text-white" />
-              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v19
+        SG v20
       </div>
     </div>
   );

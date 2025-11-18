@@ -269,15 +269,7 @@ export const ShellLayout = () => {
                         }}
                         className="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-900/80 hover:text-primary transition-colors cursor-pointer"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11.049 2.927c.3-1.14 1.952-1.14 2.252 0a1.724 1.724 0 002.573 1.066c.986-.57 2.192.436 1.822 1.494a1.724 1.724 0 001.002 2.18c1.077.4 1.077 1.872 0 2.272a1.724 1.724 0 00-1.002 2.18c.37 1.058-.836 2.064-1.822 1.494a1.724 1.724 0 00-2.573 1.066c-.3 1.14-1.952 1.14-2.252 0a1.724 1.724 0 00-2.573-1.066c-.986.57-2.192-.436-1.822-1.494a1.724 1.724 0 00-1.002-2.18c-1.077-.4-1.077-1.872 0-2.272a1.724 1.724 0 001.002-2.18c-.37-1.058.836-2.064 1.822-1.494a1.724 1.724 0 002.573-1.066z"
-                          />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
+                        <span className="material-icons text-base text-slate-300">settings</span>
                         <div className="flex flex-col">
                           <span className="font-medium">Settings</span>
                           <span className="text-[11px] text-slate-500">Manage backups and account</span>

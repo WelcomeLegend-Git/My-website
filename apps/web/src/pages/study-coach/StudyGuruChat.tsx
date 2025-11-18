@@ -1,4 +1,5 @@
 import { useState, type SVGProps } from "react";
+import { useAuth } from "../../app/providers/AuthProvider";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -115,6 +116,16 @@ export const StudyGuruChat = () => {
   const [activeChatId, setActiveChatId] = useState<number>(1);
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
+  const { user } = useAuth();
+
+  const displayName = user?.name || "Guest User";
+  const initials =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase() ?? "")
+      .join("") || "GU";
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null;
 
@@ -310,9 +321,9 @@ export const StudyGuruChat = () => {
         <div className="p-4 border-t border-slate-800/80 flex-shrink-0">
           <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
-              SK
+              {initials}
             </div>
-            <span className="font-medium">Sanjay Kumar</span>
+            <span className="font-medium truncate">{displayName}</span>
           </button>
         </div>
       </div>
@@ -320,7 +331,7 @@ export const StudyGuruChat = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative">
         {/* Top Header */}
-        <div className="h-16 flex items-center px-6">
+        <div className="h-16 flex items-center px-4">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -329,7 +340,7 @@ export const StudyGuruChat = () => {
               <Menu className="w-6 h-6" />
             </button>
           )}
-          <div className="inline-flex items-center px-6 py-2 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
+          <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
           </div>
         </div>
@@ -404,7 +415,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v18
+        SG v19
       </div>
     </div>
   );

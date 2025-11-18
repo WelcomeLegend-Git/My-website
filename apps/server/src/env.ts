@@ -27,6 +27,7 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
+  RESEND_API_KEY: z.string().optional(),
   UPLOAD_DIR: z
     .string()
     .default(path.join(process.cwd(), "uploads"))

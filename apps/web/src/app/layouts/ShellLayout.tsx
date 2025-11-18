@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AiSidebar } from "../../features/ai/components/AiSidebar";
 import { InstallPrompt } from "../../features/pwa/InstallPrompt";
 import { useAuth } from "../providers/AuthProvider";
@@ -216,8 +216,13 @@ export const ShellLayout = () => {
                   {aiOpen ? "Hide" : "Show"} Mentor
                 </button>
 
-                {/* User Info - Desktop */}
-                <div className="hidden md:flex items-center gap-3">
+                {/* User Info - Desktop (click to log out) */}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="hidden md:flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition-colors hover:border-red-500/40 hover:bg-red-500/5"
+                  title="Click to log out"
+                >
                   <div className="flex flex-col items-end text-right">
                     <span className="text-sm font-medium text-slate-100">{user?.name}</span>
                     <span className="text-xs text-slate-400">{user?.email}</span>
@@ -225,12 +230,28 @@ export const ShellLayout = () => {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center font-bold text-sm">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                </div>
+                </button>
 
-                {/* Logout Button */}
+                {/* Settings Button */}
+                <Link
+                  to="/settings"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-700/50 bg-slate-900/60 px-3 py-2 text-slate-300 hover:border-primary/60 hover:text-primary hover:bg-primary/10 transition-all duration-300 hover-lift"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11.049 2.927c.3-1.14 1.952-1.14 2.252 0a1.724 1.724 0 002.573 1.066c.986-.57 2.192.436 1.822 1.494a1.724 1.724 0 001.002 2.18c1.077.4 1.077 1.872 0 2.272a1.724 1.724 0 00-1.002 2.18c.37 1.058-.836 2.064-1.822 1.494a1.724 1.724 0 00-2.573 1.066c-.3 1.14-1.952 1.14-2.252 0a1.724 1.724 0 00-2.573-1.066c-.986.57-2.192-.436-1.822-1.494a1.724 1.724 0 00-1.002-2.18c-1.077-.4-1.077-1.872 0-2.272a1.724 1.724 0 001.002-2.18c-.37-1.058.836-2.064 1.822-1.494a1.724 1.724 0 002.573-1.066z"
+                    />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </Link>
+
+                {/* Logout Button - Mobile/Tablet */}
                 <button
                   type="button"
-                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-xl border border-slate-700/50 text-sm sm:text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
+                  className="md:hidden px-3 sm:px-4 py-2 sm:py-2 rounded-xl border border-slate-700/50 text-sm sm:text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
                   onClick={logout}
                 >
                   <span className="hidden sm:inline">Log out</span>

@@ -17,6 +17,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { QuizHistoryPage } from "./pages/quiz/QuizHistoryPage";
 import { QuizPage } from "./pages/quiz/QuizPage";
 import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
+import { SettingsPage } from "./pages/settings/SettingsPage";
 
 const App = () => {
   useRegisterPwa();
@@ -32,6 +33,7 @@ const App = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<ShellLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="formulas" element={<FormulaCollectionsListPage />} />
           <Route path="formulas/collections/:id" element={<FormulaCollectionPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />

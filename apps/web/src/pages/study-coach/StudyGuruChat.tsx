@@ -283,8 +283,8 @@ export const StudyGuruChat = () => {
               <Menu className="w-6 h-6" />
             </button>
           )}
-          <div className="inline-flex items-center px-6 py-2.5 ml-1 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">Study guru</h1>
+          <div className="inline-flex items-center px-6 py-2 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
           </div>
         </div>
 
@@ -358,7 +358,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v15
+        SG v16
       </div>
     </div>
   );

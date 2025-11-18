@@ -93,8 +93,6 @@ type Chat = {
   messages: ChatMessage[];
 };
 
-type ModelId = "gemini a" | "gemini b" | "gemini c";
-
 export const StudyGuruChat = () => {
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -136,12 +134,9 @@ export const StudyGuruChat = () => {
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const { user } = useAuth();
-  const [selectedModel, setSelectedModel] = useState<ModelId>("gemini a");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const modelOptions: ModelId[] = ["gemini a", "gemini b", "gemini c"];
 
   const displayName = user?.name || "Guest User";
   const initials =
@@ -433,9 +428,23 @@ export const StudyGuruChat = () => {
         {/* Input Area pinned to bottom of chat column */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6">
           <div className="max-w-3xl mx-auto">
-            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4 space-y-2">
-              {/* Top row: input + send */}
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3">
+                {/* Plus (attachments) */}
+                <button
+                  type="button"
+                  onClick={handleAttachmentClick}
+                  className="w-8 h-8 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition flex-shrink-0"
+                  title={
+                    attachedFiles.length
+                      ? `${attachedFiles.length} photo${attachedFiles.length > 1 ? "s" : ""} selected`
+                      : "Add photos (up to 10)"
+                  }
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+
+                {/* Message input */}
                 <input
                   type="text"
                   value={message}
@@ -449,63 +458,28 @@ export const StudyGuruChat = () => {
                   placeholder="Ask study guru"
                   className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition"
                 />
+
+                {/* Mic (voice UI only) */}
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className={`w-8 h-8 rounded-full border flex items-center justify-center transition flex-shrink-0 ${
+                    isRecording
+                      ? "border-primary/70 bg-primary/10 text-primary"
+                      : "border-slate-700/80 hover:bg-slate-800/80 hover:border-primary/60 text-slate-400"
+                  }`}
+                  title="Voice input (UI only)"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+
+                {/* Send button */}
                 <button
                   onClick={handleSend}
                   className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0"
                 >
                   <Send className="w-5 h-5 text-white" />
                 </button>
-              </div>
-
-              {/* Bottom row: attachments, model selector, voice */}
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                {/* Attachments */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAttachmentClick}
-                    className="w-7 h-7 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition"
-                    title="Add photos (up to 10)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  {attachedFiles.length > 0 && (
-                    <span className="text-[11px] text-slate-500">
-                      {attachedFiles.length} photo{attachedFiles.length > 1 ? "s" : ""} selected
-                    </span>
-                  )}
-                </div>
-
-                {/* Model dropdown */}
-                <div className="flex-1 flex justify-center">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value as ModelId)}
-                    className="min-w-[120px] bg-slate-900/90 border border-slate-700/80 rounded-full px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 appearance-none [background-image:linear-gradient(45deg,transparent_50%,#a5b4fc_50%),linear-gradient(135deg,#a5b4fc_50%,transparent_50%)],[background-position:calc(100%-14px)_50%,calc(100%-9px)_50%],[background-size:5px_5px,5px_5px,1.5rem_1.5rem]; [background-repeat:no-repeat]"
-                  >
-                    {modelOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Voice */}
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={toggleRecording}
-                    className={`w-7 h-7 rounded-full border flex items-center justify-center transition ${
-                      isRecording
-                        ? "border-primary/70 bg-primary/10 text-primary"
-                        : "border-slate-700/80 hover:bg-slate-800/80 hover:border-primary/60 text-slate-400"
-                    }`}
-                    title="Voice input (UI only)"
-                  >
-                    <Mic className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
 
               {/* Hidden file input for attachments */}
@@ -523,7 +497,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v20
+        SG v21
       </div>
     </div>
   );

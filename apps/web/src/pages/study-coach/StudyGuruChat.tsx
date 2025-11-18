@@ -137,8 +137,10 @@ export const StudyGuruChat = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const displayName = user?.name || "Guest User";
+  const firstName = displayName.split(" ")[0] || "legend";
   const initials =
     displayName
       .split(" ")
@@ -214,6 +216,11 @@ export const StudyGuruChat = () => {
 
   const toggleRecording = () => {
     setIsRecording((prev) => !prev);
+  };
+
+  const handleQuickPrompt = (prompt: string) => {
+    setMessage(prompt);
+    inputRef.current?.focus();
   };
 
   return (
@@ -389,14 +396,69 @@ export const StudyGuruChat = () => {
           <div className="max-w-3xl mx-auto space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">💡</span>
+                <div className="text-center space-y-6">
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl font-bold">
+                      <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                        Hello, {firstName.toLowerCase() === "guest" ? "legend" : firstName}
+                      </span>
+                    </h2>
+                    <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Start a new conversation
-                  </h2>
-                  <p className="text-slate-400">Ask me anything about your studies!</p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Explain this concept in simple terms: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">🎨</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Explain concept</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Help me solve this problem step by step: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💻</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Solve problem</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Give me study tips for: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💡</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Study tips</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Create a practice quiz with answers on: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">📝</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Practice quiz</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -446,6 +508,7 @@ export const StudyGuruChat = () => {
 
                 {/* Message input */}
                 <input
+                  ref={inputRef}
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -497,7 +560,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v21
+        SG v22
       </div>
     </div>
   );

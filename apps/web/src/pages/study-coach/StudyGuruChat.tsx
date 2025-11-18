@@ -579,7 +579,7 @@ export const StudyGuruChat = () => {
               onClick={() => setIsModelMenuOpen((prev) => !prev)}
               className="w-full inline-flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs text-slate-100 hover:border-primary/70 hover:bg-slate-900 transition"
             >
-              <span className="text-[10px] uppercase tracking-wide text-slate-400">Model</span>
+              <span className="text-sm font-medium uppercase tracking-wide text-slate-100">Model</span>
               <span className="flex-1 text-right truncate text-xs sm:text-[13px] text-slate-100">
                 {selectedModel}
               </span>
@@ -805,7 +805,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v31
+        SG v32
       </div>
     </div>
   );

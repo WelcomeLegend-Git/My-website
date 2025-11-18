@@ -295,7 +295,7 @@ export const StudyGuruChat = () => {
     <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-80" : "w-0"} bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${sidebarOpen ? "w-72" : "w-0"} bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         {/* Sidebar Header */}
         <div className="p-4 flex-shrink-0">
@@ -370,16 +370,23 @@ export const StudyGuruChat = () => {
                 )
                 .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
                 .map((chat) => (
-                  <div key={chat.id} className="group relative flex items-center gap-2">
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${
+                      activeChatId === chat.id
+                        ? "bg-slate-800/80"
+                        : "hover:bg-slate-800/40"
+                    }`}
+                  >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 px-0 py-2 text-left text-sm rounded-md transition ${
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${
                         activeChatId === chat.id
-                          ? "bg-slate-800/80 text-slate-100"
-                          : "text-slate-300 hover:bg-slate-800/40 hover:text-slate-100"
+                          ? "text-slate-100"
+                          : "text-slate-300 group-hover:text-slate-100"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
                         <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
                       </span>
@@ -466,16 +473,23 @@ export const StudyGuruChat = () => {
                     : true
                 )
                 .map((chat) => (
-                  <div key={chat.id} className="group relative flex items-center gap-2">
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${
+                      activeChatId === chat.id
+                        ? "bg-slate-800/80"
+                        : "hover:bg-slate-800/40"
+                    }`}
+                  >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 px-0 py-2 text-left text-sm rounded-md transition ${
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${
                         activeChatId === chat.id
-                          ? "bg-slate-800/80 text-slate-100"
-                          : "text-slate-300 hover:bg-slate-800/40 hover:text-slate-100"
+                          ? "text-slate-100"
+                          : "text-slate-300 group-hover:text-slate-100"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
                         <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
                       </span>
@@ -749,7 +763,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v28
+        SG v30
       </div>
     </div>
   );

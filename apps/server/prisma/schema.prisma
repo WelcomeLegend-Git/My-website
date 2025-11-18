@@ -62,6 +62,7 @@ model User {
   practiceQuizzes    PracticeQuiz[]
   practiceAttempts   PracticeAttempt[]
   passwordResetTokens PasswordResetToken[]
+  googleDriveConnection GoogleDriveConnection?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 }
@@ -343,4 +344,21 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model GoogleDriveConnection {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String
+  accessToken  String?
+  scope        String?
+  tokenType    String?
+  expiryDate   DateTime?
+  folderId     String?
+  lastBackupAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }

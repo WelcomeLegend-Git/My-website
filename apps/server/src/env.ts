@@ -35,6 +35,10 @@ const envSchema = z.object({
     .string()
     .min(6, "AI_ACCESS_CODE must be at least 6 characters")
     .default("dev123"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_REDIRECT_URL: z.string().url().optional(),
+  WEB_APP_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

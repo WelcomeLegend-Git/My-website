@@ -336,14 +336,20 @@ Respond ONLY with valid JSON:
   "tags": ["mechanics", "dynamics"],
   "diagram": {
     "type": "jsxgraph",
-    "title": "Example graph",
-    "description": "Graph of a typical relation used with this formula",
+    "title": "Example diagram",
+    "description": "JEE-style diagram (graph, free-body diagram, circuit, field, etc.) illustrating this formula",
     "config": {
-      "boundingBox": [-5, 5, 5, -5],
-      "axes": true,
-      "points": [
-        { "x": 0, "y": 0, "name": "O" }
-      ]
+      "boundingBox": [-6, 4, 6, -4],
+      "axes": false,
+      "points": [...],
+      "segments": [...],
+      "polylines": [...],
+      "polygons": [...],
+      "circles": [...],
+      "arcs": [...],
+      "fieldRegions": [...],
+      "springs": [...],
+      "labels": [...]
     }
   }
 }`;
@@ -529,16 +535,16 @@ Return a JSON array where each element has:
 9. **commonMistakes**: Array of objects with mistake and correction
 10. **difficulty**: "easy", "medium", or "hard"
 11. **tags**: Relevant topic tags
-12. **diagram** (optional): A JSXGraph-compatible diagram spec when a graph/diagram is natural for this formula.
+12. **diagram** (optional): A JSXGraph-compatible diagram spec when a simple JEE-style graph/diagram (graph, free-body diagram, circuit, fields, etc.) is natural for this formula. Use the richer config schema with points, segments, polylines, polygons, circles, arcs, fieldRegions, springs, and labels.
 
 Respond ONLY with a valid JSON array:
 [
   {
     "title": "...",
-    "expression": "\\\\(F = ma\\\\)",
+    "expression": "...",
     "explanation": "...",
     "applications": "...",
-    "derivationSteps": ["Step 1: ...", "Step 2: ..."],
+    "derivationSteps": ["...", "..."],
     "examples": [{
       "problem": "...",
       "solution": "...",
@@ -554,11 +560,20 @@ Respond ONLY with a valid JSON array:
     "tags": ["mechanics", "dynamics"],
     "diagram": {
       "type": "jsxgraph",
-      "title": "Example graph",
-      "description": "Graph of a relation used with this formula",
+      "title": "Example diagram",
+      "description": "JEE-style diagram (graph, free-body diagram, circuit, field, etc.) illustrating this formula",
       "config": {
-        "boundingBox": [-5, 5, 5, -5],
-        "axes": true
+        "boundingBox": [-6, 4, 6, -4],
+        "axes": false,
+        "points": [...],
+        "segments": [...],
+        "polylines": [...],
+        "polygons": [...],
+        "circles": [...],
+        "arcs": [...],
+        "fieldRegions": [...],
+        "springs": [...],
+        "labels": [...]
       }
     }
   }

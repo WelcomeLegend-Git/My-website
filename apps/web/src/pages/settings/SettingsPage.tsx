@@ -9,6 +9,29 @@ export const SettingsPage = () => {
 
   const statusQuery = trpc.backupApi.getStatus.useQuery();
   const exportMutation = trpc.backupApi.exportMyData.useMutation();
+  const googleAuthUrlQuery = trpc.backupApi.getGoogleAuthUrl.useQuery(undefined, {
+    enabled: false,
+    retry: false,
+  });
+  const backupDriveMutation = trpc.backupApi.backupToDrive.useMutation();
+
+  const cloudStatusLabel = (() => {
+    if (statusQuery.isLoading) return "Checking...";
+    const data = statusQuery.data;
+    if (!data || !data.isConfigured) return "Drive not configured";
+    if (!data.isConnected) return "Not connected";
+    if (data.hasCloudBackup) return "Connected, backup available";
+    return "Connected to Drive";
+  })();
+
+  const connectDisabled =
+    !statusQuery.data?.isConfigured || statusQuery.isLoading || googleAuthUrlQuery.isFetching;
+
+  const backupDriveDisabled =
+    !statusQuery.data?.isConfigured ||
+    !statusQuery.data?.isConnected ||
+    statusQuery.isLoading ||
+    backupDriveMutation.isPending;
 
   const handleDownloadBackup = async () => {
     setMessage(null);
@@ -34,6 +57,37 @@ export const SettingsPage = () => {
       setMessage("Backup downloaded successfully.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to download backup";
+      setError(message);
+    }
+  };
+
+  const handleConnectDrive = async () => {
+    setMessage(null);
+    setError(null);
+    try {
+      const result = await googleAuthUrlQuery.refetch();
+      const url = result.data?.url;
+      if (!url) {
+        throw new Error("Could not get Google sign-in link. Please try again.");
+      }
+      window.location.href = url;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start Google Drive connection";
+      setError(message);
+    }
+  };
+
+  const handleBackupToDrive = async () => {
+    setMessage(null);
+    setError(null);
+    try {
+      await backupDriveMutation.mutateAsync();
+      await statusQuery.refetch();
+      setMessage("Backup uploaded to Google Drive.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to upload backup to Google Drive";
       setError(message);
     }
   };
@@ -73,7 +127,7 @@ export const SettingsPage = () => {
               </p>
             </div>
             <span className="inline-flex items-center rounded-full bg-slate-900/60 px-3 py-1 text-[11px] font-medium text-slate-400 border border-slate-700/60">
-              {statusQuery.isLoading ? "Checking..." : "Drive sync coming soon"}
+              {cloudStatusLabel}
             </span>
           </div>
 
@@ -88,20 +142,26 @@ export const SettingsPage = () => {
               </div>
               <button
                 type="button"
-                disabled
-                className="rounded-lg bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-400 border border-slate-700/70 cursor-not-allowed"
+                onClick={handleConnectDrive}
+                disabled={connectDisabled}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-700/70 transition-colors ${
+                  connectDisabled
+                    ? "bg-slate-800/80 text-slate-500 cursor-not-allowed"
+                    : "bg-emerald-500/90 text-slate-950 hover:bg-emerald-400"
+                }`}
               >
-                Connect
+                {googleAuthUrlQuery.isFetching ? "Connecting..." : "Connect"}
               </button>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                disabled
-                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-400 cursor-not-allowed"
+                onClick={handleBackupToDrive}
+                disabled={backupDriveDisabled}
+                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
               >
-                Backup to Google Drive
+                {backupDriveMutation.isPending ? "Backing up..." : "Backup to Google Drive"}
                 <p className="mt-1 text-[11px] font-normal text-slate-500">
                   One-click backup of your current data to your Google Drive account.
                 </p>

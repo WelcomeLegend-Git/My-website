@@ -7,6 +7,7 @@ import helmet from "helmet";
 
 import { optionalAuth } from "./auth/middleware";
 import { logger } from "./logger";
+import { handleGoogleDriveOAuthCallback } from "./services/google-drive";
 import { persistFile, uploadMiddleware } from "./storage/supabase";
 import { createContext } from "./trpc/context";
 import { appRouter } from "./trpc/root";
@@ -45,6 +46,8 @@ export const createApp = () => {
   app.use(express.urlencoded({ extended: true }));
   app.use(compression());
   app.use(optionalAuth);
+
+  app.get("/api/google-drive/callback", handleGoogleDriveOAuthCallback);
 
   app.post(
     "/api/uploads",

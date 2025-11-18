@@ -272,11 +272,20 @@ Analyze and return ONLY valid JSON with this exact structure:
   },
   "aiDiagram": {
     "type": "jsxgraph",
-    "title": "Optional diagram illustrating the mistake or correct concept",
-    "description": "Short description of what the diagram shows",
+    "title": "Optional JEE-style diagram illustrating the mistake or correct concept",
+    "description": "Short description of what the diagram shows (free-body diagram, circuit, field, graph, etc.)",
     "config": {
-      "boundingBox": [-5, 5, 5, -5],
-      "axes": true
+      "boundingBox": [-6, 4, 6, -4],
+      "axes": false,
+      "points": [...],
+      "segments": [...],
+      "polylines": [...],
+      "polygons": [...],
+      "circles": [...],
+      "arcs": [...],
+      "fieldRegions": [...],
+      "springs": [...],
+      "labels": [...]
     }
   }
 }

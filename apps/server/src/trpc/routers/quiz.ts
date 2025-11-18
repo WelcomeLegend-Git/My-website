@@ -331,54 +331,87 @@ Requirements:
 - Difficulty: ${
     input.examType === "advanced" ? "Advanced (multi-step, conceptual)" : "Moderate (clear, direct)"
   }
-- Questions should be JEE-style with proper mathematical notation using LaTeX
-- Each question must have 4 options
-- ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}
-- Include detailed explanations
-- Use proper LaTeX notation: inline $...$ and display $$...$$
-- When a visual diagram or graph is natural (geometry, graphs, circuits, ray diagrams, vectors), include a JSXGraph-style diagram specification. Aim for roughly ${Math.round(
+- Questions must be JEE-style, concise, and physically accurate.
+- Each question must have 4 options.
+- ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}.
+- Include detailed explanations with LaTeX.
+- Use proper LaTeX notation: inline $...$ and display $$...$$.
+- When a visual diagram is natural (mechanics setups, circuits, fields, ray diagrams, graphs), include a JSXGraph-style diagram specification using the schema below. Aim for roughly ${Math.round(
     pictureRatio * 100
   )}% of questions to include a diagram when it genuinely helps understanding.
 
-CRITICAL JSON FORMATTING RULES:
-1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text
-2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\\\ in the JSON string
-3. Example valid JSON: "questionText": "Calculate $$\\\\frac{1}{2}mv^2$$"
-4. Escape all quotes and special characters properly
+Diagram specification (when needed):
+- Use this JSON shape inside each question:
+  "diagram": {
+    "type": "jsxgraph",
+    "title": "Short diagram title",
+    "description": "1-2 line description of what the figure shows",
+    "config": {
+      "boundingBox": [-6, 4, 6, -4],
+      "axes": false,
+      "points": [...],
+      "segments": [...],
+      "polylines": [...],      // for rails, paths, or light constructions
+      "polygons": [...],       // for blocks, tables, U-shaped wires
+      "circles": [...],        // for circular loops or pulleys
+      "arcs": [...],           // for small angle markings or sectors
+      "fieldRegions": [...],   // uniform B/E fields with "cross" or "dot" pattern
+      "springs": [...],        // zig-zag springs between two points
+      "labels": [...]          // text labels like "10 cm", "B", "m", etc.
+    }
+  }
 
-Example format:
+CRITICAL JSON FORMATTING RULES:
+1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text.
+2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\ in the JSON string.
+3. Example valid JSON: "questionText": "Calculate $$\\frac{1}{2}mv^2$$".
+4. Escape all quotes and special characters properly.
+
+Example format (mechanics with diagram):
 [
   {
-    "questionText": "Question with LaTeX: $x^2 + y^2 = r^2$",
+    "questionText": "A light strip of length 10 cm slides on a U-shaped conducting rail in a uniform magnetic field B (into the page), connected to a spring. The strip is pulled slightly and released. Find the approximate number of oscillations before the amplitude decreases by a factor e.",
     "options": [
-      "Option A with LaTeX if needed",
-      "Option B",
-      "Option C",
-      "Option D"
+      "5000",
+      "500",
+      "10000",
+      "1000"
     ],
     "correctAnswers": [0],
-    "explanation": "Detailed explanation with LaTeX: $$F = ma$$",
+    "explanation": "Detailed explanation with LaTeX ...",
     "difficulty": "medium",
-    "topic": "Kinematics",
+    "topic": "Electromagnetic damping",
     "diagram": {
       "type": "jsxgraph",
-      "title": "Sample graph",
-      "description": "Graph of $y = x^2$",
+      "title": "Strip on U-shaped rail in magnetic field",
+      "description": "A conducting strip attached to a spring sliding on a U-shaped wire in a uniform magnetic field (crosses into the page).",
       "config": {
-        "boundingBox": [-5, 5, 5, -5],
-        "axes": true,
+        "boundingBox": [-6, 4, 6, -4],
+        "axes": false,
         "points": [
-          { "x": 0, "y": 0, "name": "O" },
-          { "x": 2, "y": 4, "name": "A" }
+          { "x": -4, "y": -2, "name": "" },   // left bottom of rail
+          { "x": 4, "y": -2, "name": "" },    // right bottom of rail
+          { "x": -4, "y": 2, "name": "" },    // left top of rail
+          { "x": 4, "y": 2, "name": "" },     // right top of rail
+          { "x": 0, "y": -2, "name": "strip" } // strip contact point
         ],
-        "segments": [
-          { "from": 0, "to": 1 }
+        "polygons": [
+          { "vertices": [0, 1, 3, 2] }             // U-shaped conducting region
+        ],
+        "fieldRegions": [
+          { "x1": -4, "y1": 2, "x2": 4, "y2": -2, "pattern": "cross" }
+        ],
+        "springs": [
+          { "from": 0, "to": 4, "coils": 6 }
+        ],
+        "labels": [
+          { "x": 4.2, "y": 2, "text": "10 cm" },
+          { "x": -3.8, "y": 3.2, "text": "B (into page)" }
         ]
       }
     }
   }
 ]
-
 Generate EXACTLY ${input.questionCount} questions. Output ONLY the JSON array, nothing else.`;
 }
 

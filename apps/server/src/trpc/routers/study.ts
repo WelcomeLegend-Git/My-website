@@ -90,17 +90,59 @@ ${context}`,
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const prompt = `You are an expert mentor helping a JEE aspirant. Current section: ${input.section}.
+      const baseContext = input.context ?? {};
+      const isStudyGuru = (baseContext as any).mode === "study_guru";
+      const requestedModel =
+        isStudyGuru && typeof (baseContext as any).model === "string"
+          ? ((baseContext as any).model as string)
+          : undefined;
+
+      let prompt: string;
+
+      if (isStudyGuru) {
+        const rawHistory = Array.isArray((baseContext as any).chatHistory)
+          ? ((baseContext as any).chatHistory as Array<{ role?: string; content?: unknown }>)
+          : [];
+
+        const historyText = rawHistory
+          .map((m, index) => {
+            const role = m?.role === "assistant" ? "Study Guru" : "Student";
+            const content =
+              typeof m?.content === "string" ? m.content : JSON.stringify(m?.content ?? "");
+            return `${index + 1}. ${role}: ${content}`;
+          })
+          .join("\n");
+
+        prompt = `You are **Study Guru**, a highly tuned AI mentor for JEE aspirants.
+
+Your goals:
+- Teach concepts with strong intuition and exam focus.
+- Adapt depth: be brief for simple factual queries, detailed for "why/how/explain" questions.
+- Use clear headings, bullet points, and step-by-step reasoning.
+- When relevant, include LaTeX math using \\( ... \\) or \\[ ... \\].
+
+Full conversation so far (most recent messages last):
+${historyText || "No prior messages; this is the first question."}
+
+Current student message:
+${input.message}
+
+Now reply as Study Guru with a structured, student-friendly answer.
+If the student seems confused, anticipate mistakes and give quick exam tips at the end.`;
+      } else {
+        prompt = `You are an expert mentor helping a JEE aspirant. Current section: ${input.section}.
 Context: ${JSON.stringify(input.context ?? {})}
 Student message: ${input.message}
 Provide a concise, structured response with actionable guidance.`;
+      }
 
       // Use premium model for quiz analysis (quiz_history or quiz_results)
-      const usePremium = input.context?.type === 'quiz_history' || input.context?.type === 'quiz_results';
-      
-      const response = await ctx.gemini.generate({ 
+      const usePremium = input.context?.type === "quiz_history" || input.context?.type === "quiz_results";
+
+      const response = await ctx.gemini.generate({
         prompt,
         usePremiumOnly: usePremium, // Use gemini-2.5-pro for deep quiz analysis
+        model: !usePremium ? requestedModel : undefined,
       });
       return { reply: response.text };
     }),

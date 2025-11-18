@@ -274,30 +274,54 @@ function buildQuizPrompt(input: z.infer<typeof quizConfigSchema>): string {
       ? 0.3
       : 0.2;
   
-  // Extract formula information from context
   let formulaInfo = "";
-  if (context?.formulas && Array.isArray(context.formulas)) {
-    formulaInfo = context.formulas
-      .map((f: any) => `${f.title || 'Formula'}: ${f.expression || ''}`)
-      .filter((line: string) => line.length > 10)
+  if (context?.entity === "study_guru") {
+    const chapterLabel =
+      typeof context.chapter === "string" && context.chapter.trim().length > 0
+        ? context.chapter.trim()
+        : context.subject || "General JEE preparation";
+    const descriptionText =
+      typeof context.description === "string" && context.description.trim().length > 0
+        ? context.description.trim()
+        : "No additional description provided.";
+    const rawHistory = Array.isArray((context as any).chatHistoryForQuiz)
+      ? ((context as any).chatHistoryForQuiz as Array<{ role?: string; content?: unknown }>)
+      : [];
+    const lastMessages = rawHistory.slice(-20);
+    const historyText = lastMessages
+      .map((m, index) => {
+        const role = m?.role === "assistant" ? "Study Guru" : "Student";
+        const content =
+          typeof m?.content === "string" ? m.content : JSON.stringify(m?.content ?? "");
+        return `${index + 1}. ${role}: ${content}`;
+      })
       .join("\n");
-  }
-  
-  // If no formulas, use subject/chapter info for general questions
-  if (!formulaInfo && context?.subject) {
-    formulaInfo = `Subject: ${context.subject}\nChapter: ${context.chapter || 'General'}`;
-  }
-  
-  // Fallback to generic prompt
-  if (!formulaInfo) {
-    formulaInfo = "General JEE Physics topics (Kinematics, Dynamics, Work-Energy, etc.)";
+    formulaInfo = `Study context for quiz:
+Chapter: ${chapterLabel}
+Description: ${descriptionText}
+
+Recent conversation (most recent messages last):
+${historyText || "No recent messages were provided. Focus on the chapter and description only."}`;
+  } else {
+    if (context?.formulas && Array.isArray(context.formulas)) {
+      formulaInfo = context.formulas
+        .map((f: any) => `${f.title || 'Formula'}: ${f.expression || ''}`)
+        .filter((line: string) => line.length > 10)
+        .join("\n");
+    }
+    if (!formulaInfo && context?.subject) {
+      formulaInfo = `Subject: ${context.subject}\nChapter: ${context.chapter || 'General'}`;
+    }
+    if (!formulaInfo) {
+      formulaInfo = "General JEE Physics topics (Kinematics, Dynamics, Work-Energy, etc.)";
+    }
   }
 
   return `You are an expert JEE ${
     input.examType === "mains" ? "Mains" : "Advanced"
   } question generator.
 
-Generate ${input.questionCount} high-quality multiple-choice questions based on these formulas:
+Generate ${input.questionCount} high-quality multiple-choice questions based on the following material and context:
 
 ${formulaInfo}
 

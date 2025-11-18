@@ -13,6 +13,7 @@ export type GenerateOptions = {
   mimeType?: string; // Single image mime type (legacy support)
   images?: ImageData[]; // Multiple images (new way)
   usePremiumOnly?: boolean; // If true, only use gemini-2.5-pro with all API keys
+  model?: string;
 };
 
 export type GenerateResult = {
@@ -42,9 +43,11 @@ class GeminiClient implements IGeminiClient {
   }
 
   async generate(options: GenerateOptions) {
-    // If premium only, use ONLY gemini-2.5-pro with all API keys
-    const models = options.usePremiumOnly 
+    const explicitModel = options.model && !options.usePremiumOnly ? options.model : undefined;
+    const models = options.usePremiumOnly
       ? ["gemini-2.5-pro"]
+      : explicitModel
+      ? [explicitModel]
       : [this.primaryModel, ...this.fallbackModels];
 
     for (const model of models) {

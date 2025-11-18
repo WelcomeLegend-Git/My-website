@@ -197,26 +197,37 @@ export const StudyGuruChat = () => {
             </button>
           </div>
 
-          {historySearchOpen && (
-            <div className="mb-3">
-              <input
-                type="text"
-                value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
-                placeholder="Search history"
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
-              />
-            </div>
-          )}
+          {historySearchOpen ? (
 
-          {/* New Chat Button */}
-          <button
-            onClick={handleNewChat}
-            className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">New chat</span>
-          </button>
+            <>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search history"
+                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
+                />
+              </div>
+
+              {/* New Chat Button */}
+              <button
+                onClick={handleNewChat}
+                className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="font-medium">New chat</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleNewChat}
+              className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="font-medium">New chat</span>
+            </button>
+          )}
         </div>
 
         {/* Chat History - Scrollable */}
@@ -393,7 +404,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v17
+        SG v18
       </div>
     </div>
   );

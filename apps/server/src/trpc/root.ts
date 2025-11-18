@@ -1,4 +1,5 @@
 import { authRouter } from "./routers/auth";
+import { backupRouter } from "./routers/backup";
 import { formulasRouter } from "./routers/formulas";
 import { mistakesRouter } from "./routers/mistakes";
 import { studyRouter } from "./routers/study";
@@ -8,6 +9,7 @@ import { router } from "./trpc";
 
 export const appRouter = router({
   authApi: authRouter,
+  backupApi: backupRouter,
   subjects: subjectsRouter,
   formulas: formulasRouter,
   mistakes: mistakesRouter,

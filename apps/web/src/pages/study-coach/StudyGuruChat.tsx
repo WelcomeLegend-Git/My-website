@@ -274,7 +274,7 @@ export const StudyGuruChat = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative">
         {/* Top Header */}
-        <div className="h-16 border-b border-slate-800/80 flex items-center px-6">
+        <div className="h-16 flex items-center px-6">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -283,10 +283,8 @@ export const StudyGuruChat = () => {
               <Menu className="w-6 h-6" />
             </button>
           )}
-          <div className="flex-1 flex justify-center">
-            <div className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-100">Study guru</h1>
-            </div>
+          <div className="inline-flex items-center px-6 py-2.5 ml-1 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">Study guru</h1>
           </div>
         </div>
 
@@ -360,7 +358,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v13
+        SG v15
       </div>
     </div>
   );

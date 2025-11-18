@@ -373,10 +373,10 @@ export const StudyGuruChat = () => {
                   <div key={chat.id} className="group relative flex items-center gap-2">
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 px-4 py-2.5 text-left rounded-lg text-sm transition ${
+                      className={`flex-1 px-0 py-2 text-left text-sm rounded-md transition ${
                         activeChatId === chat.id
-                          ? "bg-slate-800/90 text-slate-100 border border-slate-600/80"
-                          : "bg-slate-900/80 text-slate-300 hover:bg-slate-800/80 border border-slate-800/80"
+                          ? "bg-slate-800/80 text-slate-100"
+                          : "text-slate-300 hover:bg-slate-800/40 hover:text-slate-100"
                       }`}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -469,8 +469,10 @@ export const StudyGuruChat = () => {
                   <div key={chat.id} className="group relative flex items-center gap-2">
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 px-4 py-2.5 text-left hover:bg-zinc-800 rounded-lg transition text-sm ${
-                        activeChatId === chat.id ? "bg-zinc-800" : ""
+                      className={`flex-1 px-0 py-2 text-left text-sm rounded-md transition ${
+                        activeChatId === chat.id
+                          ? "bg-slate-800/80 text-slate-100"
+                          : "text-slate-300 hover:bg-slate-800/40 hover:text-slate-100"
                       }`}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -747,7 +749,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v27
+        SG v28
       </div>
     </div>
   );

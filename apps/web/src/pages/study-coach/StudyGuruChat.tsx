@@ -270,19 +270,19 @@ export const StudyGuruChat = () => {
               {/* New Chat Button */}
               <button
                 onClick={handleNewChat}
-                className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
               >
-                <Plus className="w-5 h-5" />
-                <span className="font-medium">New chat</span>
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">New chat</span>
               </button>
             </>
           ) : (
             <button
               onClick={handleNewChat}
-              className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
             >
-              <Plus className="w-5 h-5" />
-              <span className="font-medium">New chat</span>
+              <Plus className="w-4 h-4" />
+              <span className="text-sm font-medium">New chat</span>
             </button>
           )}
         </div>
@@ -560,7 +560,7 @@ export const StudyGuruChat = () => {
       </div>
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-        SG v23
+        SG v25
       </div>
     </div>
   );

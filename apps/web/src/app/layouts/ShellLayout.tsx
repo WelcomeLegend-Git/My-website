@@ -59,11 +59,15 @@ export const ShellLayout = () => {
   const [aiContext, setAiContext] = useState<Record<string, unknown> | undefined>(undefined);
   const [aiSection, setAiSection] = useState<AiSection>(resolveSection(location.pathname));
   const clearChatSignal = useRef(0);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     // Immediately clear context and update section on navigation
     setAiContext(undefined);
     setAiSection(resolveSection(location.pathname));
+    setProfileOpen(false);
+    setShowLogoutConfirm(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -196,7 +200,7 @@ export const ShellLayout = () => {
               </div>
 
               {/* Right Section: User & Actions */}
-              <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-3 relative">
                 {/* AI Toggle - Desktop */}
                 <button
                   type="button"
@@ -216,49 +220,116 @@ export const ShellLayout = () => {
                   {aiOpen ? "Hide" : "Show"} Mentor
                 </button>
 
-                {/* User Info - Desktop (click to log out) */}
+                {/* Profile Button (opens dropdown with settings + logout) */}
                 <button
                   type="button"
-                  onClick={logout}
-                  className="hidden md:flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition-colors hover:border-red-500/40 hover:bg-red-500/5"
-                  title="Click to log out"
+                  onClick={() => {
+                    setProfileOpen((prev) => !prev);
+                    setShowLogoutConfirm(false);
+                  }}
+                  className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-900/60 px-2 sm:px-3 py-1.5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 hover-lift"
                 >
-                  <div className="flex flex-col items-end text-right">
-                    <span className="text-sm font-medium text-slate-100">{user?.name}</span>
-                    <span className="text-xs text-slate-400">{user?.email}</span>
+                  <div className="hidden md:flex flex-col items-end text-right mr-1">
+                    <span className="text-sm font-medium text-slate-100 leading-tight max-w-[160px] truncate">
+                      {user?.name}
+                    </span>
+                    <span className="text-xs text-slate-400 max-w-[180px] truncate">
+                      {user?.email}
+                    </span>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center font-bold text-sm">
-                    {user?.name?.charAt(0).toUpperCase()}
+                  <div className="flex items-center gap-1">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center font-bold text-sm shadow-lg shadow-primary/30">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <svg
+                      className="w-4 h-4 text-slate-400 hidden md:block"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </button>
 
-                {/* Settings Button */}
-                <Link
-                  to="/settings"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-700/50 bg-slate-900/60 px-3 py-2 text-slate-300 hover:border-primary/60 hover:text-primary hover:bg-primary/10 transition-all duration-300 hover-lift"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11.049 2.927c.3-1.14 1.952-1.14 2.252 0a1.724 1.724 0 002.573 1.066c.986-.57 2.192.436 1.822 1.494a1.724 1.724 0 001.002 2.18c1.077.4 1.077 1.872 0 2.272a1.724 1.724 0 00-1.002 2.18c.37 1.058-.836 2.064-1.822 1.494a1.724 1.724 0 00-2.573 1.066c-.3 1.14-1.952 1.14-2.252 0a1.724 1.724 0 00-2.573-1.066c-.986.57-2.192-.436-1.822-1.494a1.724 1.724 0 00-1.002-2.18c-1.077-.4-1.077-1.872 0-2.272a1.724 1.724 0 001.002-2.18c-.37-1.058.836-2.064 1.822-1.494a1.724 1.724 0 002.573-1.066z"
-                    />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </Link>
+                {profileOpen && (
+                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-72 rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-800/80 bg-gradient-to-r from-slate-900/90 to-slate-900/40">
+                      <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold mb-1">Profile</p>
+                      <p className="text-sm font-semibold text-slate-100 truncate">{user?.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                    </div>
 
-                {/* Logout Button - Mobile/Tablet */}
-                <button
-                  type="button"
-                  className="md:hidden px-3 sm:px-4 py-2 sm:py-2 rounded-xl border border-slate-700/50 text-sm sm:text-sm font-medium text-slate-300 hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300"
-                  onClick={logout}
-                >
-                  <span className="hidden sm:inline">Log out</span>
-                  <svg className="w-5 h-5 sm:w-5 sm:h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
+                    <div className="p-2 space-y-1 text-sm">
+                      <Link
+                        to="/settings"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          setShowLogoutConfirm(false);
+                        }}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-900/80 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11.049 2.927c.3-1.14 1.952-1.14 2.252 0a1.724 1.724 0 002.573 1.066c.986-.57 2.192.436 1.822 1.494a1.724 1.724 0 001.002 2.18c1.077.4 1.077 1.872 0 2.272a1.724 1.724 0 00-1.002 2.18c.37 1.058-.836 2.064-1.822 1.494a1.724 1.724 0 00-2.573 1.066c-.3 1.14-1.952 1.14-2.252 0a1.724 1.724 0 00-2.573-1.066c-.986.57-2.192-.436-1.822-1.494a1.724 1.724 0 00-1.002-2.18c-1.077-.4-1.077-1.872 0-2.272a1.724 1.724 0 001.002-2.18c-.37-1.058.836-2.064 1.822-1.494a1.724 1.724 0 002.573-1.066z"
+                          />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <div className="flex flex-col">
+                          <span className="font-medium">Settings</span>
+                          <span className="text-[11px] text-slate-500">Manage backups and account</span>
+                        </div>
+                      </Link>
+
+                      <div className="h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent my-1" />
+
+                      {!showLogoutConfirm && (
+                        <button
+                          type="button"
+                          onClick={() => setShowLogoutConfirm(true)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          <span className="font-medium">Log out</span>
+                        </button>
+                      )}
+
+                      {showLogoutConfirm && (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 space-y-2">
+                          <p className="text-xs text-red-200">
+                            Log out from this device? You&apos;ll need to enter your email and password again to sign
+                            back in.
+                          </p>
+                          <div className="flex items-center justify-end gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setShowLogoutConfirm(false)}
+                              className="px-3 py-1.5 rounded-lg border border-slate-700/70 text-slate-300 hover:bg-slate-800/80 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfileOpen(false);
+                                setShowLogoutConfirm(false);
+                                logout();
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-400 transition-colors"
+                            >
+                              Yes, log out
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Mobile AI Toggle - same style as desktop */}
                 <button

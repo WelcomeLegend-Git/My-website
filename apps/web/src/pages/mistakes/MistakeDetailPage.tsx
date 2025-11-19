@@ -24,6 +24,8 @@ export const MistakeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setAiContext, setAiSection } = useShellContext();
+  const utils = trpc.useUtils();
+  const deleteMutation = trpc.mistakes.remove.useMutation();
   const [imageViewerState, setImageViewerState] = useState<{
     open: boolean;
     initialIndex: number;
@@ -63,6 +65,24 @@ export const MistakeDetailPage = () => {
 
   const imageAssets = mistake?.assets.filter((a: any) => a.kind === 'image') || [];
 
+  const handleDelete = async () => {
+    if (!mistake) return;
+
+    const confirmed = window.confirm(
+      'This will permanently delete this mistake log and all its attachments. This cannot be undone. Continue?',
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteMutation.mutateAsync({ id: mistake.id });
+      await utils.mistakes.list.invalidate();
+      navigate('/mistakes');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete mistake.';
+      alert(message);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
@@ -100,7 +120,7 @@ export const MistakeDetailPage = () => {
 
   return (
     <>
-      <MistakeDetailView mistake={mistake} onImageClick={handleImageClick} />
+      <MistakeDetailView mistake={mistake} onImageClick={handleImageClick} onDelete={handleDelete} />
       <ImageViewerModal
         open={imageViewerState.open}
         images={imageAssets}

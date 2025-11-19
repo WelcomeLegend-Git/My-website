@@ -230,7 +230,7 @@ export const FormulaCollectionView = ({ collection, onDeleteCollection, onDelete
         <div className="space-y-3 sm:space-y-4">
           {collection.formulas.map((formula, index) => {
             const isExpanded = expandedFormulas.has(formula.id);
-            
+
             return (
               <div
                 key={formula.id}
@@ -603,7 +603,10 @@ export const FormulaCollectionView = ({ collection, onDeleteCollection, onDelete
                     </div>
                   )}
                 </div>
-              )}
+              );
+            })}
+        </div>
+
         {/* Quiz History Shortcut */}
         <div className="mt-6 sm:mt-8 glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-800/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">

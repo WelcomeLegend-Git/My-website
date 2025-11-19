@@ -1,4 +1,4 @@
-import { useState, useRef, type SVGProps, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, type SVGProps, type ChangeEvent } from "react";
 import { useAuth } from "../../app/providers/AuthProvider";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -6,6 +6,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { trpc } from "../../lib/trpc";
 import { useNavigate } from "react-router-dom";
+import { QuizConfigForm, type QuizConfig } from "../../features/quiz/components/QuizConfigForm";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -182,7 +183,6 @@ export const StudyGuruChat = () => {
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
   const [quizChapter, setQuizChapter] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
-  const [quizQuestionCount, setQuizQuestionCount] = useState(10);
 
   const studyAssistantMutation = trpc.studyApi.contextualAssistant.useMutation();
   const quizMutation = trpc.quiz.generateQuiz.useMutation({
@@ -190,6 +190,15 @@ export const StudyGuruChat = () => {
       navigate(`/quiz/${data.quizId}`);
     },
   });
+  const listConversationsQuery = trpc.studyApi.listStudyGuruConversations.useQuery(
+    { limit: 50 },
+    {
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
+    }
+  );
+  const saveConversationMutation = trpc.studyApi.saveStudyGuruConversation.useMutation();
+  const deleteConversationMutation = trpc.studyApi.deleteStudyGuruConversation.useMutation();
 
   const displayName = user?.name || "Guest User";
   const firstName = displayName.split(" ")[0] || "legend";
@@ -203,6 +212,111 @@ export const StudyGuruChat = () => {
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null;
 
+  const storageKey = "study_guru_chats_v1";
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        chats?: Chat[];
+        activeChatId?: number | null;
+        selectedModel?: ModelId;
+      };
+      if (parsed && Array.isArray(parsed.chats) && parsed.chats.length > 0) {
+        setChats(parsed.chats);
+        const nextActiveId = parsed.activeChatId ?? parsed.chats[0]?.id ?? 0;
+        if (nextActiveId) {
+          setActiveChatId(nextActiveId);
+        }
+        if (parsed.selectedModel) {
+          setSelectedModel(parsed.selectedModel);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const payload = {
+        chats,
+        activeChatId,
+        selectedModel,
+        lastUpdated: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch {}
+  }, [chats, activeChatId, selectedModel]);
+
+  useEffect(() => {
+    if (!listConversationsQuery.data) return;
+    const conversations = listConversationsQuery.data;
+    setChats((prev) => {
+      let updated = [...prev];
+      let nextId =
+        updated.length > 0 ? Math.max(...updated.map((c) => c.id)) + 1 : 1;
+
+      conversations.forEach((conv) => {
+        const existingIndex = updated.findIndex(
+          (chat) => (chat as any).serverId === conv.id
+        );
+        const rawMessages = (conv as any).messages;
+        const convMessages: ChatMessage[] = Array.isArray(rawMessages)
+          ? (rawMessages as ChatMessage[])
+          : [];
+        if (existingIndex >= 0) {
+          const existing = updated[existingIndex] as Chat & { serverId?: string };
+          const mergedMessages =
+            existing.messages && existing.messages.length > 0
+              ? existing.messages
+              : convMessages;
+          updated[existingIndex] = {
+            ...existing,
+            title: existing.title || conv.title,
+            messages: mergedMessages,
+            serverId: conv.id,
+          } as Chat;
+        } else {
+          updated.push({
+            id: nextId++,
+            title: conv.title,
+            recent: true,
+            messages: convMessages,
+            pinned: false,
+            serverId: conv.id,
+          } as Chat);
+        }
+      });
+
+      return updated;
+    });
+  }, [listConversationsQuery.data]);
+
+  useEffect(() => {
+    if (!activeChat || !activeChat.messages.length) return;
+    saveConversationMutation.mutate(
+      {
+        id: (activeChat as any).serverId,
+        title: activeChat.title || "Study Guru chat",
+        messages: activeChat.messages,
+        model: selectedModel,
+      },
+      {
+        onSuccess: (conv) => {
+          if (!(activeChat as any).serverId) {
+            setChats((prev) =>
+              prev.map((chat) =>
+                chat.id === activeChat.id
+                  ? ({ ...chat, serverId: conv.id } as any)
+                  : chat
+              )
+            );
+          }
+        },
+      }
+    );
+  }, [activeChatId, activeChat?.messages.length, selectedModel, saveConversationMutation, setChats]);
+
   const handleNewChat = () => {
     const newChat: Chat = {
       id: Date.now(),
@@ -215,6 +329,10 @@ export const StudyGuruChat = () => {
   };
 
   const handleDeleteChat = (id: number) => {
+    const chatToDelete = chats.find((chat) => chat.id === id) as any;
+    if (chatToDelete?.serverId) {
+      deleteConversationMutation.mutate({ id: chatToDelete.serverId });
+    }
     setChats((prev) => {
       const updated = prev.filter((chat) => chat.id !== id);
       if (!updated.some((chat) => chat.id === activeChatId)) {
@@ -230,17 +348,28 @@ export const StudyGuruChat = () => {
 
     const newTitle = window.prompt("Rename chat", chat.title);
     if (!newTitle || !newTitle.trim()) return;
+    const trimmedTitle = newTitle.trim();
 
     setChats((prev) =>
       prev.map((c) =>
         c.id === id
           ? {
               ...c,
-              title: newTitle.trim(),
+              title: trimmedTitle,
             }
           : c
       )
     );
+
+    const serverId = (chat as any).serverId as string | undefined;
+    if (serverId) {
+      saveConversationMutation.mutate({
+        id: serverId,
+        title: trimmedTitle,
+        messages: chat.messages,
+        model: selectedModel,
+      });
+    }
   };
 
   const togglePinChat = (id: number) => {
@@ -278,6 +407,34 @@ export const StudyGuruChat = () => {
     if (!message.trim() || !activeChat || studyAssistantMutation.isPending) return;
 
     const trimmed = message.trim();
+    const lower = trimmed.toLowerCase();
+    const practiceKeywords = ["practice", "quiz", "test", "questions", "exam", "solve"];
+    const wantsPractice = practiceKeywords.some((keyword) => lower.includes(keyword));
+
+    if (wantsPractice) {
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat.id === activeChatId
+            ? {
+                ...chat,
+                messages: [
+                  ...chat.messages,
+                  { role: "user", content: trimmed },
+                  {
+                    role: "assistant",
+                    content:
+                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                  },
+                ],
+              }
+            : chat
+        )
+      );
+      setMessage("");
+      setIsQuizPanelOpen(true);
+      return;
+    }
+
     const userMessage: ChatMessage = { role: "user", content: trimmed };
     const chatHistory: ChatMessage[] = [...activeChat.messages, userMessage];
 
@@ -335,6 +492,34 @@ export const StudyGuruChat = () => {
         })
       );
     }
+  };
+
+  const handleQuizSubmit = (config: QuizConfig) => {
+    if (!activeChat || quizMutation.isPending) return;
+    const allMessages = activeChat.messages;
+    const start = Math.max(0, allMessages.length - 20);
+    const chatHistoryForQuiz = allMessages.slice(start);
+
+    const safeConfig: QuizConfig = {
+      ...config,
+      questionCount: Math.min(50, Math.max(1, config.questionCount || 10)),
+      pictureQuestionRatio:
+        typeof config.pictureQuestionRatio === "number"
+          ? Math.max(0, Math.min(1, config.pictureQuestionRatio))
+          : config.examType === "advanced"
+          ? 0.3
+          : 0.2,
+    };
+
+    quizMutation.mutate({
+      ...safeConfig,
+      context: {
+        entity: "study_guru",
+        chapter: quizChapter,
+        description: quizDescription,
+        chatHistoryForQuiz,
+      },
+    });
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -730,77 +915,21 @@ export const StudyGuruChat = () => {
                   </button>
                 </div>
                 {isQuizPanelOpen && (
-                  <form
-                    className="mt-3 space-y-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!activeChat || quizMutation.isPending) return;
-                      const allMessages = activeChat.messages;
-                      const start = Math.max(0, allMessages.length - 20);
-                      const chatHistoryForQuiz = allMessages.slice(start);
-                      const safeCount = Math.min(50, Math.max(1, quizQuestionCount || 10));
-                      quizMutation.mutate({
-                        examType: "mains",
-                        questionCount: safeCount,
-                        answerType: "single",
-                        includeTimer: false,
-                        timeMinutes: undefined,
-                        scope: "current",
-                        context: {
-                          entity: "study_guru",
-                          chapter: quizChapter,
-                          description: quizDescription,
-                          chatHistoryForQuiz,
-                        },
-                        pictureQuestionRatio: 0.2,
-                      });
-                    }}
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <input
-                          type="text"
-                          value={quizChapter}
-                          onChange={(e) => setQuizChapter(e.target.value)}
-                          placeholder="Chapter or topic (e.g. Electrostatics)"
-                          className="w-full rounded-lg bg-slate-950/80 border border-slate-700/80 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40"
-                        />
-                      </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <textarea
-                          value={quizDescription}
-                          onChange={(e) => setQuizDescription(e.target.value)}
-                          placeholder="Short description of what to focus on (weak areas, subtopics, error patterns)"
-                          rows={2}
-                          className="w-full rounded-lg bg-slate-950/80 border border-slate-700/80 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 resize-none"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-                      <div className="flex items-center gap-2 text-xs text-slate-300">
-                        <span className="text-[11px] font-medium">Questions</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          value={quizQuestionCount}
-                          onChange={(e) =>
-                            setQuizQuestionCount(
-                              Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1))
-                            )
-                          }
-                          className="w-16 rounded-lg bg-slate-950/80 border border-slate-700/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={quizMutation.isPending}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary to-purple-500 text-xs sm:text-sm font-semibold text-white shadow-md shadow-primary/30 hover:from-primary/90 hover:to-purple-500/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                      >
-                        {quizMutation.isPending ? "Generating quiz..." : "Generate quiz"}
-                      </button>
-                    </div>
-                  </form>
+                  <div className="mt-3">
+                    <QuizConfigForm
+                      onSubmit={(config) => {
+                        handleQuizSubmit(config);
+                        setIsQuizPanelOpen(false);
+                      }}
+                      onCancel={() => setIsQuizPanelOpen(false)}
+                      isLoading={quizMutation.isPending}
+                      section="study"
+                      studyChapter={quizChapter}
+                      studyDescription={quizDescription}
+                      onChangeStudyChapter={setQuizChapter}
+                      onChangeStudyDescription={setQuizDescription}
+                    />
+                  </div>
                 )}
               </div>
             )}

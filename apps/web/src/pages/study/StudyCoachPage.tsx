@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useShellContext } from "../../app/layouts/useShellContext";
 import { trpc } from "../../lib/trpc";
 import type { RouterOutputs } from "../../types/trpc";
+import { JeeDiagram } from "../../features/quiz/components/JeeDiagram";
 
 type QuizSession = RouterOutputs["studyApi"]["getSession"];
 type QuizHistory = RouterOutputs["studyApi"]["getHistory"][number];
@@ -383,6 +384,12 @@ const QuizTakingView = ({
 
       <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
         <div className="text-lg text-slate-100">{question.questionText}</div>
+        {/* Render diagram if available */}
+        {question.diagram && (
+          <div className="my-6">
+            <JeeDiagram diagram={question.diagram as any} />
+          </div>
+        )}
 
         <div className="space-y-3">
           {options.map((option, index) => {
@@ -402,7 +409,8 @@ const QuizTakingView = ({
                 buttonClass += " border-slate-800 bg-slate-900/40 text-slate-400";
               }
             } else {
-              buttonClass += " border-slate-800 bg-slate-900 text-slate-100 hover:border-primary hover:bg-primary/5";
+              buttonClass +=
+                " border-slate-800 bg-slate-900 text-slate-100 hover:border-primary hover:bg-primary/5";
             }
 
             return (
@@ -459,7 +467,11 @@ const QuizResultView = ({ session, score, onRestart }: QuizResultViewProps) => {
         <div className="text-xl text-slate-300">{percentage.toFixed(0)}% Correct</div>
 
         <div className="mx-auto max-w-md space-y-3 text-sm text-slate-400">
-          <p>{passed ? "Great job! You're making excellent progress." : "Keep practicing! Review the formulas and try again."}</p>
+          <p>
+            {passed
+              ? "Great job! You're making excellent progress."
+              : "Keep practicing! Review the formulas and try again."}
+          </p>
         </div>
 
         <button

@@ -33,7 +33,7 @@ export const quizRouter = router({
         console.log('Generated prompt length:', prompt.length);
 
         // Use geminiClient with premium-only mode (gemini-2.5-pro only)
-        const result = await geminiClient.generate({ 
+        const result = await geminiClient.generate({
           prompt,
           usePremiumOnly: true // Only use gemini-2.5-pro with all API keys
         });
@@ -43,10 +43,16 @@ export const quizRouter = router({
         const questions = parseQuizQuestions(result.text, input);
 
         // Determine source type from context
-        const sourceType = input.context?.entity === 'mistake' ? 'mistake' : 'formula';
+        let sourceType: string = 'formula';
+        if (input.context?.entity === 'mistake') {
+          sourceType = 'mistake';
+        } else if (input.context?.entity === 'study_guru') {
+          sourceType = 'study_guru';
+        }
+
         const mistakeIds = input.context?.entity === 'mistake' && input.context?.id ? [input.context.id] : [];
-        const formulaIds = input.context?.entity === 'formula' && input.context?.id ? [input.context.id] : 
-                          input.context?.formulas ? input.context.formulas.map((f: any) => f.id) : [];
+        const formulaIds = input.context?.entity === 'formula' && input.context?.id ? [input.context.id] :
+          input.context?.formulas ? input.context.formulas.map((f: any) => f.id) : [];
 
         // Ensure there is a backing User row for this ownerId (important for guest sessions)
         await ctx.prisma.user.upsert({
@@ -63,9 +69,8 @@ export const quizRouter = router({
         // Create quiz in database
         const quiz = await ctx.prisma.practiceQuiz.create({
           data: {
-            title: `${input.examType === "mains" ? "JEE Mains" : "JEE Advanced"} ${sourceType === 'mistake' ? 'Mistake' : ''} Practice - ${
-              input.questionCount
-            } Questions`,
+            title: `${input.examType === "mains" ? "JEE Mains" : "JEE Advanced"} ${sourceType === 'mistake' ? 'Mistake' : ''} Practice - ${input.questionCount
+              } Questions`,
             examType: input.examType,
             questionCount: input.questionCount,
             answerType: input.answerType,
@@ -100,12 +105,12 @@ export const quizRouter = router({
         };
       } catch (error) {
         console.error("Quiz generation error:", error);
-        
+
         // Provide more specific error messages
         if (error instanceof TRPCError) {
           throw error;
         }
-        
+
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -271,9 +276,9 @@ function buildQuizPrompt(input: z.infer<typeof quizConfigSchema>): string {
     typeof input.pictureQuestionRatio === "number"
       ? input.pictureQuestionRatio
       : input.examType === "advanced"
-      ? 0.3
-      : 0.2;
-  
+        ? 0.3
+        : 0.2;
+
   let formulaInfo = "";
   if (context?.entity === "study_guru") {
     const chapterLabel =
@@ -317,9 +322,8 @@ ${historyText || "No recent messages were provided. Focus on the chapter and des
     }
   }
 
-  return `You are an expert JEE ${
-    input.examType === "mains" ? "Mains" : "Advanced"
-  } question generator.
+  return `You are an expert JEE ${input.examType === "mains" ? "Mains" : "Advanced"
+    } question generator.
 
 Generate ${input.questionCount} high-quality multiple-choice questions based on the following material and context:
 
@@ -328,17 +332,16 @@ ${formulaInfo}
 Requirements:
 - Exam Type: JEE ${input.examType === "mains" ? "Mains" : "Advanced"}
 - Answer Type: ${input.answerType === "single" ? "Single Correct" : "Multiple Correct"}
-- Difficulty: ${
-    input.examType === "advanced" ? "Advanced (multi-step, conceptual)" : "Moderate (clear, direct)"
-  }
+- Difficulty: ${input.examType === "advanced" ? "Advanced (multi-step, conceptual)" : "Moderate (clear, direct)"
+    }
 - Questions must be JEE-style, concise, and physically accurate.
 - Each question must have 4 options.
 - ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}.
 - Include detailed explanations with LaTeX.
 - Use proper LaTeX notation: inline $...$ and display $$...$$.
 - When a visual diagram is natural (mechanics setups, circuits, fields, ray diagrams, graphs), include a JSXGraph-style diagram specification using the schema below. Aim for roughly ${Math.round(
-    pictureRatio * 100
-  )}% of questions to include a diagram when it genuinely helps understanding.
+      pictureRatio * 100
+    )}% of questions to include a diagram when it genuinely helps understanding.
 
 Diagram specification (when needed):
 - Use this JSON shape inside each question:
@@ -355,11 +358,19 @@ Diagram specification (when needed):
       "polygons": [...],       // for blocks, tables, U-shaped wires
       "circles": [...],        // for circular loops or pulleys
       "arcs": [...],           // for small angle markings or sectors
+      "arrows": [...],         // for vectors, forces, rays
+      "angles": [...],         // for angle markings
       "fieldRegions": [...],   // uniform B/E fields with "cross" or "dot" pattern
       "springs": [...],        // zig-zag springs between two points
       "labels": [...]          // text labels like "10 cm", "B", "m", etc.
     }
   }
+
+  IMPORTANT DIAGRAM RULES:
+  - Use "arrows" for all vectors, forces, and rays.
+  - Use LaTeX for labels (e.g., "\\( F_{net} \\)").
+  - Use light fills for polygons (bodies/blocks).
+  - Make diagrams professional and not too simple.
 
 CRITICAL JSON FORMATTING RULES:
 1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text.
@@ -423,22 +434,22 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
     console.log('Full response length:', response.length);
     console.log('First 1000 chars:', response.substring(0, 1000));
     console.log('Last 500 chars:', response.substring(Math.max(0, response.length - 500)));
-    
+
     // Clean response - remove markdown code blocks if present
     let cleanedResponse = response.trim();
-    
+
     // Remove various markdown code block formats
     cleanedResponse = cleanedResponse
       .replace(/^```json\s*/g, '')
       .replace(/^```\s*/g, '')
       .replace(/```\s*$/g, '')
       .trim();
-    
+
     console.log('Cleaned response (first 500 chars):', cleanedResponse.substring(0, 500));
-    
+
     // Try to find JSON array with more flexible regex
     let jsonMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    
+
     if (!jsonMatch) {
       // Try alternative: Maybe it starts with array directly
       if (cleanedResponse.startsWith('[')) {
@@ -451,17 +462,17 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
     }
 
     console.log('Attempting to parse JSON...');
-    
+
     // Additional cleaning: Fix common LaTeX-related JSON issues
     let jsonString = jsonMatch[0];
-    
+
     // Try parsing with multiple strategies
     let questions;
     try {
       questions = JSON.parse(jsonString);
     } catch (firstError) {
       console.log('First parse failed, trying to fix LaTeX escaping...');
-      
+
       // Strategy: Use a more lenient JSON parser or fix common issues
       // Fix: Replace problematic escape sequences (but preserve valid ones)
       try {
@@ -472,14 +483,13 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
           .replace(/\\(?=\s*["'])/g, '\\\\')
           // Fix single backslashes followed by non-escape chars
           .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
-        
+
         questions = JSON.parse(fixed);
         console.log('✅ Fixed JSON parsing with LaTeX cleanup');
       } catch (secondError) {
         console.error('Second parse also failed:', secondError);
         throw new Error(
-          `Failed to parse JSON even after cleanup. Original error: ${
-            firstError instanceof Error ? firstError.message : 'Unknown'
+          `Failed to parse JSON even after cleanup. Original error: ${firstError instanceof Error ? firstError.message : 'Unknown'
           }. This usually means the AI generated malformed JSON with LaTeX notation. Try generating again.`
         );
       }
@@ -499,7 +509,7 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
       if (!Array.isArray(q.options) || q.options.length === 0) {
         console.warn(`Question ${index + 1} missing options`);
       }
-      
+
       return {
         questionText: q.questionText || q.question || "",
         options: Array.isArray(q.options) ? q.options : [],
@@ -516,7 +526,7 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
     console.error("=== PARSING ERROR ===");
     console.error("Error details:", error);
     console.error("Full response:", response);
-    
+
     const errorMsg = error instanceof Error ? error.message : "Unknown parsing error";
     throw new Error(`Failed to parse generated questions: ${errorMsg}. Check server logs for full response.`);
   }

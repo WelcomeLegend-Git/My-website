@@ -63,6 +63,7 @@ model User {
   practiceAttempts   PracticeAttempt[]
   passwordResetTokens PasswordResetToken[]
   googleDriveConnection GoogleDriveConnection?
+  studyGuruConversations StudyGuruConversation[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 }
@@ -259,6 +260,7 @@ model QuizQuestion {
   formulaId       String?      // Reference to formula if generated from formula
   formula         Formula?     @relation(fields: [formulaId], references: [id], onDelete: SetNull)
   timeTaken       Int?         // Time taken for this question in seconds
+  diagram         Json?        // JSXGraph diagram specification
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -331,6 +333,20 @@ model PracticeAttempt {
   @@index([quizId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model StudyGuruConversation {
+  id        String   @id @default(uuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title     String
+  messages  Json     @default("[]")
+  model     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([updatedAt])
 }
 
 model PasswordResetToken {

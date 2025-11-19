@@ -146,7 +146,7 @@ Provide a concise, structured response with actionable guidance.`;
       });
       return { reply: response.text };
     }),
-  
+
   // Create a new quiz session
   createSession: procedure
     .use(requireUser)
@@ -193,6 +193,35 @@ For each question, provide:
 2. options (array of 4 options)
 3. correctAnswer (index 0-3)
 4. explanation (why the answer is correct)
+5. diagram (optional): A JSXGraph-compatible diagram spec when a visual aid would help
+
+When a diagram is natural (mechanics setups, circuits, fields, ray diagrams, graphs), include it using this JSON shape:
+{
+  "type": "jsxgraph",
+  "title": "Short diagram title",
+  "description": "1-2 line description of what the figure shows",
+  "config": {
+    "boundingBox": [-6, 4, 6, -4],
+    "axes": false,
+    "points": [],
+    "segments": [],
+    "polylines": [],
+    "polygons": [],
+    "circles": [],
+    "arcs": [],
+    "arrows": [],
+    "angles": [],
+    "fieldRegions": [],
+    "springs": [],
+    "labels": []
+  }
+}
+
+IMPORTANT DIAGRAM RULES:
+- Use "arrows" for all vectors, forces, and rays.
+- Use LaTeX for labels (e.g., "\\( F_{net} \\)").
+- Use light fills for polygons (bodies/blocks).
+- Make diagrams professional and not too simple.
 
 Respond STRICTLY in this JSON format:
 {
@@ -201,13 +230,14 @@ Respond STRICTLY in this JSON format:
       "questionText": "...",
       "options": ["A", "B", "C", "D"],
       "correctAnswer": 0,
-      "explanation": "..."
+      "explanation": "...",
+      "diagram": { ... } // optional
     }
   ]
 }`;
 
       const response = await ctx.gemini.generate({ prompt });
-      
+
       let questions: QuizQuestionInput[] = [];
       try {
         const parsed = JSON.parse(response.text);
@@ -240,6 +270,7 @@ Respond STRICTLY in this JSON format:
               correctAnswer: q.correctAnswer,
               explanation: q.explanation,
               formulaId: input.formulaIds[index % input.formulaIds.length],
+              diagram: (q as any).diagram || undefined,
             })),
           },
         },
@@ -396,23 +427,106 @@ Respond STRICTLY in this JSON format:
       return { success: true };
     }),
 
+  listStudyGuruConversations: procedure
+    .use(requireUser)
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).default(20),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const take = input?.limit ?? 20;
+      const conversations = await ctx.prisma.studyGuruConversation.findMany({
+        where: { ownerId: ctx.user.id },
+        orderBy: { updatedAt: "desc" },
+        take,
+      });
+
+      return conversations;
+    }),
+
+  saveStudyGuruConversation: procedure
+    .use(requireUser)
+    .input(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().min(1),
+        messages: z.any(),
+        model: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.id) {
+        const existing = await ctx.prisma.studyGuruConversation.findFirst({
+          where: { id: input.id, ownerId: ctx.user.id },
+        });
+
+        if (!existing) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        const updated = await ctx.prisma.studyGuruConversation.update({
+          where: { id: existing.id },
+          data: {
+            title: input.title,
+            messages: input.messages,
+            model: input.model,
+          },
+        });
+
+        return updated;
+      }
+
+      const created = await ctx.prisma.studyGuruConversation.create({
+        data: {
+          title: input.title,
+          messages: input.messages,
+          model: input.model,
+          ownerId: ctx.user.id,
+        },
+      });
+
+      return created;
+    }),
+
+  deleteStudyGuruConversation: procedure
+    .use(requireUser)
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.studyGuruConversation.findFirst({
+        where: { id: input.id, ownerId: ctx.user.id },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      await ctx.prisma.studyGuruConversation.delete({
+        where: { id: existing.id },
+      });
+
+      return { success: true };
+    }),
+
   // Verify AI access code
   verifyAiAccess: procedure
     .use(requireUser)
     .input(z.object({ code: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const { env } = await import("../../env");
-      
+
       if (input.code.trim() !== env.AI_ACCESS_CODE) {
-        throw new TRPCError({ 
+        throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Invalid access code. Please contact the owner for the correct code." 
+          message: "Invalid access code. Please contact the owner for the correct code."
         });
       }
 
-      return { 
-        success: true, 
-        message: "AI Mentor access granted! You can now use all AI features." 
+      return {
+        success: true,
+        message: "AI Mentor access granted! You can now use all AI features."
       };
     }),
 });

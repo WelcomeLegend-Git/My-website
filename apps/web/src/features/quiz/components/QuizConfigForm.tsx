@@ -17,7 +17,21 @@ type Props = {
   section?: 'formulas' | 'mistakes' | 'study';
 };
 
-export const QuizConfigForm = ({ onSubmit, onCancel, isLoading, section = 'formulas' }: Props) => {
+export const QuizConfigForm = ({
+  onSubmit,
+  onCancel,
+  isLoading,
+  section = 'formulas',
+  studyChapter,
+  studyDescription,
+  onChangeStudyChapter,
+  onChangeStudyDescription,
+}: Props & {
+  studyChapter?: string;
+  studyDescription?: string;
+  onChangeStudyChapter?: (value: string) => void;
+  onChangeStudyDescription?: (value: string) => void;
+}) => {
   const [config, setConfig] = useState<QuizConfig>({
     examType: 'mains',
     questionCount: 10,
@@ -156,44 +170,77 @@ export const QuizConfigForm = ({ onSubmit, onCancel, isLoading, section = 'formu
           </div>
         </div>
 
-        {/* Scope */}
+        {/* Scope / Study context */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">Question Scope</label>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setConfig({ ...config, scope: 'current' })}
-              className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
-                config.scope === 'current'
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-              }`}
-            >
-              {section === 'mistakes' ? 'Current Mistake Only' : 'Current Collection Only'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfig({ ...config, scope: 'all' })}
-              className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
-                config.scope === 'all'
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-              }`}
-            >
-              {section === 'mistakes' ? 'All Mistakes in This Chapter' : 'All Formulas in This Chapter'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfig({ ...config, scope: 'cross-chapter' })}
-              className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
-                config.scope === 'cross-chapter'
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-              }`}
-            >
-              Cross-Chapter (Subject-wide)
-            </button>
-          </div>
+          {section === 'study' && (onChangeStudyChapter || onChangeStudyDescription) ? (
+            <>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Question Focus
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-1">
+                  <input
+                    type="text"
+                    value={studyChapter ?? ''}
+                    onChange={(e) => onChangeStudyChapter?.(e.target.value)}
+                    placeholder="Chapter or topic (e.g. Electrostatics)"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder-slate-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <textarea
+                    value={studyDescription ?? ''}
+                    onChange={(e) => onChangeStudyDescription?.(e.target.value)}
+                    placeholder="Short description of what to focus on (weak areas, subtopics, error patterns)"
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder-slate-500 resize-none"
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                These details, plus your recent chat, help target the quiz to the right topics.
+              </p>
+            </>
+          ) : (
+            <>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Question Scope</label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, scope: 'current' })}
+                  className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
+                    config.scope === 'current'
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
+                >
+                  {section === 'mistakes' ? 'Current Mistake Only' : 'Current Collection Only'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, scope: 'all' })}
+                  className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
+                    config.scope === 'all'
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
+                >
+                  {section === 'mistakes' ? 'All Mistakes in This Chapter' : 'All Formulas in This Chapter'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, scope: 'cross-chapter' })}
+                  className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
+                    config.scope === 'cross-chapter'
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
+                >
+                  Cross-Chapter (Subject-wide)
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Timer */}

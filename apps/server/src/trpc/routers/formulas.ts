@@ -154,7 +154,7 @@ export const formulasRouter = router({
           prerequisites: input.prerequisites ?? [],
           relatedFormulas: input.relatedFormulas ?? [],
           commonMistakes: input.commonMistakes ?? [],
-          
+
           subjectId: input.subjectId,
           chapterId: input.chapterId,
           ownerId: ctx.user.id,
@@ -223,7 +223,7 @@ export const formulasRouter = router({
           prerequisites: input.prerequisites ?? [],
           relatedFormulas: input.relatedFormulas ?? [],
           commonMistakes: input.commonMistakes ?? [],
-          
+
           subjectId: input.subjectId,
           chapterId: input.chapterId,
           assets: {
@@ -341,18 +341,25 @@ Respond ONLY with valid JSON:
     "config": {
       "boundingBox": [-6, 4, 6, -4],
       "axes": false,
-      "points": [...],
-      "segments": [...],
-      "polylines": [...],
-      "polygons": [...],
-      "circles": [...],
-      "arcs": [...],
-      "fieldRegions": [...],
-      "springs": [...],
-      "labels": [...]
+      "points": [],
+      "segments": [],
+      "polylines": [],
+      "polygons": [],
+      "circles": [],
+      "arcs": [],
+      "arrows": [],
+      "angles": [],
+      "fieldRegions": [],
+      "springs": [],
+      "labels": []
     }
   }
-}`;
+}
+ IMPORTANT:
+ - For vectors/forces/rays, use "arrows" instead of segments.
+ - Use LaTeX for labels (e.g., "\\( F_{net} \\)").
+ - Use light fills for polygons (bodies/blocks).
+ - Make diagrams professional and not too simple.`;
 
       const response = await ctx.gemini.generate({
         prompt,
@@ -366,7 +373,7 @@ Respond ONLY with valid JSON:
         const jsonMatch = response.text.match(/\{[\s\S]*\}/);
         const jsonText = jsonMatch ? jsonMatch[0] : response.text;
         const parsed = JSON.parse(jsonText);
-        
+
         return {
           title: parsed.title || "",
           expression: parsed.expression || "",
@@ -381,19 +388,19 @@ Respond ONLY with valid JSON:
           diagram: parsed.diagram || null,
         };
       } catch (error) {
-        throw new TRPCError({ 
-          code: "INTERNAL_SERVER_ERROR", 
-          message: "Failed to extract formula details from AI response" 
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to extract formula details from AI response"
         });
       }
     }),
-  
+
   listCollections: procedure
     .use(requireUser)
     .input(z.object({ includeDeleted: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const collections = await ctx.prisma.formulaCollection.findMany({
-        where: { 
+        where: {
           ownerId: ctx.user.id,
           deletedAt: input?.includeDeleted ? undefined : null,
         },
@@ -565,19 +572,26 @@ Respond ONLY with a valid JSON array:
       "config": {
         "boundingBox": [-6, 4, 6, -4],
         "axes": false,
-        "points": [...],
-        "segments": [...],
-        "polylines": [...],
-        "polygons": [...],
-        "circles": [...],
-        "arcs": [...],
-        "fieldRegions": [...],
-        "springs": [...],
-        "labels": [...]
+        "points": [],
+        "segments": [],
+        "polylines": [],
+        "polygons": [],
+        "circles": [],
+        "arcs": [],
+        "arrows": [],
+        "angles": [],
+        "fieldRegions": [],
+        "springs": [],
+        "labels": []
       }
     }
   }
-]`;
+]
+ IMPORTANT:
+ - For vectors/forces/rays, use "arrows" instead of segments.
+ - Use LaTeX for labels (e.g., "\\( F_{net} \\)").
+ - Use light fills for polygons (bodies/blocks).
+ - Make diagrams professional and not too simple.`;
 
       const response = await ctx.gemini.generate({
         prompt,
@@ -589,17 +603,17 @@ Respond ONLY with a valid JSON array:
       try {
         console.log("AI Response received, length:", response.text.length);
         console.log("AI Response preview:", response.text.substring(0, 500));
-        
+
         // Extract JSON array from response
         const jsonMatch = response.text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
           console.error("No JSON array found in response:", response.text);
           throw new Error("AI did not return a valid JSON array. Response: " + response.text.substring(0, 200));
         }
-        
+
         const jsonText = jsonMatch[0];
         console.log("Extracted JSON length:", jsonText.length);
-        
+
         let parsedArray;
         try {
           parsedArray = JSON.parse(jsonText);
@@ -613,11 +627,11 @@ Respond ONLY with a valid JSON array:
           console.error("Parsed result is not an array:", typeof parsedArray);
           throw new Error("AI response is not an array");
         }
-        
+
         if (parsedArray.length === 0) {
           throw new Error("No formulas found in the image/description");
         }
-        
+
         console.log(`Successfully extracted ${parsedArray.length} formulas`);
 
         // Create a FormulaCollection first
@@ -638,7 +652,7 @@ Respond ONLY with a valid JSON array:
           parsedArray.map(async (formulaData, index) => {
             try {
               console.log(`Creating formula ${index + 1}/${parsedArray.length}: ${formulaData.title}`);
-              
+
               const formula = await ctx.prisma.formula.create({
                 data: {
                   title: formulaData.title || "Untitled Formula",
@@ -686,15 +700,15 @@ Respond ONLY with a valid JSON array:
         };
       } catch (error) {
         console.error("Bulk extraction error:", error);
-        
+
         // Provide specific error message
         let errorMessage = "Failed to extract and create formulas.";
         if (error instanceof Error) {
           errorMessage = error.message;
         }
-        
-        throw new TRPCError({ 
-          code: "INTERNAL_SERVER_ERROR", 
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
           message: errorMessage
         });
       }

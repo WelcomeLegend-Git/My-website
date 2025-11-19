@@ -65,7 +65,7 @@ export const mistakesRouter = router({
         aiDiagram: mistake.aiDiagram as unknown,
       }));
     }),
-  
+
   getMistake: procedure
     .use(requireUser)
     .input(z.object({ id: z.string().min(1) }))
@@ -294,7 +294,13 @@ Important:
 - "bestImageIndex" should be the index (0-${input.images.length - 1}) of the image that best shows the error
 - Provide actionable, encouraging feedback
 - Focus on learning, not just correction
-- Return ONLY the JSON object, no markdown formatting`;
+- Return ONLY the JSON object, no markdown formatting
+- For "aiDiagram", create a high-quality, professional diagram suitable for a JEE Advanced exam paper.
+- Use "arrows" for vectors, forces, and rays.
+- Use "labels" with LaTeX math (e.g., "\\( F_{net} \\)") for clear annotation.
+- Use "polygons" with light fills for bodies/blocks.
+- Ensure the diagram is not too simple; it should look like a real textbook or exam figure.
+- Use a standard coordinate system (usually -5 to 5).`;
 
       // Use upgraded geminiClient with multi-image support and 4-API fallback
       const result = await ctx.gemini.generate({
@@ -306,15 +312,15 @@ Important:
       // Extract JSON from markdown if present
       const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/) || result.text.match(/\{[\s\S]*\}/);
       const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : result.text;
-      
+
       try {
         const analysis = JSON.parse(jsonText);
         return analysis;
       } catch (parseError) {
-        throw new TRPCError({ 
-          code: "INTERNAL_SERVER_ERROR", 
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
           message: "Failed to parse AI analysis. Please try again.",
-          cause: parseError 
+          cause: parseError
         });
       }
     }),

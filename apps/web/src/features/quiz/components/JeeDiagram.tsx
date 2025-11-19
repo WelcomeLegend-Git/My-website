@@ -4,16 +4,17 @@ import JXG from 'jsxgraph';
 export type JeeDiagramConfig = {
   boundingBox?: [number, number, number, number];
   axes?: boolean;
-  points?: { x: number; y: number; name?: string }[];
-  segments?: { from: number; to: number }[];
+  points?: { x: number; y: number; name?: string; visible?: boolean }[];
+  segments?: { from: number; to: number; strokeColor?: string; strokeWidth?: number; dash?: number }[];
   polylines?: { points: number[]; strokeColor?: string; strokeWidth?: number }[];
   polygons?: { vertices: number[]; strokeColor?: string; fillColor?: string; strokeWidth?: number }[];
   circles?: { center: number; radius: number; strokeColor?: string; fillColor?: string }[];
   arcs?: { center: number; from: number; to: number; strokeColor?: string; strokeWidth?: number }[];
   fieldRegions?: { x1: number; y1: number; x2: number; y2: number; pattern: 'cross' | 'dot'; density?: number }[];
-  labels?: { x: number; y: number; text: string }[];
-  arrows?: { from: number; to: number; label?: string }[];
+  labels?: { x: number; y: number; text: string; color?: string }[];
+  arrows?: { from: number; to: number; label?: string; color?: string }[];
   springs?: { from: number; to: number; coils?: number }[];
+  angles?: { center: number; p1: number; p2: number; label?: string; radius?: number }[];
 };
 
 export type JeeDiagramSpec = {
@@ -51,9 +52,10 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
     }
 
     const cfg: JeeDiagramConfig = diagram?.config || {};
-    const boundingBox = cfg.boundingBox ?? [-5, 5, 5, -5];
+    const boundingBox = cfg.boundingBox ?? [-6, 4, 6, -4];
     const showAxes = cfg.axes !== false;
 
+    // Initialize board with professional settings
     const board = JXG.JSXGraph.initBoard(containerId, {
       boundingbox: boundingBox,
       axis: showAxes,
@@ -61,93 +63,121 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
       showCopyright: false,
       pan: { enabled: true },
       zoom: { enabled: true },
+      grid: false, // Custom grid looks better usually, or just axis
+      backgroundColor: 'transparent',
     } as any);
 
     boardRef.current = board;
 
     const points: JXG.Point[] = [];
 
-    // Points
+    // 1. Points (Hidden by default unless named or specified)
     (cfg.points || []).forEach((p) => {
       const point = board.create('point', [p.x, p.y], {
         name: p.name ?? '',
-        size: 2,
-        strokeColor: '#60a5fa',
-        fillColor: '#60a5fa',
+        size: p.visible === false ? 0 : 2,
+        strokeColor: '#cbd5e1', // slate-300
+        fillColor: '#cbd5e1',
         fixed: true,
+        visible: p.visible !== false,
+        withLabel: !!p.name,
+        label: { offset: [5, 5], color: '#cbd5e1' }
       });
       points.push(point);
     });
 
-    // Segments / lines between points by index
+    // 2. Polygons (Bodies/Blocks)
+    (cfg.polygons || []).forEach((poly) => {
+      const ps = (poly.vertices || []).map((idx) => points[idx]).filter((p): p is JXG.Point => !!p);
+      if (ps.length >= 3) {
+        board.create('polygon', ps, {
+          strokeColor: poly.strokeColor ?? '#94a3b8', // slate-400
+          strokeWidth: poly.strokeWidth ?? 2,
+          fillColor: poly.fillColor ?? '#334155', // slate-700
+          fillOpacity: 0.3,
+          highlight: false,
+        } as any);
+      }
+    });
+
+    // 3. Segments / Lines
     (cfg.segments || []).forEach((seg) => {
       const from = points[seg.from];
       const to = points[seg.to];
       if (from && to) {
         board.create('segment', [from, to], {
-          strokeColor: '#a855f7',
-          strokeWidth: 2,
+          strokeColor: seg.strokeColor ?? '#e2e8f0', // slate-200
+          strokeWidth: seg.strokeWidth ?? 2,
+          dash: seg.dash ?? 0,
+          highlight: false,
         });
       }
     });
 
-    (cfg.polylines || []).forEach((pl) => {
-      const ps = (pl.points || []).map((idx) => points[idx]).filter((p): p is JXG.Point => !!p);
-      if (ps.length >= 2) {
-        const xs = ps.map((p) => p.X());
-        const ys = ps.map((p) => p.Y());
-        board.create('curve', [xs, ys], {
-          strokeColor: pl.strokeColor ?? '#e5e7eb',
-          strokeWidth: pl.strokeWidth ?? 2,
-          straightFirst: true,
-          straightLast: true,
-        } as any);
+    // 4. Arrows (Vectors/Forces)
+    (cfg.arrows || []).forEach((arrow) => {
+      const from = points[arrow.from];
+      const to = points[arrow.to];
+      if (from && to) {
+        const line = board.create('arrow', [from, to], {
+          strokeColor: arrow.color ?? '#38bdf8', // sky-400
+          strokeWidth: 3,
+          highlight: false,
+          fixed: true,
+        });
+
+        if (arrow.label) {
+          board.create('text', [
+            () => (from.X() + to.X()) / 2,
+            () => (from.Y() + to.Y()) / 2,
+            arrow.label
+          ], {
+            anchorX: 'middle',
+            anchorY: 'bottom',
+            color: arrow.color ?? '#38bdf8',
+            fontSize: 14,
+            parse: false, // We handle MathJax manually
+            offset: [0, 10]
+          });
+        }
       }
     });
 
-    (cfg.polygons || []).forEach((poly) => {
-      const ps = (poly.vertices || []).map((idx) => points[idx]).filter((p): p is JXG.Point => !!p);
-      if (ps.length >= 3) {
-        board.create('polygon', ps, {
-          strokeColor: poly.strokeColor ?? '#9ca3af',
-          strokeWidth: poly.strokeWidth ?? 2,
-          fillColor: poly.fillColor ?? 'rgba(148, 163, 184, 0.08)',
-        } as any);
-      }
-    });
-
+    // 5. Circles
     (cfg.circles || []).forEach((c) => {
       const center = points[c.center];
       if (center && typeof c.radius === 'number' && c.radius > 0) {
-        const radiusPoint = board.create('point', [center.X() + c.radius, center.Y()], {
-          visible: false,
-          fixed: true,
-        });
-        board.create('circle', [center, radiusPoint], {
-          strokeColor: c.strokeColor ?? '#fbbf24',
-          fillColor: c.fillColor ?? 'rgba(250, 204, 21, 0.08)',
+        board.create('circle', [center, c.radius], {
+          strokeColor: c.strokeColor ?? '#fbbf24', // amber-400
+          fillColor: c.fillColor ?? '#fbbf24',
+          fillOpacity: 0.1,
+          strokeWidth: 2,
+          highlight: false,
         } as any);
       }
     });
 
+    // 6. Arcs
     (cfg.arcs || []).forEach((a) => {
       const center = points[a.center];
       const from = points[a.from];
       const to = points[a.to];
       if (center && from && to) {
         board.create('arc', [center, from, to], {
-          strokeColor: a.strokeColor ?? '#f97316',
+          strokeColor: a.strokeColor ?? '#f97316', // orange-500
           strokeWidth: a.strokeWidth ?? 2,
+          highlight: false,
         } as any);
       }
     });
 
+    // 7. Springs (Improved visual)
     (cfg.springs || []).forEach((s) => {
       const from = points[s.from];
       const to = points[s.to];
       if (!from || !to) return;
 
-      const coils = Math.max(3, Math.min(12, s.coils ?? 6));
+      const coils = Math.max(3, Math.min(15, s.coils ?? 8));
       const x1 = from.X();
       const y1 = from.Y();
       const x2 = to.X();
@@ -161,7 +191,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
       const uy = dy / len;
       const vx = -uy;
       const vy = ux;
-      const amplitude = Math.min(len * 0.1, 0.8);
+      const amplitude = Math.min(len * 0.15, 0.4); // Slightly wider
       const step = len / (coils * 2);
 
       const xs: number[] = [x1];
@@ -180,24 +210,24 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
       ys.push(y2);
 
       board.create('curve', [xs, ys], {
-        strokeColor: '#facc15',
+        strokeColor: '#facc15', // yellow-400
         strokeWidth: 2,
+        highlight: false,
       } as any);
     });
 
+    // 8. Field Regions
     (cfg.fieldRegions || []).forEach((region) => {
       const { x1, y1, x2, y2, pattern } = region;
       const density = Math.max(2, Math.min(8, region.density ?? 4));
 
       board.create('polygon', [
-        [x1, y1],
-        [x2, y1],
-        [x2, y2],
-        [x1, y2],
+        [x1, y1], [x2, y1], [x2, y2], [x1, y2],
       ], {
-        fillColor: 'rgba(148, 163, 184, 0.06)',
-        strokeColor: 'rgba(148, 163, 184, 0.4)',
-        fillOpacity: 0.2,
+        fillColor: '#94a3b8',
+        strokeColor: 'transparent',
+        fillOpacity: 0.1,
+        highlight: false,
       } as any);
 
       for (let i = 0; i < density; i++) {
@@ -206,31 +236,54 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
         for (let j = 0; j < density; j++) {
           const ty = (j + 0.5) / density;
           const y = y1 + ty * (y2 - y1);
-          const symbol = pattern === 'dot' ? '•' : '×';
+          const symbol = pattern === 'dot' ? '⊙' : '×'; // Better symbols
           board.create('text', [x, y, symbol], {
             anchorX: 'middle',
             anchorY: 'middle',
             strokeColor: '#9ca3af',
-            fontSize: 10,
+            fontSize: 12,
+            highlight: false,
           } as any);
         }
       }
     });
 
+    // 9. Labels (MathJax support)
     (cfg.labels || []).forEach((label) => {
       board.create('text', [label.x, label.y, label.text], {
         anchorX: 'left',
         anchorY: 'top',
-        strokeColor: '#e5e7eb',
-        fontSize: 12,
+        strokeColor: label.color ?? '#e2e8f0',
+        fontSize: 14,
+        highlight: false,
+        parse: false, // Important for MathJax
       } as any);
     });
 
-    // Trigger MathJax only inside this container (for labels using \( ... \))
+    // 10. Angles
+    (cfg.angles || []).forEach((angle) => {
+      const center = points[angle.center];
+      const p1 = points[angle.p1];
+      const p2 = points[angle.p2];
+      if (center && p1 && p2) {
+        board.create('angle', [p1, center, p2], {
+          radius: angle.radius ?? 1,
+          fillColor: '#f472b6', // pink-400
+          fillOpacity: 0.2,
+          strokeColor: '#f472b6',
+          strokeWidth: 1,
+          name: angle.label ?? '',
+          withLabel: !!angle.label,
+          label: { color: '#f472b6' }
+        } as any);
+      }
+    });
+
+    // Trigger MathJax
     if (typeof window !== 'undefined' && window.MathJax && containerRef.current) {
-      window.MathJax.typesetPromise?.([containerRef.current]).catch(() => {
-        // ignore MathJax errors
-      });
+      setTimeout(() => {
+        window.MathJax?.typesetPromise?.([containerRef.current!]).catch(() => { });
+      }, 100);
     }
 
     return () => {
@@ -245,23 +298,26 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
     };
   }, [containerId, diagram]);
 
-  if (!diagram || diagram.type && diagram.type !== 'jsxgraph') {
+  if (!diagram || (diagram.type && diagram.type !== 'jsxgraph')) {
     return null;
   }
 
   return (
     <div className="space-y-2">
       {(diagram.title || diagram.description) && (
-        <div className="text-xs text-slate-300">
-          {diagram.title && <div className="font-semibold mb-0.5">{diagram.title}</div>}
-          {diagram.description && <div className="text-slate-400">{diagram.description}</div>}
+        <div className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+          {diagram.title && <div className="font-semibold text-slate-100 mb-1">{diagram.title}</div>}
+          {diagram.description && <div className="text-slate-400 text-xs">{diagram.description}</div>}
         </div>
       )}
       <div
         id={containerId}
         ref={containerRef}
-        className="w-full h-64 rounded-lg bg-slate-900/70 border border-slate-700/70 overflow-hidden"
-      />
+        className="w-full h-80 rounded-xl bg-[#0f172a] border border-slate-700/50 overflow-hidden shadow-inner relative"
+      >
+        {/* Watermark/Grid hint could go here */}
+      </div>
     </div>
   );
 };
+

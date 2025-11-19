@@ -183,6 +183,7 @@ export const StudyGuruChat = () => {
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
   const [quizChapter, setQuizChapter] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
+  const saveDebounceRef = useRef<number | null>(null);
 
   const studyAssistantMutation = trpc.studyApi.contextualAssistant.useMutation();
   const quizMutation = trpc.quiz.generateQuiz.useMutation({
@@ -294,27 +295,45 @@ export const StudyGuruChat = () => {
 
   useEffect(() => {
     if (!activeChat || !activeChat.messages.length) return;
-    saveConversationMutation.mutate(
-      {
-        id: (activeChat as any).serverId,
-        title: activeChat.title || "Study Guru chat",
-        messages: activeChat.messages,
-        model: selectedModel,
-      },
-      {
-        onSuccess: (conv) => {
-          if (!(activeChat as any).serverId) {
-            setChats((prev) =>
-              prev.map((chat) =>
-                chat.id === activeChat.id
-                  ? ({ ...chat, serverId: conv.id } as any)
-                  : chat
-              )
-            );
-          }
-        },
+
+    if (saveDebounceRef.current !== null) {
+      window.clearTimeout(saveDebounceRef.current);
+    }
+
+    saveDebounceRef.current = window.setTimeout(() => {
+      if (saveConversationMutation.isPending) {
+        return;
       }
-    );
+
+      saveConversationMutation.mutate(
+        {
+          id: (activeChat as any).serverId,
+          title: activeChat.title || "Study Guru chat",
+          messages: activeChat.messages,
+          model: selectedModel,
+        },
+        {
+          onSuccess: (conv) => {
+            if (!(activeChat as any).serverId) {
+              setChats((prev) =>
+                prev.map((chat) =>
+                  chat.id === activeChat.id
+                    ? ({ ...chat, serverId: conv.id } as any)
+                    : chat
+                )
+              );
+            }
+          },
+        }
+      );
+    }, 1000);
+
+    return () => {
+      if (saveDebounceRef.current !== null) {
+        window.clearTimeout(saveDebounceRef.current);
+        saveDebounceRef.current = null;
+      }
+    };
   }, [activeChatId, activeChat?.messages.length, selectedModel, saveConversationMutation, setChats]);
 
   const handleNewChat = () => {

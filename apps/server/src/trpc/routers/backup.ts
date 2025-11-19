@@ -90,7 +90,7 @@ const isGoogleConfigured = () =>
 export const backupRouter = router({
   exportMyData: procedure
     .use(requireUser)
-    .query(async ({ ctx }) => {
+    .mutation(async ({ ctx }) => {
       const userId = ctx.user.id;
       return buildBackupPayload(ctx.prisma, userId);
     }),

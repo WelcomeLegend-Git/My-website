@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { useShellContext } from '../../app/layouts/useShellContext';
 import { FormulaFormDialog, type FormulaDraft } from '../../features/formulas/components/FormulaFormDialog';
+import { DeleteConfirmationDialog } from '../../components/ui/DeleteConfirmationDialog';
 import type { RouterOutputs } from '../../types/trpc';
 import { GlowSelect, type GlowSelectOption } from '../../components/ui/GlowSelect';
 
@@ -32,7 +33,7 @@ export const FormulaCollectionsListPage = () => {
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleted, setShowDeleted] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [collectionToDelete, setCollectionToDelete] = useState<any | null>(null);
   const [subjectId, setSubjectId] = useState<string>();
   const [chapterId, setChapterId] = useState<string>();
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,10 +55,10 @@ export const FormulaCollectionsListPage = () => {
     return collections.filter((collection) => {
       // Subject filter
       if (subjectId && collection.subjectId !== subjectId) return false;
-      
+
       // Chapter filter
       if (chapterId && collection.chapterId !== chapterId) return false;
-      
+
       // Search filter
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
@@ -66,7 +67,7 @@ export const FormulaCollectionsListPage = () => {
         const matchesChapter = collection.chapter.title.toLowerCase().includes(search);
         if (!matchesTitle && !matchesSubject && !matchesChapter) return false;
       }
-      
+
       return true;
     });
   }, [collections, subjectId, chapterId, searchTerm]);
@@ -75,7 +76,7 @@ export const FormulaCollectionsListPage = () => {
     if (!filteredCollections) return [];
 
     const sorted = [...filteredCollections];
-    
+
     switch (sortBy) {
       case 'recent':
         return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -154,6 +155,18 @@ export const FormulaCollectionsListPage = () => {
       setAiContext(toAiContext([], filters));
     }
   }, [sortedCollections, subjectId, chapterId, searchTerm, setAiContext]);
+
+  const handleDeleteCollection = async () => {
+    if (!collectionToDelete) return;
+
+    try {
+      await deleteMutation.mutateAsync({ ids: [collectionToDelete.id] });
+      await utils.formulas.listCollections.invalidate();
+      setCollectionToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete collection", error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -258,11 +271,10 @@ export const FormulaCollectionsListPage = () => {
               <button
                 key={option.value}
                 onClick={() => setSortBy(option.value as SortOption)}
-                className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                  sortBy === option.value
+                className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${sortBy === option.value
                     ? 'bg-blue-500 text-white'
                     : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -293,8 +305,24 @@ export const FormulaCollectionsListPage = () => {
               <button
                 key={collection.id}
                 onClick={() => navigate(`/formulas/collections/${collection.id}`)}
-                className="group rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all"
+                className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all"
               >
+                {/* Delete Button */}
+                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollectionToDelete(collection);
+                    }}
+                    className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
+                    title="Delete collection"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                </div>
+
                 {/* Collection Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
@@ -311,7 +339,7 @@ export const FormulaCollectionsListPage = () => {
                 <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
                   {collection.title}
                 </h3>
-                
+
                 <div className="space-y-1 text-sm text-slate-400 mb-3">
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,11 +415,11 @@ export const FormulaCollectionsListPage = () => {
               relatedFormulas: draft.relatedFormulas,
               commonMistakes: draft.commonMistakes,
             });
-            
+
             await utils.formulas.listCollections.invalidate();
             setIsModalOpen(false);
             createFormulaMutation.reset();
-            
+
             // Navigate to the new collection if created successfully
             if ('collectionId' in result) {
               navigate(`/formulas/collections/${result.collectionId}`);
@@ -403,13 +431,13 @@ export const FormulaCollectionsListPage = () => {
         onCreateChapter={async (subjectId) => {
           const subject = subjects?.find((s) => s.id === subjectId);
           if (!subject) return undefined;
-          
+
           const title = window.prompt("New chapter title", "New Chapter");
           if (!title) return undefined;
-          
+
           const trimmed = title.trim();
           if (!trimmed) return undefined;
-          
+
           try {
             const chapter = await createChapterMutation.mutateAsync({
               subjectId,
@@ -421,6 +449,16 @@ export const FormulaCollectionsListPage = () => {
             return undefined;
           }
         }}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={!!collectionToDelete}
+        title="Delete Collection"
+        description="Are you sure you want to delete this collection? All formulas within it will be deleted. This action cannot be undone."
+        onClose={() => setCollectionToDelete(null)}
+        onConfirm={handleDeleteCollection}
+        isDeleting={deleteMutation.isPending}
       />
     </div>
   );

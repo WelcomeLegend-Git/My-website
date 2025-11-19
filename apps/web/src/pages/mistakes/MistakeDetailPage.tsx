@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { MistakeDetailView } from '../../features/mistakes/components/MistakeDetailView';
 import { ImageViewerModal } from '../../features/mistakes/components/ImageViewerModal';
+import { DeleteConfirmationDialog } from '../../components/ui/DeleteConfirmationDialog';
 import { useShellContext } from '../../app/layouts/useShellContext';
 
 // Helper to create AI context from mistake
@@ -30,6 +31,7 @@ export const MistakeDetailPage = () => {
     open: boolean;
     initialIndex: number;
   }>({ open: false, initialIndex: 0 });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: mistake, isLoading, error } = trpc.mistakes.getMistake.useQuery(
     { id: id! },
@@ -65,13 +67,12 @@ export const MistakeDetailPage = () => {
 
   const imageAssets = mistake?.assets.filter((a: any) => a.kind === 'image') || [];
 
-  const handleDelete = async () => {
-    if (!mistake) return;
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
 
-    const confirmed = window.confirm(
-      'This will permanently delete this mistake log and all its attachments. This cannot be undone. Continue?',
-    );
-    if (!confirmed) return;
+  const handleConfirmDelete = async () => {
+    if (!mistake) return;
 
     try {
       await deleteMutation.mutateAsync({ id: mistake.id });
@@ -120,12 +121,20 @@ export const MistakeDetailPage = () => {
 
   return (
     <>
-      <MistakeDetailView mistake={mistake} onImageClick={handleImageClick} onDelete={handleDelete} />
+      <MistakeDetailView mistake={mistake} onImageClick={handleImageClick} onDelete={handleDeleteClick} />
       <ImageViewerModal
         open={imageViewerState.open}
         images={imageAssets}
         initialIndex={imageViewerState.initialIndex}
         onClose={handleImageViewerClose}
+      />
+      <DeleteConfirmationDialog
+        open={showDeleteConfirm}
+        title="Delete Mistake"
+        description="This will permanently delete this mistake log and all its attachments. This cannot be undone."
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        isDeleting={deleteMutation.isPending}
       />
     </>
   );

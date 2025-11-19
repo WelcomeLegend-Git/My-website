@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useShellContext } from "../../app/layouts/useShellContext";
 import { GlowSelect } from "../../components/ui/GlowSelect";
+import { DeleteConfirmationDialog } from "../../components/ui/DeleteConfirmationDialog";
 import {
   MistakeFormDialog,
   type MistakeDraft,
@@ -20,9 +21,9 @@ type MistakeUpdateInput = RouterInputs["mistakes"]["update"];
 type FormState =
   | { mode: "create" }
   | {
-      mode: "edit";
-      mistake: Mistake;
-    };
+    mode: "edit";
+    mistake: Mistake;
+  };
 
 type MistakeFilters = {
   subjectId?: string;
@@ -112,6 +113,7 @@ export const MistakeLogPage = () => {
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [analyzingMistake, setAnalyzingMistake] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [mistakeToDelete, setMistakeToDelete] = useState<Mistake | null>(null);
 
   const filters = useMemo<MistakeFilters | undefined>(() => {
     const active: MistakeFilters = {
@@ -137,18 +139,18 @@ export const MistakeLogPage = () => {
   const mistakes = useMemo(() => {
     if (!mistakesData) return [];
     const sorted = [...mistakesData];
-    
+
     switch (sortBy) {
       case 'recent':
         return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       case 'oldest':
         return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       case 'difficulty-high':
-        const difficultyOrder: Record<'hard'|'medium'|'easy', number> = { hard: 3, medium: 2, easy: 1 };
-        return sorted.sort((a, b) => (difficultyOrder[b.difficulty as 'hard'|'medium'|'easy']) - (difficultyOrder[a.difficulty as 'hard'|'medium'|'easy']));
+        const difficultyOrder: Record<'hard' | 'medium' | 'easy', number> = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrder[b.difficulty as 'hard' | 'medium' | 'easy']) - (difficultyOrder[a.difficulty as 'hard' | 'medium' | 'easy']));
       case 'difficulty-low':
-        const difficultyOrderLow: Record<'hard'|'medium'|'easy', number> = { hard: 3, medium: 2, easy: 1 };
-        return sorted.sort((a, b) => (difficultyOrderLow[a.difficulty as 'hard'|'medium'|'easy']) - (difficultyOrderLow[b.difficulty as 'hard'|'medium'|'easy']));
+        const difficultyOrderLow: Record<'hard' | 'medium' | 'easy', number> = { hard: 3, medium: 2, easy: 1 };
+        return sorted.sort((a, b) => (difficultyOrderLow[a.difficulty as 'hard' | 'medium' | 'easy']) - (difficultyOrderLow[b.difficulty as 'hard' | 'medium' | 'easy']));
       default:
         return sorted;
     }
@@ -209,6 +211,18 @@ export const MistakeLogPage = () => {
       console.error("Failed to create chapter", error);
       alert("Could not create chapter. Please try again.");
       return undefined;
+    }
+  };
+
+  const handleDeleteMistake = async () => {
+    if (!mistakeToDelete) return;
+
+    try {
+      await deleteMutation.mutateAsync({ id: mistakeToDelete.id });
+      await utils.mistakes.list.invalidate();
+      setMistakeToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete mistake", error);
     }
   };
 
@@ -383,19 +397,19 @@ export const MistakeLogPage = () => {
     ? formState.mode === "edit"
       ? buildDraftFromMistake(formState.mistake)
       : {
-          subjectId:
-            subjectId ?? subjects?.[0]?.id ?? "",
-          chapterId:
-            chapterId ?? ensureChapterOptions(subjectId ?? subjects?.[0]?.id, subjects)[0]?.id ?? "",
-          title: "",
-          description: "",
-          difficulty: "medium",
-          status: "new",
-          errorType: "unknown",
-          aiSummary: null,
-          aiMindMap: null,
-          attachments: [],
-        }
+        subjectId:
+          subjectId ?? subjects?.[0]?.id ?? "",
+        chapterId:
+          chapterId ?? ensureChapterOptions(subjectId ?? subjects?.[0]?.id, subjects)[0]?.id ?? "",
+        title: "",
+        description: "",
+        difficulty: "medium",
+        status: "new",
+        errorType: "unknown",
+        aiSummary: null,
+        aiMindMap: null,
+        attachments: [],
+      }
     : undefined;
 
   const formError = formState?.mode === "edit" ? updateMutation.error?.message : createMutation.error?.message;
@@ -493,11 +507,10 @@ export const MistakeLogPage = () => {
           <button
             key={option.value}
             onClick={() => setSortBy(option.value as any)}
-            className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-              sortBy === option.value
+            className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${sortBy === option.value
                 ? 'bg-blue-500 text-white'
                 : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
-            }`}
+              }`}
           >
             {option.label}
           </button>
@@ -537,8 +550,24 @@ export const MistakeLogPage = () => {
               <button
                 key={mistake.id}
                 onClick={() => navigate(`/mistakes/${mistake.id}`)}
-                className="group rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all"
+                className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all"
               >
+                {/* Delete Button */}
+                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMistakeToDelete(mistake);
+                    }}
+                    className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
+                    title="Delete mistake"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                </div>
+
                 {/* Card Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/25">
@@ -562,10 +591,10 @@ export const MistakeLogPage = () => {
                 </div>
 
                 {/* Card Content */}
-                <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-red-400 transition-colors line-clamp-2">
+                <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-red-400 transition-colors line-clamp-2 pr-8">
                   {mistake.title}
                 </h3>
-                
+
                 <div className="space-y-1 text-sm text-slate-400 mb-3">
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -663,6 +692,16 @@ export const MistakeLogPage = () => {
         images={viewerImages}
         initialIndex={viewerInitialIndex}
         onClose={() => setImageViewerOpen(false)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={!!mistakeToDelete}
+        title="Delete Mistake"
+        description="Are you sure you want to delete this mistake? This action cannot be undone and all associated data will be lost."
+        onClose={() => setMistakeToDelete(null)}
+        onConfirm={handleDeleteMistake}
+        isDeleting={deleteMutation.isPending}
       />
     </section>
   );

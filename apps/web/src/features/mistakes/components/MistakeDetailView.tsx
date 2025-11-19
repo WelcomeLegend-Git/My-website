@@ -49,10 +49,9 @@ type Mistake = {
 type Props = {
   mistake: Mistake;
   onImageClick?: (imageUrl: string, imageIndex: number, allImages: string[]) => void;
-  onDelete?: () => void;
 };
 
-export const MistakeDetailView = ({ mistake, onImageClick, onDelete }: Props) => {
+export const MistakeDetailView = ({ mistake, onImageClick }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
 
   const toggleSection = (section: string) => {
@@ -150,15 +149,6 @@ export const MistakeDetailView = ({ mistake, onImageClick, onDelete }: Props) =>
               <button onClick={collapseAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-700 transition-colors">
                 Collapse All
               </button>
-              {onDelete && (
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-red-900/40 border border-red-500/60 text-red-200 text-xs sm:text-sm font-semibold hover:bg-red-900/70 transition-colors"
-                >
-                  Delete log
-                </button>
-              )}
             </div>
           </div>
         </div>

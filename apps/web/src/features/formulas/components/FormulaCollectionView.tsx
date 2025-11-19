@@ -83,11 +83,9 @@ type Collection = {
 
 type Props = {
   collection: Collection;
-  onDeleteCollection?: () => void;
-  onDeleteFormula?: (formulaId: string) => void;
 };
 
-export const FormulaCollectionView = ({ collection, onDeleteCollection, onDeleteFormula }: Props) => {
+export const FormulaCollectionView = ({ collection }: Props) => {
   const [expandedFormulas, setExpandedFormulas] = useState<Set<string>>(new Set([collection.formulas[0]?.id]));
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
 
@@ -205,15 +203,6 @@ export const FormulaCollectionView = ({ collection, onDeleteCollection, onDelete
               >
                 Collapse All
               </button>
-              {onDeleteCollection && (
-                <button
-                  type="button"
-                  onClick={onDeleteCollection}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-red-900/40 border border-red-500/60 text-red-200 text-xs sm:text-sm font-semibold hover:bg-red-900/70 transition-colors"
-                >
-                  Delete collection
-                </button>
-              )}
             </div>
           </div>
           {collection.description && (
@@ -586,24 +575,14 @@ export const FormulaCollectionView = ({ collection, onDeleteCollection, onDelete
                           )}
                         </div>
                       )}
-                      {onDeleteFormula && (
-                        <div className="pt-2 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteFormula(formula.id);
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-red-500/60 bg-red-900/40 text-xs font-semibold text-red-200 hover:bg-red-900/70 transition-colors"
-                          >
-                            Delete formula
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {/* Quiz History Shortcut */}
         <div className="mt-6 sm:mt-8 glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-800/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">

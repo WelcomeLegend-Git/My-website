@@ -29,10 +29,6 @@ export const FormulaCollectionPage = () => {
   const navigate = useNavigate();
   const { setAiContext, setAiSection } = useShellContext();
 
-  const utils = trpc.useUtils();
-  const deleteCollectionsMutation = trpc.formulas.deleteCollections.useMutation();
-  const deleteFormulaMutation = trpc.formulas.remove.useMutation();
-
   const { data: collection, isLoading, error } = trpc.formulas.getCollection.useQuery(
     { id: id! },
     { enabled: !!id }
@@ -53,42 +49,6 @@ export const FormulaCollectionPage = () => {
       setAiContext(undefined);
     }
   }, [collection, setAiContext]);
-
-  const handleDeleteCollection = async () => {
-    if (!collection) return;
-
-    const confirmed = window.confirm(
-      'This will move this formula collection to the trash. Formulas will remain linked but the collection will disappear from your main list. Continue?',
-    );
-    if (!confirmed) return;
-
-    try {
-      await deleteCollectionsMutation.mutateAsync({ ids: [collection.id] });
-      await utils.formulas.listCollections.invalidate();
-      navigate('/formulas');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete collection.';
-      alert(message);
-    }
-  };
-
-  const handleDeleteFormula = async (formulaId: string) => {
-    if (!collection) return;
-
-    const confirmed = window.confirm(
-      'This will permanently delete this formula from the collection. This cannot be undone. Continue?',
-    );
-    if (!confirmed) return;
-
-    try {
-      await deleteFormulaMutation.mutateAsync({ id: formulaId });
-      await utils.formulas.getCollection.invalidate({ id: collection.id });
-      await utils.formulas.listCollections.invalidate();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete formula.';
-      alert(message);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -125,11 +85,5 @@ export const FormulaCollectionPage = () => {
     );
   }
 
-  return (
-    <FormulaCollectionView
-      collection={collection}
-      onDeleteCollection={handleDeleteCollection}
-      onDeleteFormula={handleDeleteFormula}
-    />
-  );
+  return <FormulaCollectionView collection={collection} />;
 };

@@ -118,9 +118,7 @@ type ChatMessage = {
 };
 
 type ModelId =
-  | "gemini-2.0-flash-exp"
-  | "gemini-1.5-flash"
-  | "gemini-1.5-pro"
+  | "gemini-2.5-flash"
   | "gemini-2.5-pro";
 
 type Chat = {
@@ -178,7 +176,7 @@ export const StudyGuruChat = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
-  const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.0-flash-exp");
+  const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.5-flash");
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
   const [quizChapter, setQuizChapter] = useState("");
@@ -566,9 +564,7 @@ export const StudyGuruChat = () => {
   };
 
   const modelOptions: ModelId[] = [
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-2.5-flash",
     "gemini-2.5-pro",
   ];
 

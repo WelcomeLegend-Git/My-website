@@ -92,9 +92,15 @@ ${context}`,
     .mutation(async ({ ctx, input }) => {
       const baseContext = input.context ?? {};
       const isStudyGuru = (baseContext as any).mode === "study_guru";
-      const requestedModel =
+      const allowedStudyGuruModels = ["gemini-2.5-flash", "gemini-2.5-pro"] as const;
+      const rawRequestedModel =
         isStudyGuru && typeof (baseContext as any).model === "string"
           ? ((baseContext as any).model as string)
+          : undefined;
+
+      const requestedModel =
+        rawRequestedModel && allowedStudyGuruModels.includes(rawRequestedModel as any)
+          ? rawRequestedModel
           : undefined;
 
       let prompt: string;

@@ -357,6 +357,7 @@ model GoogleDriveConnection {
   expiryDate   DateTime?
   folderId     String?
   lastBackupAt DateTime?
+  autoBackupEnabled Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

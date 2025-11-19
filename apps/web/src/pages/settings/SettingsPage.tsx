@@ -14,6 +14,8 @@ export const SettingsPage = () => {
     retry: false,
   });
   const backupDriveMutation = trpc.backupApi.backupToDrive.useMutation();
+  const restoreDriveMutation = trpc.backupApi.restoreFromDrive.useMutation();
+  const autoBackupMutation = trpc.backupApi.setAutoBackupEnabled.useMutation();
 
   const cloudStatusLabel = (() => {
     if (statusQuery.isLoading) return "Checking...";
@@ -32,6 +34,13 @@ export const SettingsPage = () => {
     !statusQuery.data?.isConnected ||
     statusQuery.isLoading ||
     backupDriveMutation.isPending;
+
+  const restoreDriveDisabled =
+    !statusQuery.data?.isConfigured ||
+    !statusQuery.data?.isConnected ||
+    !statusQuery.data?.hasCloudBackup ||
+    statusQuery.isLoading ||
+    restoreDriveMutation.isPending;
 
   const handleDownloadBackup = async () => {
     setMessage(null);
@@ -57,6 +66,49 @@ export const SettingsPage = () => {
       setMessage("Backup downloaded successfully.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to download backup";
+      setError(message);
+    }
+  };
+
+  const handleRestoreFromDrive = async () => {
+    setMessage(null);
+    setError(null);
+
+    if (!statusQuery.data?.hasCloudBackup) {
+      setError("No cloud backups found to restore.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "This will replace your current formulas, mistakes, quizzes and subjects with the data from your latest backup in Google Drive. Continue?",
+    );
+    if (!confirmed) return;
+
+    try {
+      await restoreDriveMutation.mutateAsync();
+      await statusQuery.refetch();
+      setMessage("Data restored from your latest Google Drive backup.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to restore backup from Google Drive";
+      setError(message);
+    }
+  };
+
+  const handleToggleAutoBackup = async () => {
+    if (!statusQuery.data) return;
+
+    const nextEnabled = !statusQuery.data.autoBackupEnabled;
+    setMessage(null);
+    setError(null);
+
+    try {
+      await autoBackupMutation.mutateAsync({ enabled: nextEnabled });
+      await statusQuery.refetch();
+      setMessage(nextEnabled ? "Auto backup enabled." : "Auto backup disabled.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update auto backup setting";
       setError(message);
     }
   };
@@ -168,10 +220,11 @@ export const SettingsPage = () => {
               </button>
               <button
                 type="button"
-                disabled
-                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-400 cursor-not-allowed"
+                onClick={handleRestoreFromDrive}
+                disabled={restoreDriveDisabled}
+                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
               >
-                Restore from Drive
+                {restoreDriveMutation.isPending ? "Restoring..." : "Restore from Drive"}
                 <p className="mt-1 text-[11px] font-normal text-slate-500">
                   Restore everything from a previous backup stored in Google Drive.
                 </p>
@@ -187,10 +240,31 @@ export const SettingsPage = () => {
               </div>
               <button
                 type="button"
-                disabled
-                className="relative inline-flex h-7 w-12 cursor-not-allowed items-center rounded-full border border-slate-700/70 bg-slate-900/80 px-1"
+                onClick={handleToggleAutoBackup}
+                disabled={
+                  !statusQuery.data?.isConfigured ||
+                  !statusQuery.data?.isConnected ||
+                  statusQuery.isLoading ||
+                  autoBackupMutation.isPending
+                }
+                className={`relative inline-flex h-7 w-12 items-center rounded-full border border-slate-700/70 px-1 transition-colors ${
+                  statusQuery.data?.autoBackupEnabled
+                    ? "bg-emerald-500/80"
+                    : "bg-slate-900/80"
+                } ${
+                  !statusQuery.data?.isConfigured ||
+                  !statusQuery.data?.isConnected ||
+                  statusQuery.isLoading ||
+                  autoBackupMutation.isPending
+                    ? "cursor-not-allowed opacity-70"
+                    : "cursor-pointer"
+                }`}
               >
-                <span className="inline-block h-5 w-5 rounded-full bg-slate-600 shadow-sm transition-transform" />
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-slate-600 shadow-sm transition-transform ${
+                    statusQuery.data?.autoBackupEnabled ? "translate-x-5 bg-slate-950" : ""
+                  }`}
+                />
               </button>
             </div>
 

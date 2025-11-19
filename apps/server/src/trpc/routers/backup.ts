@@ -1,8 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
+import { z } from "zod";
 
 import { env } from "../../env";
-import { uploadBackupToDrive, buildGoogleAuthUrl } from "../../services/google-drive";
+import { uploadBackupToDrive, buildGoogleAuthUrl, restoreLatestBackupForUser } from "../../services/google-drive";
 import { requireUser } from "../middleware/auth";
 import { procedure, router } from "../trpc";
 
@@ -117,7 +118,7 @@ export const backupRouter = router({
         isConfigured: true,
         isConnected: !!connection,
         hasCloudBackup: !!connection?.lastBackupAt,
-        autoBackupEnabled: false,
+        autoBackupEnabled: connection?.autoBackupEnabled ?? false,
         lastBackupAt: connection?.lastBackupAt ?? null,
       };
     }),
@@ -144,6 +145,17 @@ export const backupRouter = router({
       const userId = ctx.user.id;
       const payload = await buildBackupPayload(ctx.prisma, userId);
 
+      const hasAnyData = Object.values(payload.data).some((collection) =>
+        Array.isArray(collection) ? collection.length > 0 : false,
+      );
+
+      if (!hasAnyData) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No data found to back up yet.",
+        });
+      }
+
       try {
         const result = await uploadBackupToDrive(userId, payload);
         return {
@@ -157,5 +169,49 @@ export const backupRouter = router({
           cause: error,
         });
       }
+    }),
+
+  restoreFromDrive: procedure
+    .use(requireUser)
+    .mutation(async ({ ctx }) => {
+      if (!isGoogleConfigured()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Google Drive is not configured on the server" });
+      }
+
+      const userId = ctx.user.id;
+
+      try {
+        const result = await restoreLatestBackupForUser(userId);
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to restore backup from Google Drive",
+          cause: error,
+        });
+      }
+    }),
+
+  setAutoBackupEnabled: procedure
+    .use(requireUser)
+    .input(z.object({ enabled: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!isGoogleConfigured()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Google Drive is not configured on the server" });
+      }
+
+      const userId = ctx.user.id;
+      const connection = await ctx.prisma.googleDriveConnection.findUnique({ where: { userId } });
+
+      if (!connection) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Google Drive is not connected for this account" });
+      }
+
+      await ctx.prisma.googleDriveConnection.update({
+        where: { userId },
+        data: { autoBackupEnabled: input.enabled },
+      });
+
+      return { autoBackupEnabled: input.enabled } as const;
     }),
 });

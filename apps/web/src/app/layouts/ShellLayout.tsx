@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AiSidebar } from "../../features/ai/components/AiSidebar";
 import { InstallPrompt } from "../../features/pwa/InstallPrompt";
+import { trpc } from "../../lib/trpc";
 import { useAuth } from "../providers/AuthProvider";
 
 type AiSection = "formulas" | "mistakes" | "study";
@@ -62,6 +63,12 @@ export const ShellLayout = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  const backupStatusQuery = trpc.backupApi.getStatus.useQuery(undefined, {
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const autoBackupMutation = trpc.backupApi.backupToDrive.useMutation();
+
   useEffect(() => {
     // Immediately clear context and update section on navigation
     setAiContext(undefined);
@@ -102,6 +109,33 @@ export const ShellLayout = () => {
       } catch {}
     }
   }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
+
+  useEffect(() => {
+    if (!backupStatusQuery.data?.isConnected || !backupStatusQuery.data.autoBackupEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const performBackup = async () => {
+      if (cancelled) return;
+      if (autoBackupMutation.isPending) return;
+
+      try {
+        await autoBackupMutation.mutateAsync();
+        await backupStatusQuery.refetch();
+      } catch {}
+    };
+
+    const intervalId = window.setInterval(() => {
+      void performBackup();
+    }, 10 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [backupStatusQuery.data?.isConnected, backupStatusQuery.data?.autoBackupEnabled, autoBackupMutation, backupStatusQuery]);
 
 
   const clearAiChat = () => {

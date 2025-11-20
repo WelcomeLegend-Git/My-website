@@ -118,6 +118,8 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
   const previousPageLabel = useRef<string | null | undefined>(undefined);
   const pageHistory = useRef<Array<{ label: string | null; timestamp: number }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const generationCancelledRef = useRef(false);
   const [, forceUpdate] = useState(0);
 
   // Update pageLabel immediately on section OR context change
@@ -162,10 +164,15 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
 
   const mutation = trpc.studyApi.contextualAssistant.useMutation({
     onSuccess: (data) => {
-      setMessages((prev) => [
-        ...prev,
-        { id: createId(), role: "assistant", content: data.reply },
-      ]);
+      if (!generationCancelledRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          { id: createId(), role: "assistant", content: data.reply },
+        ]);
+      }
+      if (!generationCancelledRef.current) {
+        setIsGenerating(false);
+      }
     },
   });
 
@@ -218,6 +225,8 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
     setMessages((prev) => [...prev, message]);
     setInput("");
     try {
+      generationCancelledRef.current = false;
+      setIsGenerating(true);
       // Include page history in the context sent to AI
       const enhancedContext = {
         ...context,
@@ -226,15 +235,27 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       };
       await mutation.mutateAsync({ section, context: enhancedContext, message: content });
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: createId(),
-          role: "assistant",
-          content: error instanceof Error ? error.message : "Something went wrong. Try again.",
-        },
-      ]);
+      if (!generationCancelledRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            content: error instanceof Error ? error.message : "Something went wrong. Try again.",
+          },
+        ]);
+      }
+      if (!generationCancelledRef.current) {
+        setIsGenerating(false);
+      }
     }
+  };
+
+  const handleStopGeneration = () => {
+    if (!isGenerating) return;
+    generationCancelledRef.current = true;
+    mutation.reset();
+    setIsGenerating(false);
   };
 
   // Load conversation from localStorage on mount (persists across refreshes)
@@ -673,6 +694,12 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
             </div>
           ))
         )}
+        {isGenerating && (
+          <div className="rounded-xl border border-emerald-500/40 bg-slate-950/80 px-3 py-2 flex items-center gap-2 text-xs text-emerald-300">
+            <span className="w-3.5 h-3.5 border-2 border-emerald-400/80 border-t-transparent rounded-full animate-spin" />
+            <span>Mentor is thinking...</span>
+          </div>
+        )}
         <div ref={messagesEndRef} />
         
         {/* Quiz Configuration Form */}
@@ -705,7 +732,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
             value={input}
             onChange={(event) => setInput(event.target.value)}
             rows={3}
-            disabled={!isVerified || mutation.isPending || quizMutation.isPending}
+            disabled={!isVerified || quizMutation.isPending}
             className="w-full resize-none rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder={isVerified ? "Ask the mentor anything..." : "Verify access to use AI Mentor..."}
           />
@@ -713,28 +740,40 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
             {input.length}/500
           </div>
         </div>
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
-          disabled={!isVerified || mutation.isPending || quizMutation.isPending}
-        >
-          {mutation.isPending || quizMutation.isPending ? (
-            <>
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {quizMutation.isPending ? 'Generating Quiz...' : 'Thinking...'}
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-              Send Message
-            </>
-          )}
-        </button>
+        {isGenerating ? (
+          <button
+            type="button"
+            onClick={handleStopGeneration}
+            className="w-full rounded-xl bg-slate-900/90 border border-emerald-500/60 px-5 py-3 text-sm font-semibold text-emerald-300 shadow-lg shadow-emerald-500/20 hover:bg-slate-800/90 flex items-center justify-center gap-2"
+            disabled={quizMutation.isPending}
+          >
+            <span className="w-4 h-4 border-2 border-emerald-400/80 border-t-transparent rounded-full animate-spin" />
+            <span>Stop response</span>
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
+            disabled={!isVerified || quizMutation.isPending}
+          >
+            {quizMutation.isPending ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating Quiz...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Send Message
+              </>
+            )}
+          </button>
+        )}
       </form>
     </aside>
     </>

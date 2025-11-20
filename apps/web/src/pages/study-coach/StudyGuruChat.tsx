@@ -193,10 +193,12 @@ export const StudyGuruChat = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.5-flash");
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
   const [quizChapter, setQuizChapter] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
   const saveDebounceRef = useRef<number | null>(null);
+  const generationCancelledRef = useRef(false);
 
   const studyAssistantMutation = trpc.studyApi.contextualAssistant.useMutation();
   const quizMutation = trpc.quiz.generateQuiz.useMutation({
@@ -436,7 +438,7 @@ export const StudyGuruChat = () => {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !activeChat || studyAssistantMutation.isPending) return;
+    if (!message.trim() || !activeChat || isGenerating || quizMutation.isPending) return;
 
     const trimmed = message.trim();
     const lower = trimmed.toLowerCase();
@@ -467,6 +469,8 @@ export const StudyGuruChat = () => {
       return;
     }
 
+    generationCancelledRef.current = false;
+
     const userMessage: ChatMessage = { role: "user", content: trimmed };
     const chatHistory: ChatMessage[] = [...activeChat.messages, userMessage];
 
@@ -483,6 +487,8 @@ export const StudyGuruChat = () => {
 
     setMessage("");
 
+    setIsGenerating(true);
+
     try {
       const response = await studyAssistantMutation.mutateAsync({
         section: "study",
@@ -494,36 +500,51 @@ export const StudyGuruChat = () => {
         message: trimmed,
       });
 
-      setChats((prevChats) =>
-        prevChats.map((chat) => {
-          if (chat.id !== activeChatId) return chat;
-          const updatedMessages: ChatMessage[] = [
-            ...chat.messages,
-            { role: "assistant", content: response.reply },
-          ];
-          return {
-            ...chat,
-            messages: updatedMessages,
-          };
-        })
-      );
+      if (!generationCancelledRef.current) {
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            const updatedMessages: ChatMessage[] = [
+              ...chat.messages,
+              { role: "assistant", content: response.reply },
+            ];
+            return {
+              ...chat,
+              messages: updatedMessages,
+            };
+          })
+        );
+      }
     } catch (error) {
-      const fallbackMessage =
-        error instanceof Error ? error.message : "Something went wrong. Try again.";
-      setChats((prevChats) =>
-        prevChats.map((chat) => {
-          if (chat.id !== activeChatId) return chat;
-          const updatedMessages: ChatMessage[] = [
-            ...chat.messages,
-            { role: "assistant", content: fallbackMessage },
-          ];
-          return {
-            ...chat,
-            messages: updatedMessages,
-          };
-        })
-      );
+      if (!generationCancelledRef.current) {
+        const fallbackMessage =
+          error instanceof Error ? error.message : "Something went wrong. Try again.";
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            const updatedMessages: ChatMessage[] = [
+              ...chat.messages,
+              { role: "assistant", content: fallbackMessage },
+            ];
+            return {
+              ...chat,
+              messages: updatedMessages,
+            };
+          })
+        );
+      }
+    } finally {
+      if (!generationCancelledRef.current) {
+        setIsGenerating(false);
+      }
     }
+  };
+
+  const handleStopGeneration = () => {
+    if (!isGenerating) return;
+    generationCancelledRef.current = true;
+    studyAssistantMutation.reset();
+    setIsGenerating(false);
   };
 
   const handleQuizSubmit = (config: QuizConfig) => {
@@ -913,44 +934,6 @@ export const StudyGuruChat = () => {
         {/* Scrollable Chat Section */}
         <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar">
           <div className="max-w-3xl mx-auto space-y-6">
-            {activeChat && activeChat.messages.length > 0 && (
-              <div className="mb-2 rounded-2xl bg-slate-900/80 border border-slate-800/80 px-4 py-3 shadow-lg shadow-slate-900/60">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200">
-                      Practice quiz from this chat
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Use the recent conversation plus chapter details to generate a JEE-style quiz.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsQuizPanelOpen((prev) => !prev)}
-                    className="px-3 py-1.5 rounded-full text-[11px] font-medium border border-primary/60 text-primary hover:bg-primary/10 transition"
-                  >
-                    {isQuizPanelOpen ? "Hide" : "Setup"}
-                  </button>
-                </div>
-                {isQuizPanelOpen && (
-                  <div className="mt-3">
-                    <QuizConfigForm
-                      onSubmit={(config) => {
-                        handleQuizSubmit(config);
-                        setIsQuizPanelOpen(false);
-                      }}
-                      onCancel={() => setIsQuizPanelOpen(false)}
-                      isLoading={quizMutation.isPending}
-                      section="study"
-                      studyChapter={quizChapter}
-                      studyDescription={quizDescription}
-                      onChangeStudyChapter={setQuizChapter}
-                      onChangeStudyDescription={setQuizDescription}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-6">
@@ -1089,6 +1072,31 @@ export const StudyGuruChat = () => {
                 )
               )
             )}
+            {activeChat && isGenerating && (
+              <div className="flex justify-start">
+                <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-3 max-w-xs shadow-lg shadow-slate-900/60 flex items-center gap-3 text-xs text-slate-300">
+                  <span className="w-4 h-4 border-2 border-emerald-400/70 border-t-transparent rounded-full animate-spin" />
+                  <span>Study Guru is thinking...</span>
+                </div>
+              </div>
+            )}
+            {activeChat && isQuizPanelOpen && (
+              <div className="mt-3">
+                <QuizConfigForm
+                  onSubmit={(config) => {
+                    handleQuizSubmit(config);
+                    setIsQuizPanelOpen(false);
+                  }}
+                  onCancel={() => setIsQuizPanelOpen(false)}
+                  isLoading={quizMutation.isPending}
+                  section="study"
+                  studyChapter={quizChapter}
+                  studyDescription={quizDescription}
+                  onChangeStudyChapter={setQuizChapter}
+                  onChangeStudyDescription={setQuizDescription}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1124,7 +1132,7 @@ export const StudyGuruChat = () => {
                     }
                   }}
                   placeholder="Ask study guru"
-                  disabled={studyAssistantMutation.isPending || quizMutation.isPending}
+                  disabled={quizMutation.isPending}
                   className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
                 />
 
@@ -1142,14 +1150,26 @@ export const StudyGuruChat = () => {
                   <Mic className="w-4 h-4" />
                 </button>
 
-                {/* Send button */}
-                <button
-                  onClick={handleSend}
-                  disabled={studyAssistantMutation.isPending || quizMutation.isPending}
-                  className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5 text-white" />
-                </button>
+                {/* Send / Stop button */}
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    className="w-24 h-11 rounded-full bg-slate-900/90 border border-primary/70 flex items-center justify-center gap-2 text-xs font-medium text-primary hover:bg-slate-800 transition flex-shrink-0"
+                  >
+                    <span className="w-4 h-4 border-2 border-primary/70 border-t-transparent rounded-full animate-spin" />
+                    <span>Stop</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={quizMutation.isPending}
+                    className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Send className="w-5 h-5 text-white" />
+                  </button>
+                )}
               </div>
 
               {/* Hidden file input for attachments */}

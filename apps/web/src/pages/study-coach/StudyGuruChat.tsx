@@ -114,6 +114,16 @@ const ensureMathDelimiters = (text: string): string => {
   return processed;
 };
 
+const buildChatTitleFromMessage = (text: string): string => {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "New Chat";
+  const words = cleaned.split(" ");
+  const wordLimited = words.slice(0, 8).join(" ");
+  const charLimit = 48;
+  const base = wordLimited.length > charLimit ? wordLimited.slice(0, charLimit) : wordLimited;
+  return base.length < cleaned.length ? `${base}...` : base;
+};
+
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
@@ -144,6 +154,7 @@ type Chat = {
   recent: boolean;
   messages: ChatMessage[];
   pinned?: boolean;
+  userRenamed?: boolean;
 };
 
 export const StudyGuruChat = () => {
@@ -337,6 +348,7 @@ export const StudyGuruChat = () => {
       title: `New Chat ${chats.length + 1}`,
       recent: true,
       messages: [],
+      userRenamed: false,
     };
     setChats([newChat, ...chats]);
     setActiveChatId(newChat.id);
@@ -368,9 +380,10 @@ export const StudyGuruChat = () => {
       prev.map((c) =>
         c.id === id
           ? {
-            ...c,
-            title: trimmedTitle,
-          }
+              ...c,
+              title: trimmedTitle,
+              userRenamed: true,
+            }
           : c
       )
     );
@@ -424,23 +437,34 @@ export const StudyGuruChat = () => {
     const lower = trimmed.toLowerCase();
     const practiceKeywords = ["practice", "quiz", "test", "questions", "exam", "solve"];
     const wantsPractice = practiceKeywords.some((keyword) => lower.includes(keyword));
+    const willHaveMessagesCount = activeChat.messages.length + 1;
+    const isDefaultTitle =
+      !activeChat.title || activeChat.title.toLowerCase().startsWith("new chat ");
+    const isFirstAutoTitleTrigger = isDefaultTitle && willHaveMessagesCount === 5;
+    const isPeriodicTrigger = willHaveMessagesCount > 1 && willHaveMessagesCount % 20 === 0;
+    const canAutoTitle = !activeChat.userRenamed;
+    const shouldUpdateTitle = canAutoTitle && (isFirstAutoTitleTrigger || isPeriodicTrigger);
+    const nextTitle = shouldUpdateTitle
+      ? buildChatTitleFromMessage(trimmed)
+      : activeChat.title;
 
     if (wantsPractice) {
       setChats((prevChats) =>
         prevChats.map((chat) =>
           chat.id === activeChatId
             ? {
-              ...chat,
-              messages: [
-                ...chat.messages,
-                { role: "user", content: trimmed },
-                {
-                  role: "assistant",
-                  content:
-                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
-                },
-              ],
-            }
+                ...chat,
+                title: nextTitle,
+                messages: [
+                  ...chat.messages,
+                  { role: "user", content: trimmed },
+                  {
+                    role: "assistant",
+                    content:
+                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                  },
+                ],
+              }
             : chat
         )
       );
@@ -458,9 +482,10 @@ export const StudyGuruChat = () => {
       prevChats.map((chat) =>
         chat.id === activeChatId
           ? {
-            ...chat,
-            messages: chatHistory,
-          }
+              ...chat,
+              title: nextTitle,
+              messages: chatHistory,
+            }
           : chat
       )
     );

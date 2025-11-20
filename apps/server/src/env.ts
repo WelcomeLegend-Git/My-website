@@ -17,11 +17,14 @@ const envSchema = z.object({
     .string()
     .min(1, "Provide at least one Gemini API key")
     .transform((value) => value.split(",").map((key) => key.trim()).filter(Boolean)),
-  GEMINI_MODEL_PRIMARY: z.string().default("gemini-2.0-flash-exp"),
+  GEMINI_MODEL_PRIMARY: z.string().default("gemini-2.5-flash"),
   GEMINI_MODEL_FALLBACK: z
     .string()
-    .default("gemini-1.5-flash,gemini-1.5-pro")
+    .default("gemini-2.5-pro")
     .transform((value) => value.split(",").map((model) => model.trim()).filter(Boolean)),
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_SITE_URL: z.string().url().optional(),
+  OPENROUTER_SITE_NAME: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),

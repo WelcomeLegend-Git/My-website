@@ -119,7 +119,12 @@ type ChatMessage = {
 
 type ModelId =
   | "gemini-2.5-flash"
-  | "gemini-2.5-pro";
+  | "gemini-2.5-pro"
+  | "openrouter/sherlock-think-alpha"
+  | "tngtech/deepseek-r1t2-chimera:free"
+  | "deepseek/deepseek-r1-0528:free"
+  | "qwen/qwen3-coder:free"
+  | "z-ai/glm-4.5-air:free";
 
 type Chat = {
   id: number;
@@ -566,6 +571,11 @@ export const StudyGuruChat = () => {
   const modelOptions: ModelId[] = [
     "gemini-2.5-flash",
     "gemini-2.5-pro",
+    "tngtech/deepseek-r1t2-chimera:free",
+    "z-ai/glm-4.5-air:free",
+    "deepseek/deepseek-r1-0528:free",
+    "qwen/qwen3-coder:free",
+    "openrouter/sherlock-think-alpha",
   ];
 
   return (

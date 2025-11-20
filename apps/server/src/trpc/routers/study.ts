@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { requireUser } from "../middleware/auth";
 import { procedure, router } from "../trpc";
+import { openRouterClient } from "../../services/ai/openrouter-client";
+import { logger } from "../../logger";
 
 // Quiz session management types
 type QuizQuestionInput = {
@@ -92,14 +94,26 @@ ${context}`,
     .mutation(async ({ ctx, input }) => {
       const baseContext = input.context ?? {};
       const isStudyGuru = (baseContext as any).mode === "study_guru";
-      const allowedStudyGuruModels = ["gemini-2.5-flash", "gemini-2.5-pro"] as const;
+      const studyGuruGeminiModels = ["gemini-2.5-flash", "gemini-2.5-pro"] as const;
+      const studyGuruOpenRouterModels = [
+        "openrouter/sherlock-think-alpha",
+        "tngtech/deepseek-r1t2-chimera:free",
+        "deepseek/deepseek-r1-0528:free",
+        "qwen/qwen3-coder:free",
+        "z-ai/glm-4.5-air:free",
+      ] as const;
       const rawRequestedModel =
         isStudyGuru && typeof (baseContext as any).model === "string"
           ? ((baseContext as any).model as string)
           : undefined;
 
+      const isStudyGuruGeminiModel =
+        rawRequestedModel && studyGuruGeminiModels.includes(rawRequestedModel as any);
+      const isStudyGuruOpenRouterModel =
+        rawRequestedModel && studyGuruOpenRouterModels.includes(rawRequestedModel as any);
+
       const requestedModel =
-        rawRequestedModel && allowedStudyGuruModels.includes(rawRequestedModel as any)
+        isStudyGuruGeminiModel && rawRequestedModel
           ? rawRequestedModel
           : undefined;
 
@@ -135,6 +149,25 @@ ${input.message}
 
 Now reply as Study Guru with a structured, student-friendly answer.
 If the student seems confused, anticipate mistakes and give quick exam tips at the end.`;
+
+        // If user selected an OpenRouter model for Study Guru, route the request there
+        if (isStudyGuruOpenRouterModel && rawRequestedModel) {
+          try {
+            const result = await openRouterClient.generateChat({
+              model: rawRequestedModel,
+              messages: [
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+            });
+            return { reply: result.text };
+          } catch (error) {
+            logger.warn({ error, model: rawRequestedModel }, "Study Guru OpenRouter call failed, falling back to Gemini");
+            // Fall through to Gemini below if OpenRouter fails
+          }
+        }
       } else {
         prompt = `You are an expert mentor helping a JEE aspirant. Current section: ${input.section}.
 Context: ${JSON.stringify(input.context ?? {})}
@@ -145,12 +178,72 @@ Provide a concise, structured response with actionable guidance.`;
       // Use premium model for quiz analysis (quiz_history or quiz_results)
       const usePremium = input.context?.type === "quiz_history" || input.context?.type === "quiz_results";
 
-      const response = await ctx.gemini.generate({
-        prompt,
-        usePremiumOnly: usePremium, // Use gemini-2.5-pro for deep quiz analysis
-        model: !usePremium ? requestedModel : undefined,
+      // Premium paths (quiz analysis) always use Gemini 2.5 Pro only
+      if (usePremium) {
+        const response = await ctx.gemini.generate({
+          prompt,
+          usePremiumOnly: true,
+        });
+        return { reply: response.text };
+      }
+
+      // Non-premium Study Guru with Gemini model selection
+      if (isStudyGuru) {
+        const response = await ctx.gemini.generate({
+          prompt,
+          model: requestedModel,
+        });
+        return { reply: response.text };
+      }
+
+      // Non-premium AI Mentor fallback chain (non-StudyGuru):
+      // 1) OpenRouter TNG DeepSeek R1T2 Chimera
+      try {
+        const first = await openRouterClient.generateChat({
+          model: "tngtech/deepseek-r1t2-chimera:free",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        });
+        return { reply: first.text };
+      } catch (error) {
+        logger.warn({ error }, "AI Mentor OpenRouter TNG DeepSeek failed, falling back to Gemini 2.5 Flash");
+      }
+
+      // 2) Gemini 2.5 Flash (all Gemini API keys, this model only)
+      try {
+        const second = await ctx.gemini.generate({
+          prompt,
+          model: "gemini-2.5-flash",
+        });
+        return { reply: second.text };
+      } catch (error) {
+        logger.warn({ error }, "AI Mentor Gemini 2.5 Flash failed, falling back to OpenRouter GLM-4.5 Air");
+      }
+
+      // 3) OpenRouter GLM-4.5 Air
+      try {
+        const third = await openRouterClient.generateChat({
+          model: "z-ai/glm-4.5-air:free",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        });
+        return { reply: third.text };
+      } catch (error) {
+        logger.warn({ error }, "AI Mentor OpenRouter GLM-4.5 Air failed; all providers exhausted");
+      }
+
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "All AI providers failed for this request. Please try again later.",
       });
-      return { reply: response.text };
     }),
 
   // Create a new quiz session

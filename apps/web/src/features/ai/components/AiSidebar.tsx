@@ -289,7 +289,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
     } catch {}
   }, [messages]);
 
-  // Detect page switches and add notification message
+  // Detect page switches and update internal history (used for AI context and chip)
   useEffect(() => {
     // First time initialization - set previous to current (even if null)
     if (previousPageLabel.current === undefined) {
@@ -303,19 +303,6 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
     
     // Detect page switch (including from null to non-null and vice versa)
     if (previousPageLabel.current !== pageLabel) {
-      const fromLabel = previousPageLabel.current || 'non-aware page';
-      const toLabel = pageLabel || 'non-aware page';
-      
-      // Add notification for any switch (including null <-> aware)
-      const switchMessage: Message = {
-        id: createId(),
-        role: 'assistant',
-        content: `📍 You switched from **${fromLabel}** to **${toLabel}**`,
-        pageContext: pageLabel,
-        isPageSwitch: true,
-      };
-      
-      setMessages((prev) => [...prev, switchMessage]);
       pageHistory.current.push({ label: pageLabel, timestamp: Date.now() });
       previousPageLabel.current = pageLabel;
       forceUpdate(n => n + 1);
@@ -715,9 +702,20 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
           ))
         )}
         {isGenerating && (
-          <div className="rounded-xl border border-emerald-500/40 bg-slate-950/80 px-3 py-2 flex items-center gap-2 text-xs text-emerald-300">
-            <span className="w-3.5 h-3.5 border-2 border-emerald-400/80 border-t-transparent rounded-full animate-spin" />
-            <span>Mentor is thinking...</span>
+          <div className="mt-3 flex justify-start">
+            <div className="relative group w-full">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 animate-pulse" />
+              <div className="relative flex items-center gap-3 px-4 py-3 bg-slate-950/95 rounded-2xl border border-slate-800/70 shadow-2xl backdrop-blur-xl">
+                <div className="relative flex items-center justify-center w-5 h-5">
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-400 border-r-cyan-400 animate-spin [animation-duration:1.5s]" />
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-blue-500 border-b-emerald-500 animate-spin [animation-duration:1.1s] [animation-direction:reverse]" />
+                  <div className="absolute inset-1 rounded-full bg-emerald-400/25 animate-pulse" />
+                </div>
+                <span className="text-xs font-medium bg-gradient-to-r from-emerald-200 via-cyan-200 to-blue-200 bg-clip-text text-transparent animate-pulse">
+                  Mentor is thinking...
+                </span>
+              </div>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />

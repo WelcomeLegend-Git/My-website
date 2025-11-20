@@ -149,41 +149,8 @@ type Chat = {
 export const StudyGuruChat = () => {
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [chats, setChats] = useState<Chat[]>([
-    {
-      id: 1,
-      title: "History file 1",
-      recent: true,
-      messages: [
-        { role: "user", content: "Tell me about the French Revolution" },
-        {
-          role: "assistant",
-          content:
-            "The French Revolution was a period of radical social and political change in France from 1789 to 1799. It led to the end of the monarchy and establishment of a republic.",
-        },
-      ],
-    },
-    {
-      id: 2,
-      title: "Helping HHR 2",
-      recent: true,
-      messages: [
-        { role: "user", content: "What is HHR?" },
-        {
-          role: "assistant",
-          content:
-            "HHR can stand for different things depending on context. Could you provide more details about what you're referring to?",
-        },
-      ],
-    },
-    {
-      id: 3,
-      title: "Chat 3",
-      recent: true,
-      messages: [],
-    },
-  ]);
-  const [activeChatId, setActiveChatId] = useState<number>(1);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<number>(0);
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const { user } = useAuth();
@@ -229,7 +196,7 @@ export const StudyGuruChat = () => {
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null;
 
-  const storageKey = "study_guru_chats_v1";
+  const storageKey = "study_guru_chats_v2";
 
   useEffect(() => {
     try {
@@ -308,6 +275,18 @@ export const StudyGuruChat = () => {
       return updated;
     });
   }, [listConversationsQuery.data]);
+
+  // Ensure at least one empty local chat when there are no server conversations
+  // and no chats loaded from local storage.
+  useEffect(() => {
+    if (
+      chats.length === 0 &&
+      !listConversationsQuery.isLoading &&
+      (listConversationsQuery.data?.length ?? 0) === 0
+    ) {
+      handleNewChat();
+    }
+  }, [chats.length, listConversationsQuery.isLoading, listConversationsQuery.data]);
 
   useEffect(() => {
     if (!activeChat || !activeChat.messages.length) return;
@@ -606,16 +585,25 @@ export const StudyGuruChat = () => {
     "tngtech/deepseek-r1t2-chimera:free",
     "z-ai/glm-4.5-air:free",
     "deepseek/deepseek-r1-0528:free",
-    "qwen/qwen3-coder:free",
     "openrouter/sherlock-think-alpha",
   ];
 
   return (
     <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-72 translate-x-0" : "w-0 -translate-x-full md:translate-x-0 md:w-0"
-          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${sidebarOpen
+            ? "translate-x-0 w-72"
+            : "-translate-x-full w-72 md:w-0 md:translate-x-0"
+          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
       >
         {/* Sidebar Header */}
         <div className="p-4 flex-shrink-0">
@@ -643,7 +631,6 @@ export const StudyGuruChat = () => {
           </div>
 
           {historySearchOpen ? (
-
             <>
               <div className="mb-3">
                 <input
@@ -676,9 +663,9 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* Chat History - Scrollable */}
-        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+        < div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" >
           {/* Recent Section */}
-          <div className="p-4">
+          < div className="p-4" >
             <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
             <div className="space-y-1">
               {[...chats]
@@ -778,10 +765,10 @@ export const StudyGuruChat = () => {
                   </div>
                 ))}
             </div>
-          </div>
+          </div >
 
           {/* Other Chats */}
-          <div className="p-4">
+          < div className="p-4" >
             <div className="space-y-1">
               {chats
                 .filter((chat) => !chat.recent)
@@ -879,8 +866,8 @@ export const StudyGuruChat = () => {
                   </div>
                 ))}
             </div>
-          </div>
-        </div>
+          </div >
+        </div >
 
         <div className="px-4 pt-1 pb-0 flex-shrink-0">
           <div className="space-y-2">
@@ -910,12 +897,12 @@ export const StudyGuruChat = () => {
             <span className="font-medium truncate">{displayName}</span>
           </button>
         </div>
-      </div>
+      </div >
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
+      < div className="flex-1 flex flex-col relative" >
         {/* Top Header */}
-        <div className="h-16 flex items-center px-4">
+        < div className="h-16 flex items-center px-4" >
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -927,10 +914,10 @@ export const StudyGuruChat = () => {
           <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
           </div>
-        </div>
+        </div >
 
         {/* Scrollable Chat Section */}
-        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar">
+        < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
           <div className="max-w-3xl mx-auto space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -1123,10 +1110,10 @@ export const StudyGuruChat = () => {
               </div>
             )}
           </div>
-        </div>
+        </div >
 
         {/* Input Area pinned to bottom of chat column */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6">
+        < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
           <div className="max-w-3xl mx-auto">
             <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3">
@@ -1207,12 +1194,12 @@ export const StudyGuruChat = () => {
               />
             </div>
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
 
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
         SG v33
       </div>
-    </div>
+    </div >
   );
 };

@@ -417,20 +417,22 @@ export const MistakeLogPage = () => {
 
   return (
     <section className="space-y-6 min-w-0">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
-          <h2 className="text-3xl font-semibold text-slate-100">Learn from every slip</h2>
-          <p className="text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Learn from every slip</h1>
+            <p className="text-xs sm:text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
+          </div>
+          <button
+            type="button"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors flex-shrink-0"
+            onClick={() => setChoiceModalOpen(true)}
+          >
+            Log mistake
+          </button>
         </div>
-        <button
-          type="button"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
-          onClick={() => setChoiceModalOpen(true)}
-        >
-          Log mistake
-        </button>
-      </header>
+      </div>
 
       <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
@@ -508,8 +510,8 @@ export const MistakeLogPage = () => {
             key={option.value}
             onClick={() => setSortBy(option.value as any)}
             className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${sortBy === option.value
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+              ? 'bg-blue-500 text-white'
+              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
               }`}
           >
             {option.label}

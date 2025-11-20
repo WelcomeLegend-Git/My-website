@@ -84,7 +84,7 @@ export const QuizHistoryPage = () => {
   // Set AI context for quiz history analysis
   useEffect(() => {
     setAiSection('study');
-    
+
     if (quizzes && quizzes.length > 0) {
       setAiContext({
         type: 'quiz_history',
@@ -111,9 +111,9 @@ export const QuizHistoryPage = () => {
 
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
-    return d.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -148,10 +148,11 @@ export const QuizHistoryPage = () => {
       {/* Header */}
       <div className="mb-8">
         <div className="mb-4 min-w-0">
-          <h1 className="text-3xl font-bold text-white mb-2">Quiz History</h1>
-          <p className="text-slate-400">Track your practice sessions and analyze performance</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Quiz History</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Track and analyze</h1>
+          <p className="text-xs sm:text-sm text-slate-400">Track your practice sessions and analyze performance</p>
         </div>
-        
+
         {/* Stats Summary */}
         {quizzes && quizzes.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -236,7 +237,7 @@ export const QuizHistoryPage = () => {
             {searchQuery ? 'No quizzes found' : 'No quiz history yet'}
           </h3>
           <p className="text-slate-500 mb-6">
-            {searchQuery 
+            {searchQuery
               ? 'Try adjusting your search or filters'
               : 'Start practicing to see your quiz history here'}
           </p>
@@ -261,11 +262,10 @@ export const QuizHistoryPage = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
-                    <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                      quiz.examType === 'mains'
+                    <span className={`px-2 py-1 rounded-lg text-xs font-medium ${quiz.examType === 'mains'
                         ? 'bg-blue-500/20 text-blue-400'
                         : 'bg-purple-500/20 text-purple-400'
-                    }`}>
+                      }`}>
                       {quiz.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'}
                     </span>
                     {quiz.completedAt && (

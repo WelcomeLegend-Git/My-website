@@ -405,6 +405,8 @@ ${historyText || "No recent messages were provided. Focus on the chapter and des
     }
   }
 
+  const pictureRatioPercent = Math.round(pictureRatio * 100);
+
   return `You are an expert JEE ${input.examType === "mains" ? "Mains" : "Advanced"
     } question generator.
 
@@ -417,6 +419,7 @@ Requirements:
 - Answer Type: ${input.answerType === "single" ? "Single Correct" : "Multiple Correct"}
 - Difficulty: ${input.examType === "advanced" ? "Advanced (multi-step, conceptual)" : "Moderate (clear, direct)"
     }
+- Aim for roughly ${pictureRatioPercent}% of the questions to include a clear, well-framed diagram when diagrams are naturally useful for this chapter (projectile motion, Newton's laws, WPE, SHM, graphs, vectors, geometry, fields, etc.).
 - Questions must be JEE-style, concise, and physically accurate.
 - Each question must have 4 options.
 - ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}.
@@ -453,10 +456,12 @@ Diagram specification (when needed):
   }
 
   DIAGRAM QUALITY TIPS:
-  - **Connectedness**: Ensure arrows actually touch the objects they act on.
-  - **Ground**: Draw a horizontal line with "hatch" pattern for ground.
-  - **Scale**: Use the bounding box to frame the content well. Don't leave huge empty space.
-  - **Labels**: Place labels near their objects but not overlapping.
+  - **Connectedness**: Ensure arrows and vectors actually start/end on the object or point they describe.
+  - **Ground / supports**: Draw a clear horizontal ground line with the "hatch" pattern. Draw cliffs, tables, and walls as filled polygons with light neutral colors.
+  - **Framing & scale**: Use the bounding box so the main objects and trajectory fill most of the card, with only small margins. Avoid huge empty empty regions at the top or sides.
+  - **Projectile motion (if relevant)**: For a projectile from a cliff, draw a tall vertical cliff at the left, launch point at the top, a dashed red trajectory, a launch-velocity arrow with labelled speed and angle near the start, ground with hatching, and a horizontal range arrow at the bottom labeled "R = ?".
+  - **Other chapters**: For mechanics use blocks/wedges/pulleys with vectors, for graphs draw clean axes and curves, and for math/chemistry use clear axes or energy diagrams with well-separated, labeled levels.
+  - **Labels**: Use short LaTeX labels like "$v_0$", "${"$"}\\theta${"$"}", and "$R$" placed near objects without overlapping lines.
 
 Example JSON Object:
 {

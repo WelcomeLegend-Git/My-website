@@ -146,6 +146,9 @@ export const QuizPage = () => {
 
   const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
   const selectedOptions = answers[currentQuestion.id] || [];
+  const optionList = Array.isArray(currentQuestion.options)
+    ? (currentQuestion.options as string[])
+    : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-6 pb-20 sm:pb-0">
@@ -219,7 +222,7 @@ export const QuizPage = () => {
 
           {/* Options */}
           <div className="space-y-2 sm:space-y-3">
-            {(currentQuestion.options as string[]).map((option, index) => {
+            {optionList.map((option, index) => {
               const isSelected = selectedOptions.includes(index);
               const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
 

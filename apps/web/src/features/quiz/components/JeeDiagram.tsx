@@ -10,7 +10,7 @@ export type JeeDiagramConfig = {
   points?: { x: number; y: number; name?: string; visible?: boolean }[];
   segments?: { from: number; to: number; strokeColor?: string; strokeWidth?: number; dash?: number }[];
   polylines?: { points: number[]; strokeColor?: string; strokeWidth?: number }[];
-  polygons?: { vertices: number[]; strokeColor?: string; fillColor?: string; strokeWidth?: number }[];
+  polygons?: { vertices?: number[]; strokeColor?: string; fillColor?: string; strokeWidth?: number }[];
   circles?: { center: number; radius: number; strokeColor?: string; fillColor?: string }[];
   arcs?: { center: number; from: number; to: number; strokeColor?: string; strokeWidth?: number }[];
   fieldRegions?: { x1: number; y1: number; x2: number; y2: number; pattern: 'cross' | 'dot' | 'hatch'; density?: number }[];
@@ -218,7 +218,10 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
 
             {/* Polygons - Enhanced styling */}
             {(cfg.polygons || []).map((poly, i) => {
-              const pts = poly.vertices.map(idx => getPt(idx)).map(p => `${p.x},${p.y}`).join(' ');
+              const vertices = Array.isArray(poly.vertices) ? poly.vertices : [];
+              if (vertices.length === 0) return null;
+
+              const pts = vertices.map(idx => getPt(idx)).map(p => `${p.x},${p.y}`).join(' ');
               return (
                 <polygon
                   key={`poly-${i}`}

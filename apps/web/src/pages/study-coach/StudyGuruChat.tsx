@@ -7,6 +7,7 @@ import "katex/dist/katex.min.css";
 import { trpc } from "../../lib/trpc";
 import { useNavigate } from "react-router-dom";
 import { QuizConfigForm, type QuizConfig } from "../../features/quiz/components/QuizConfigForm";
+import { GlowSelect } from "../../components/ui/GlowSelect";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -126,6 +127,16 @@ type ModelId =
   | "qwen/qwen3-coder:free"
   | "z-ai/glm-4.5-air:free";
 
+const modelLabels: Record<ModelId, string> = {
+  "gemini-2.5-flash": "Gemini 2.5 Flash",
+  "gemini-2.5-pro": "Gemini 2.5 Pro",
+  "openrouter/sherlock-think-alpha": "Sherlock Think Alpha",
+  "tngtech/deepseek-r1t2-chimera:free": "DeepSeek R1T2 Chimera",
+  "deepseek/deepseek-r1-0528:free": "DeepSeek: R1 0528",
+  "qwen/qwen3-coder:free": "Qwen3 Coder 480B A35B",
+  "z-ai/glm-4.5-air:free": "GLM-4.5 Air",
+};
+
 type Chat = {
   id: number;
   title: string;
@@ -182,7 +193,6 @@ export const StudyGuruChat = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.5-flash");
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
   const [quizChapter, setQuizChapter] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
@@ -854,38 +864,21 @@ export const StudyGuruChat = () => {
         </div>
 
         <div className="px-4 pt-1 pb-0 flex-shrink-0">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsModelMenuOpen((prev) => !prev)}
-              className="w-full inline-flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs text-slate-100 hover:border-primary/70 hover:bg-slate-900 transition"
-            >
-              <span className="text-sm font-medium uppercase tracking-wide text-slate-100">Model</span>
-              <span className="flex-1 text-right truncate text-xs sm:text-[13px] text-slate-100">
-                {selectedModel}
-              </span>
-            </button>
-            {isModelMenuOpen && (
-              <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl bg-slate-950/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs text-slate-100 z-30">
-                {modelOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setSelectedModel(option);
-                      setIsModelMenuOpen(false);
-                    }}
-                    className={`w-full px-3 py-1.5 text-left truncate transition ${
-                      selectedModel === option
-                        ? "bg-slate-800/90 text-primary"
-                        : "hover:bg-slate-800/70"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Model</label>
+            <GlowSelect
+              id="study-guru-model"
+              value={selectedModel}
+              onChange={(nextValue) => setSelectedModel(nextValue as ModelId)}
+              options={modelOptions.map((option) => ({
+                value: option,
+                label: modelLabels[option] ?? option,
+              }))}
+              placeholder="Select model"
+              placement="top"
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
+            />
           </div>
         </div>
 

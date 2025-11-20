@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type SVGProps, type ChangeEvent } from "re
 import { useAuth } from "../../app/providers/AuthProvider";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { trpc } from "../../lib/trpc";
@@ -613,7 +614,8 @@ export const StudyGuruChat = () => {
     <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-72" : "w-0"} bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${sidebarOpen ? "w-72 translate-x-0" : "w-0 -translate-x-full md:translate-x-0 md:w-0"
+          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         {/* Sidebar Header */}
         <div className="p-4 flex-shrink-0">
@@ -1013,7 +1015,7 @@ export const StudyGuruChat = () => {
                         <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
                         <div>
                           <ReactMarkdown
-                            remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
+                            remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
                             rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                             className="prose prose-invert prose-sm max-w-none text-slate-100 leading-relaxed"
                             components={{
@@ -1056,6 +1058,24 @@ export const StudyGuruChat = () => {
                               ),
                               hr: ({ node, ...props }) => (
                                 <hr className="my-4 border-slate-700" {...props} />
+                              ),
+                              table: ({ node, ...props }) => (
+                                <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
+                                  <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                                </div>
+                              ),
+                              thead: ({ node, ...props }) => (
+                                <thead className="bg-slate-900/80" {...props} />
+                              ),
+                              tbody: ({ node, ...props }) => <tbody {...props} />,
+                              tr: ({ node, ...props }) => (
+                                <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                              ),
+                              th: ({ node, ...props }) => (
+                                <th className="px-3 py-2 font-semibold text-slate-100" {...props} />
+                              ),
+                              td: ({ node, ...props }) => (
+                                <td className="px-3 py-2 align-top text-slate-200" {...props} />
                               ),
                             }}
                           >

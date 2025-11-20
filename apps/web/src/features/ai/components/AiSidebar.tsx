@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from "../../../lib/trpc";
@@ -661,7 +662,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
               </div>
               <div className="prose prose-invert prose-sm max-w-none">
                 <ReactMarkdown
-                  remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
+                  remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
                   rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                   className="text-slate-200 leading-relaxed"
                   components={{
@@ -686,6 +687,25 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                     em: ({node, ...props}) => <em className="italic text-slate-300" {...props} />,
                     // Style horizontal rules
                     hr: ({node, ...props}) => <hr className="my-4 border-slate-700" {...props} />,
+                    // Tables
+                    table: ({node, ...props}) => (
+                      <div className="my-4 w-full overflow-x-auto rounded-xl border border-emerald-500/30 bg-slate-950/70">
+                        <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                      </div>
+                    ),
+                    thead: ({node, ...props}) => (
+                      <thead className="bg-emerald-900/40" {...props} />
+                    ),
+                    tbody: ({node, ...props}) => <tbody {...props} />,
+                    tr: ({node, ...props}) => (
+                      <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                    ),
+                    th: ({node, ...props}) => (
+                      <th className="px-3 py-2 font-semibold text-emerald-100" {...props} />
+                    ),
+                    td: ({node, ...props}) => (
+                      <td className="px-3 py-2 align-top text-slate-100" {...props} />
+                    ),
                   }}
                 >
                   {ensureMathDelimiters(message.content)}

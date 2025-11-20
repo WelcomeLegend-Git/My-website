@@ -85,7 +85,7 @@ export const ShellLayout = () => {
           JSON.stringify({ p: location.pathname, c: aiContext })
         );
       }
-    } catch {}
+    } catch { }
   }, [aiContext, aiSection, location.pathname]);
 
   // Restore last known context when opening mentor on mobile/tablet
@@ -95,7 +95,7 @@ export const ShellLayout = () => {
       // Only apply on < lg screens
       const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
       if (isDesktop) return;
-    } catch {}
+    } catch { }
 
     if (!aiContext) {
       try {
@@ -106,7 +106,7 @@ export const ShellLayout = () => {
             setAiContext(parsed.c as Record<string, unknown>);
           }
         }
-      } catch {}
+      } catch { }
     }
   }, [aiOpen, aiContext, aiSection, setAiContext, location.pathname]);
 
@@ -124,7 +124,7 @@ export const ShellLayout = () => {
       try {
         await autoBackupMutation.mutateAsync();
         await backupStatusQuery.refetch();
-      } catch {}
+      } catch { }
     };
 
     const intervalId = window.setInterval(() => {
@@ -142,7 +142,7 @@ export const ShellLayout = () => {
     try {
       localStorage.removeItem('ai_conversation_v2');
       clearChatSignal.current += 1;
-    } catch {}
+    } catch { }
   };
 
 
@@ -181,7 +181,7 @@ export const ShellLayout = () => {
       )}
 
       <InstallPrompt />
-      
+
       <div className="relative flex flex-1 flex-col min-h-0 z-10">
         {/* Modern Header with Glassmorphism */}
         <header className="sticky top-0 z-40 border-b border-slate-800/50 glass backdrop-blur-xl fade-in-down">
@@ -196,7 +196,7 @@ export const ShellLayout = () => {
                     <h1 className="text-[14px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
                   </div>
                 </div>
-                
+
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center gap-2">
                   {navItems.map((item) => (
@@ -204,19 +204,17 @@ export const ShellLayout = () => {
                       key={item.to}
                       to={item.to}
                       className={({ isActive }) =>
-                        `group relative px-4 py-2.5 rounded-xl transition-all duration-300 hover-lift ${
-                          isActive
-                            ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
-                            : "border border-transparent hover:border-slate-700/50"
+                        `group relative px-4 py-2.5 rounded-xl transition-all duration-300 hover-lift ${isActive
+                          ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
+                          : "border border-transparent hover:border-slate-700/50"
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <div className="relative">
                           <div className="flex flex-col">
-                            <span className={`text-sm font-semibold transition-colors ${
-                              isActive ? "text-primary" : "text-slate-300 group-hover:text-slate-100"
-                            }`}>
+                            <span className={`text-sm font-semibold transition-colors ${isActive ? "text-primary" : "text-slate-300 group-hover:text-slate-100"
+                              }`}>
                               {item.label}
                             </span>
                             <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
@@ -240,13 +238,12 @@ export const ShellLayout = () => {
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
-                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${
-                    !showMentor
-                      ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
-                      : aiOpen
+                  className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${!showMentor
+                    ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                    : aiOpen
                       ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
                       : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
-                  }`}
+                    }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -362,13 +359,12 @@ export const ShellLayout = () => {
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
-                  className={`lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${
-                    !showMentor
-                      ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
-                      : aiOpen
+                  className={`lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${!showMentor
+                    ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                    : aiOpen
                       ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
                       : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
-                  }`}
+                    }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -379,33 +375,33 @@ export const ShellLayout = () => {
             </div>
 
             {/* Mobile Navigation */}
-            <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
-              <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all ${
-                        isActive
+            {!isStudyCoach && (
+              <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all ${isActive
                           ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
                           : "border border-transparent hover:border-slate-700/50"
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <div>
-                        <span className={`text-xs sm:text-sm font-semibold ${
-                          isActive ? "text-primary" : "text-slate-300"
-                        }`}>
-                          {item.label}
-                        </span>
-                      </div>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
-            </nav>
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <div>
+                          <span className={`text-xs sm:text-sm font-semibold ${isActive ? "text-primary" : "text-slate-300"
+                            }`}>
+                            {item.label}
+                          </span>
+                        </div>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              </nav>
+            )}
           </div>
         </header>
 

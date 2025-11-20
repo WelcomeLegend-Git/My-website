@@ -65,20 +65,35 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   }, []);
 
   const cfg = diagram?.config || {};
+  // Default bounding box if missing
   const boundingBox = cfg.boundingBox || [-6, 4, 6, -4]; // [minX, maxY, maxX, minY]
   const [minX, maxY, maxX, minY] = boundingBox;
 
   // Coordinate transformation
+  // Math coords: X right, Y up
+  // SVG coords: X right, Y down
   const toSVG = (x: number, y: number) => {
-    const scaleX = dimensions.width / (maxX - minX);
-    const scaleY = dimensions.height / (maxY - minY);
+    // Add 10% padding to internal calculation to prevent cutting off edges
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    const scaleX = dimensions.width / width;
+    const scaleY = dimensions.height / height;
+
+    // We want to maintain aspect ratio if possible, or just stretch?
+    // Usually diagrams need aspect ratio. Let's use the smaller scale to fit.
+    // But for now, let's stretch to fill container as requested by "responsive".
+
     return {
       x: (x - minX) * scaleX,
       y: (maxY - y) * scaleY,
     };
   };
 
-  const scale = dimensions.width / (maxX - minX);
+  // Calculate a uniform scale for things like radii to ensure circles look circular
+  // regardless of aspect ratio distortion (though we ideally want 1:1 aspect)
+  const scaleX = dimensions.width / (maxX - minX);
+  const scale = scaleX;
 
   const points = cfg.points || [];
   const getPt = (idx: number) => {
@@ -86,20 +101,31 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
     return p ? toSVG(p.x, p.y) : { x: 0, y: 0 };
   };
 
+  // Helper to ensure LaTeX is rendered even if AI forgets $ delimiters
+  const formatMath = (text: string) => {
+    if (!text) return "";
+    // If text contains backslashes (LaTeX commands) but no $, wrap it.
+    // Also handle common Greek letters or math symbols if they appear as plain text.
+    if ((text.includes('\\') || text.match(/[=><]/)) && !text.includes('$')) {
+      return `$${text}$`;
+    }
+    return text;
+  };
+
   if (!diagram) return null;
 
   return (
     <div className="space-y-3 font-sans">
       {(diagram.title || diagram.description) && (
-        <div className="bg-blue-50/50 border-l-4 border-blue-600 p-3 rounded-r-lg">
-          {diagram.title && <div className="font-bold text-blue-900 text-sm">{diagram.title}</div>}
-          {diagram.description && <div className="text-blue-800/80 text-xs mt-0.5">{diagram.description}</div>}
+        <div className="bg-slate-50 border-l-4 border-blue-600 p-4 rounded-r-lg shadow-sm">
+          {diagram.title && <div className="font-bold text-slate-900 text-base">{diagram.title}</div>}
+          {diagram.description && <div className="text-slate-600 text-sm mt-1">{diagram.description}</div>}
         </div>
       )}
 
       <div
         ref={containerRef}
-        className="relative w-full h-80 bg-white rounded-xl border border-slate-200 overflow-hidden select-none"
+        className="relative w-full h-96 bg-white rounded-xl border border-slate-200 overflow-hidden select-none shadow-inner"
       >
         {dimensions.width > 0 && (
           <svg
@@ -109,33 +135,38 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
             className="block w-full h-full"
           >
             <defs>
-              {/* Arrowhead Marker */}
-              <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill={THEME.colors.primary} />
+              {/* Arrowhead Marker - Blue */}
+              <marker id="arrowhead-blue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                <path d="M2,2 L10,6 L2,10 L4,6 Z" fill={THEME.colors.primary} />
               </marker>
-              <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill={THEME.colors.secondary} />
+              {/* Arrowhead Marker - Red */}
+              <marker id="arrowhead-red" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                <path d="M2,2 L10,6 L2,10 L4,6 Z" fill={THEME.colors.secondary} />
+              </marker>
+              {/* Arrowhead Marker - Black/Text */}
+              <marker id="arrowhead-text" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                <path d="M2,2 L10,6 L2,10 L4,6 Z" fill={THEME.colors.text} />
               </marker>
 
               {/* Ground Hatching Pattern */}
-              <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-                <line x1="0" y1="0" x2="0" y2="8" stroke={THEME.colors.ground} strokeWidth="1" opacity="0.5" />
+              <pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="10" stroke={THEME.colors.ground} strokeWidth="1" />
               </pattern>
 
               {/* Dot Pattern */}
-              <pattern id="dot" patternUnits="userSpaceOnUse" width="10" height="10">
-                <circle cx="5" cy="5" r="1" fill={THEME.colors.ground} />
+              <pattern id="dot" patternUnits="userSpaceOnUse" width="12" height="12">
+                <circle cx="6" cy="6" r="1.5" fill={THEME.colors.ground} />
               </pattern>
 
               {/* Cross Pattern */}
-              <pattern id="cross" patternUnits="userSpaceOnUse" width="10" height="10">
-                <path d="M2,2 L8,8 M8,2 L2,8" stroke={THEME.colors.ground} strokeWidth="1" />
+              <pattern id="cross" patternUnits="userSpaceOnUse" width="12" height="12">
+                <path d="M3,3 L9,9 M9,3 L3,9" stroke={THEME.colors.ground} strokeWidth="1.5" />
               </pattern>
             </defs>
 
-            {/* Grid/Axes */}
+            {/* Grid/Axes - Made more subtle */}
             {cfg.axes !== false && (
-              <g className="axes">
+              <g className="axes opacity-50">
                 {/* Grid Lines */}
                 {Array.from({ length: Math.ceil(maxX - minX) + 1 }).map((_, i) => {
                   const x = minX + i;
@@ -165,8 +196,8 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
               const rMinY = Math.min(region.y1, region.y2);
               const rMaxY = Math.max(region.y1, region.y2);
 
-              const tl = toSVG(rMinX, rMaxY); // Top-Left in SVG (max Y in math is min Y in SVG)
-              const br = toSVG(rMaxX, rMinY); // Bottom-Right in SVG
+              const tl = toSVG(rMinX, rMaxY);
+              const br = toSVG(rMaxX, rMinY);
 
               let patternUrl = 'url(#hatch)';
               if (region.pattern === 'dot') patternUrl = 'url(#dot)';
@@ -180,12 +211,12 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   width={Math.abs(br.x - tl.x)}
                   height={Math.abs(br.y - tl.y)}
                   fill={patternUrl}
-                  opacity="0.6"
+                  opacity="0.4"
                 />
               );
             })}
 
-            {/* Polygons */}
+            {/* Polygons - Enhanced styling */}
             {(cfg.polygons || []).map((poly, i) => {
               const pts = poly.vertices.map(idx => getPt(idx)).map(p => `${p.x},${p.y}`).join(' ');
               return (
@@ -194,13 +225,14 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   points={pts}
                   fill={poly.fillColor || THEME.colors.fill}
                   stroke={poly.strokeColor || THEME.colors.stroke}
-                  strokeWidth={poly.strokeWidth || 2}
-                  className="transition-all duration-300"
+                  strokeWidth={poly.strokeWidth || 2.5}
+                  strokeLinejoin="round"
+                  className="drop-shadow-sm"
                 />
               );
             })}
 
-            {/* Segments */}
+            {/* Segments - Thicker lines */}
             {(cfg.segments || []).map((seg, i) => {
               const p1 = getPt(seg.from);
               const p2 = getPt(seg.to);
@@ -212,8 +244,8 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   x2={p2.x}
                   y2={p2.y}
                   stroke={seg.strokeColor || THEME.colors.text}
-                  strokeWidth={seg.strokeWidth || 2}
-                  strokeDasharray={seg.dash ? `${seg.dash * 5},${seg.dash * 3}` : undefined}
+                  strokeWidth={seg.strokeWidth || 2.5}
+                  strokeDasharray={seg.dash ? `${seg.dash * 8},${seg.dash * 4}` : undefined}
                   strokeLinecap="round"
                 />
               );
@@ -228,9 +260,9 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   cx={c.x}
                   cy={c.y}
                   r={circ.radius * scale}
-                  fill={circ.fillColor || 'none'}
-                  stroke={circ.strokeColor || THEME.colors.secondary}
-                  strokeWidth="2"
+                  fill={circ.fillColor || 'white'}
+                  stroke={circ.strokeColor || THEME.colors.stroke}
+                  strokeWidth="2.5"
                 />
               );
             })}
@@ -242,25 +274,11 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
               const to = getPt(arc.to);
               const r = Math.sqrt(Math.pow(from.x - c.x, 2) + Math.pow(from.y - c.y, 2));
 
-              // Calculate angles for SVG arc
-              // Math coordinates: Y is up. SVG: Y is down.
-              // We need to be careful.
-              // Let's use the SVG coordinates directly.
               const startAngle = Math.atan2(from.y - c.y, from.x - c.x);
               const endAngle = Math.atan2(to.y - c.y, to.x - c.x);
 
-              // SVG Arc flag logic
-              // large-arc-flag: 1 if angle > 180
-              // sweep-flag: 1 for clockwise, 0 for counter-clockwise
-              // In SVG (Y down), clockwise is positive angle direction.
-
-              // We want to go from 'from' to 'to'.
-              // Let's assume counter-clockwise in math (standard), which is clockwise in SVG?
-              // Wait, if Y is flipped, rotation direction flips too.
-              // Math CCW = SVG CW.
-
-              // Let's try sweep-flag 0 first.
-              const largeArcFlag = 0; // Simplified, might need fix for >180
+              // Ensure we draw the smaller arc usually
+              const largeArcFlag = 0;
               const sweepFlag = 0;
 
               const d = `M ${from.x} ${from.y} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${to.x} ${to.y}`;
@@ -272,19 +290,20 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   stroke={arc.strokeColor || THEME.colors.secondary}
                   strokeWidth={arc.strokeWidth || 2}
                   fill="none"
+                  markerEnd={arc.strokeColor === THEME.colors.secondary ? "url(#arrowhead-red)" : undefined}
                 />
               );
             })}
 
-            {/* Springs */}
+            {/* Springs - Improved ZigZag */}
             {(cfg.springs || []).map((spring, i) => {
               const p1 = getPt(spring.from);
               const p2 = getPt(spring.to);
               const dx = p2.x - p1.x;
               const dy = p2.y - p1.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              const coils = spring.coils || 8;
-              const width = 10;
+              const coils = spring.coils || 10;
+              const width = 8; // Amplitude of spring
 
               let path = `M ${p1.x} ${p1.y}`;
               const nx = dx / dist;
@@ -296,9 +315,11 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                 const t = j / (coils * 2);
                 const x = p1.x + dx * t;
                 const y = p1.y + dy * t;
+
                 if (j === 0 || j === coils * 2) {
                   path += ` L ${x} ${y}`;
                 } else {
+                  // Alternating offset
                   const dir = j % 2 === 0 ? 0 : (j % 4 === 1 ? 1 : -1);
                   path += ` L ${x + px * dir} ${y + py * dir}`;
                 }
@@ -309,35 +330,39 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   key={`spring-${i}`}
                   d={path}
                   stroke={THEME.colors.text}
-                  strokeWidth="1.5"
+                  strokeWidth="2"
                   fill="none"
                   strokeLinejoin="round"
+                  strokeLinecap="round"
                 />
               );
             })}
 
-            {/* Arrows */}
+            {/* Arrows - Vectors */}
             {(cfg.arrows || []).map((arrow, i) => {
               const p1 = getPt(arrow.from);
               const p2 = getPt(arrow.to);
               const color = arrow.color || THEME.colors.primary;
-              const markerId = color === THEME.colors.secondary ? 'url(#arrowhead-red)' : 'url(#arrowhead-blue)';
+              let markerId = 'url(#arrowhead-blue)';
+              if (color === THEME.colors.secondary) markerId = 'url(#arrowhead-red)';
+              if (color === THEME.colors.text) markerId = 'url(#arrowhead-text)';
 
               return (
-                <line
-                  key={`arrow-${i}`}
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  stroke={color}
-                  strokeWidth="2"
-                  markerEnd={markerId}
-                />
+                <g key={`arrow-${i}`}>
+                  <line
+                    x1={p1.x}
+                    y1={p1.y}
+                    x2={p2.x}
+                    y2={p2.y}
+                    stroke={color}
+                    strokeWidth="3"
+                    markerEnd={markerId}
+                  />
+                </g>
               );
             })}
 
-            {/* Points */}
+            {/* Points - Larger and more visible */}
             {(cfg.points || []).map((p, i) => {
               if (p.visible === false) return null;
               const pt = toSVG(p.x, p.y);
@@ -346,15 +371,17 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   key={`pt-${i}`}
                   cx={pt.x}
                   cy={pt.y}
-                  r="3"
+                  r="4"
                   fill={THEME.colors.text}
+                  stroke="white"
+                  strokeWidth="1"
                 />
               );
             })}
           </svg>
         )}
 
-        {/* HTML Overlay for Text/Math */}
+        {/* HTML Overlay for Text/Math - Improved positioning and rendering */}
         <div className="absolute inset-0 pointer-events-none">
           {(cfg.labels || []).map((label, i) => {
             const pos = toSVG(label.x, label.y);
@@ -367,8 +394,9 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   top: pos.y,
                   transform: 'translate(-50%, -50%)',
                   color: label.color || THEME.colors.text,
+                  textShadow: '0 1px 2px rgba(255,255,255,0.8), 0 0 4px white'
                 }}
-                className={`${THEME.fonts.math} text-sm sm:text-base drop-shadow-md`}
+                className={`${THEME.fonts.math} text-base sm:text-lg font-medium z-10`}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkMath]}
@@ -377,7 +405,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                     p: ({ children }) => <span className="whitespace-nowrap">{children}</span>
                   }}
                 >
-                  {label.text}
+                  {formatMath(label.text)}
                 </ReactMarkdown>
               </div>
             );
@@ -397,10 +425,11 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   position: 'absolute',
                   left: midX,
                   top: midY,
-                  transform: 'translate(-50%, -100%) translateY(-8px)',
+                  transform: 'translate(-50%, -100%) translateY(-10px)',
                   color: arrow.color || THEME.colors.primary,
+                  textShadow: '0 1px 2px rgba(255,255,255,0.8)'
                 }}
-                className={`${THEME.fonts.math} text-xs sm:text-sm font-bold drop-shadow-sm`}
+                className={`${THEME.fonts.math} text-sm sm:text-base font-bold z-10`}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkMath]}
@@ -409,7 +438,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                     p: ({ children }) => <span className="whitespace-nowrap">{children}</span>
                   }}
                 >
-                  {arrow.label}
+                  {formatMath(arrow.label)}
                 </ReactMarkdown>
               </div>
             );

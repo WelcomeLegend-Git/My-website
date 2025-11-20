@@ -426,7 +426,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
   const containerClass =
     variant === "mobile"
       ? "relative flex h-full w-full flex-col glass-card p-4"
-      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card px-4 py-4 lg:flex fade-in-right sticky top-20 max-h-[calc(100vh-5rem)] self-start";
+      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card px-4 py-4 lg:flex fade-in-right sticky top-20 lg:h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] self-start";
 
   return (
     <>

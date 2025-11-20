@@ -249,7 +249,7 @@ export const StudyGuruChat = () => {
           setSelectedModel(parsed.selectedModel);
         }
       }
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -261,7 +261,7 @@ export const StudyGuruChat = () => {
         lastUpdated: Date.now(),
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
-    } catch {}
+    } catch { }
   }, [chats, activeChatId, selectedModel]);
 
   useEffect(() => {
@@ -388,9 +388,9 @@ export const StudyGuruChat = () => {
       prev.map((c) =>
         c.id === id
           ? {
-              ...c,
-              title: trimmedTitle,
-            }
+            ...c,
+            title: trimmedTitle,
+          }
           : c
       )
     );
@@ -450,17 +450,17 @@ export const StudyGuruChat = () => {
         prevChats.map((chat) =>
           chat.id === activeChatId
             ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  { role: "user", content: trimmed },
-                  {
-                    role: "assistant",
-                    content:
-                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
-                  },
-                ],
-              }
+              ...chat,
+              messages: [
+                ...chat.messages,
+                { role: "user", content: trimmed },
+                {
+                  role: "assistant",
+                  content:
+                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                },
+              ],
+            }
             : chat
         )
       );
@@ -478,9 +478,9 @@ export const StudyGuruChat = () => {
       prevChats.map((chat) =>
         chat.id === activeChatId
           ? {
-              ...chat,
-              messages: chatHistory,
-            }
+            ...chat,
+            messages: chatHistory,
+          }
           : chat
       )
     );
@@ -560,8 +560,8 @@ export const StudyGuruChat = () => {
         typeof config.pictureQuestionRatio === "number"
           ? Math.max(0, Math.min(1, config.pictureQuestionRatio))
           : config.examType === "advanced"
-          ? 0.3
-          : 0.2,
+            ? 0.3
+            : 0.2,
     };
 
     quizMutation.mutate({
@@ -690,19 +690,17 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center gap-2 rounded-full px-2 ${
-                      activeChatId === chat.id
-                        ? "bg-slate-800/80"
-                        : "hover:bg-slate-800/40"
-                    }`}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
+                      }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${
-                        activeChatId === chat.id
-                          ? "text-slate-100"
-                          : "text-slate-300 group-hover:text-slate-100"
-                      }`}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -793,19 +791,17 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center gap-2 rounded-full px-2 ${
-                      activeChatId === chat.id
-                        ? "bg-slate-800/80"
-                        : "hover:bg-slate-800/40"
-                    }`}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
+                      }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${
-                        activeChatId === chat.id
-                          ? "text-slate-100"
-                          : "text-slate-300 group-hover:text-slate-100"
-                      }`}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -1074,9 +1070,18 @@ export const StudyGuruChat = () => {
             )}
             {activeChat && isGenerating && (
               <div className="flex justify-start">
-                <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-3 max-w-xs shadow-lg shadow-slate-900/60 flex items-center gap-3 text-xs text-slate-300">
-                  <span className="w-4 h-4 border-2 border-emerald-400/70 border-t-transparent rounded-full animate-spin" />
-                  <span>Study Guru is thinking...</span>
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
+                  <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/90 rounded-2xl border border-slate-800/50 shadow-2xl backdrop-blur-xl">
+                    <div className="relative flex items-center justify-center w-6 h-6">
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 border-r-blue-500 animate-spin [animation-duration:1.5s]" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-purple-500 border-b-pink-500 animate-spin [animation-duration:1s] [animation-direction:reverse]" />
+                      <div className="absolute inset-1.5 rounded-full bg-cyan-500/20 animate-pulse" />
+                    </div>
+                    <span className="text-sm font-medium bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent animate-pulse">
+                      Study Guru is thinking...
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1140,11 +1145,10 @@ export const StudyGuruChat = () => {
                 <button
                   type="button"
                   onClick={toggleRecording}
-                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${
-                    isRecording
-                      ? "border-primary/80 bg-primary/10 text-primary"
-                      : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
-                  }`}
+                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${isRecording
+                    ? "border-primary/80 bg-primary/10 text-primary"
+                    : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
+                    }`}
                   title="Voice input (UI only)"
                 >
                   <Mic className="w-4 h-4" />

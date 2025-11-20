@@ -28,19 +28,102 @@ export const quizRouter = router({
           hasContext: !!input.context,
         });
 
-        // Build prompt based on context and configuration
-        const prompt = buildQuizPrompt(input);
-        console.log('Generated prompt length:', prompt.length);
+        // Determine if we should parallelize
+        const keyCount = geminiClient.keyCount;
+        const shouldParallelize = input.questionCount > 5 && keyCount > 1;
 
-        // Use geminiClient with premium-only mode (gemini-2.5-pro only)
-        const result = await geminiClient.generate({
-          prompt,
-          usePremiumOnly: true // Only use gemini-2.5-pro with all API keys
-        });
-        console.log('Gemini response received, length:', result.text.length, 'model:', result.model);
+        let questions: any[] = [];
 
-        // Parse the generated questions
-        const questions = parseQuizQuestions(result.text, input);
+        if (shouldParallelize) {
+          // Calculate chunks
+          // User requested to use 4 keys if available. 
+          // We will use up to keyCount keys.
+          const numChunks = Math.min(keyCount, 4); // Cap at 4 or keyCount
+          const questionsPerChunk = Math.ceil(input.questionCount / numChunks);
+
+          console.log(`Parallelizing quiz generation: ${input.questionCount} questions across ${numChunks} chunks using ${keyCount} available keys.`);
+
+          const chunkPromises = [];
+          for (let i = 0; i < numChunks; i++) {
+            // Calculate exact number of questions for this chunk to handle remainders
+            const startIdx = i * questionsPerChunk;
+            if (startIdx >= input.questionCount) break;
+
+            const endIdx = Math.min((i + 1) * questionsPerChunk, input.questionCount);
+            const chunkCount = endIdx - startIdx;
+
+            if (chunkCount <= 0) continue;
+
+            // Create a modified input for this chunk
+            const chunkInput = { ...input, questionCount: chunkCount };
+            const prompt = buildQuizPrompt(chunkInput);
+
+            // Launch parallel request with forced key index
+            // We use 'i' as the forceKeyIndex to ensure distribution
+            chunkPromises.push(
+              geminiClient.generate({
+                prompt,
+                usePremiumOnly: true,
+                forceKeyIndex: i
+              }).then(result => ({ status: 'fulfilled', value: result, count: chunkCount }))
+                .catch(error => ({ status: 'rejected', reason: error, count: chunkCount }))
+            );
+          }
+
+          const results = await Promise.all(chunkPromises);
+
+          // Process results
+          for (const res of results) {
+            if (res.status === 'fulfilled') {
+              const chunkQuestions = parseQuizQuestions((res as any).value.text, { ...input, questionCount: (res as any).count });
+              questions = [...questions, ...chunkQuestions];
+            } else {
+              console.error('Chunk generation failed:', (res as any).reason);
+              // If a chunk failed, we could retry or just accept partial results?
+              // User said: "if 2 failed then 2 work...". 
+              // Ideally we should retry failed chunks with remaining keys, but for now let's throw if total failure,
+              // or maybe try to generate missing questions with a single call?
+              // Let's try a simple fallback: if chunk failed, try one more time with NO forced key (let rotation handle it)
+              try {
+                console.log('Retrying failed chunk...');
+                const retryCount = (res as any).count;
+                const retryInput = { ...input, questionCount: retryCount };
+                const retryPrompt = buildQuizPrompt(retryInput);
+                const retryResult = await geminiClient.generate({
+                  prompt: retryPrompt,
+                  usePremiumOnly: true
+                  // No forceKeyIndex, let it find a working key
+                });
+                const retryQuestions = parseQuizQuestions(retryResult.text, retryInput);
+                questions = [...questions, ...retryQuestions];
+              } catch (retryError) {
+                console.error('Retry also failed:', retryError);
+                // We will proceed with whatever questions we have, or throw if 0?
+              }
+            }
+          }
+        } else {
+          // Standard single-request generation
+          const prompt = buildQuizPrompt(input);
+          console.log('Generated prompt length:', prompt.length);
+
+          const result = await geminiClient.generate({
+            prompt,
+            usePremiumOnly: true
+          });
+          console.log('Gemini response received, length:', result.text.length, 'model:', result.model);
+
+          questions = parseQuizQuestions(result.text, input);
+        }
+
+        if (questions.length === 0) {
+          throw new Error("Failed to generate any questions.");
+        }
+
+        // Trim to exact requested count if we got extra (due to chunk rounding)
+        if (questions.length > input.questionCount) {
+          questions = questions.slice(0, input.questionCount);
+        }
 
         // Determine source type from context
         let sourceType: string = 'formula';

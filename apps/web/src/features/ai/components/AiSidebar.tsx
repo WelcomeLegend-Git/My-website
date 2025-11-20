@@ -425,8 +425,8 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
 
   const containerClass =
     variant === "mobile"
-      ? "relative flex h-full w-full flex-col glass-card p-5"
-      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card p-5 lg:flex fade-in-right sticky top-0 h-screen self-start";
+      ? "relative flex h-full w-full flex-col glass-card p-4"
+      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card px-4 py-4 lg:flex fade-in-right sticky top-20 max-h-[calc(100vh-5rem)] self-start";
 
   return (
     <>
@@ -434,7 +434,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       
       <aside className={containerClass}>
       {/* Header with gradient accent - Fixed at top */}
-      <div className="relative mb-5 flex-shrink-0">
+      <div className="relative mb-3 flex-shrink-0">
         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
         <div className="relative glass-card rounded-2xl p-4 border border-emerald-500/20">
           {/* History trigger hidden visually (kept for future use) */}
@@ -734,7 +734,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       </div>
 
       {/* Input Form - Fixed at bottom */}
-      <form onSubmit={handleSubmit} className="mt-5 space-y-3 flex-shrink-0">
+      <form onSubmit={handleSubmit} className="mt-3 space-y-2 flex-shrink-0">
         {pageLabel && (
           <div className="flex items-center justify-between text-[11px] text-emerald-300/80">
             <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 max-w-full">
@@ -749,7 +749,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            rows={3}
+            rows={2}
             disabled={!isVerified || quizMutation.isPending}
             className="w-full resize-none rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder={isVerified ? "Ask the mentor anything..." : "Verify access to use AI Mentor..."}

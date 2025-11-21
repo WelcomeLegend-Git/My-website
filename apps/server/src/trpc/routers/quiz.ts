@@ -447,11 +447,15 @@ Diagram specification (when needed):
     }
   }
 
-  IMPORTANT DIAGRAM RULES:
-  - Use "arrows" for all vectors, forces, and rays.
-  - Use LaTeX for labels (e.g., "\\( F_{net} \\)").
-  - Use light fills for polygons (bodies/blocks).
-  - Make diagrams professional and not too simple.
+  IMPORTANT DIAGRAM STYLE (MATCH REAL JEE ADVANCED PAPERS):
+  - All diagrams must be clean BLACK-AND-WHITE line art (no colors, no gradients, no photos or realistic images).
+  - Use thin, uniform stroke width for all objects.
+  - Use "arrows" for all vectors, forces, and rays, like in JEE figures.
+  - Use LaTeX for labels (e.g., "\\( F_{\\text{net}} \\)", "\\vec{B}", "\\mathbb{R}").
+  - Use hatching via "fieldRegions" for regions like uniform B or shaded areas; do NOT use solid gray fills.
+  - Graphs must have clearly labelled axes with arrowheads and important tick labels (0, \\pi/\\omega, etc.).
+  - Circuit diagrams must use standard textbook symbols for resistors, inductors, capacitors, and AC sources, arranged neatly.
+  - Diagrams should be at exam-level quality: simple but precise, with no decorative UI elements.
 
 CRITICAL JSON FORMATTING RULES:
 1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text.

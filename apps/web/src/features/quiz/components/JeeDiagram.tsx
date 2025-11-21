@@ -30,14 +30,14 @@ export type JeeDiagramSpec = {
 const THEME = {
   colors: {
     background: '#ffffff',
-    grid: '#f1f5f9', // slate-100
-    axis: '#94a3b8', // slate-400
-    text: '#1e293b', // slate-800
-    primary: '#1e3a8a', // blue-900 (Gemini style)
-    secondary: '#dc2626', // red-600
-    fill: '#e0f2fe', // sky-100 (Gemini object fill)
-    stroke: '#1e3a8a', // blue-900
-    ground: '#94a3b8', // slate-400
+    grid: '#e5e7eb', // light gray grid when axes are shown
+    axis: '#000000', // black axes, exam style
+    text: '#000000', // black text/points
+    primary: '#000000', // black arrows/vectors
+    secondary: '#000000', // black arcs/circles
+    fill: '#ffffff', // white fill so polygons look like outlines
+    stroke: '#000000', // black polygon stroke
+    ground: '#6b7280', // gray for hatching / field patterns
   },
   fonts: {
     math: 'font-serif italic',
@@ -265,18 +265,17 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   if (!diagram) return null;
 
   return (
-    <div className="space-y-3 font-sans">
+    <div className="space-y-2 font-sans">
       {(diagram.title || diagram.description) && (
-        <div className="bg-blue-50/50 border-l-4 border-blue-600 p-3 rounded-r-lg">
-          {diagram.title && <div className="font-bold text-blue-900 text-sm">{diagram.title}</div>}
-          {diagram.description && <div className="text-blue-800/80 text-xs mt-0.5">{diagram.description}</div>}
+        <div className="border-l-4 border-slate-700 pl-3 py-1">
+          {diagram.title && <div className="font-semibold text-slate-900 text-sm">{diagram.title}</div>}
+          {diagram.description && <div className="text-slate-800 text-xs mt-0.5">{diagram.description}</div>}
         </div>
       )}
 
       <div
-
         ref={containerRef}
-        className="relative w-full h-80 bg-white rounded-xl border border-slate-200 overflow-hidden select-none"
+        className="relative w-full h-80 bg-white border border-slate-400 overflow-hidden select-none"
       >
         {dimensions.width > 0 && (
           <svg
@@ -436,8 +435,10 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
               // Wait, if Y is flipped, rotation direction flips too.
               // Math CCW = SVG CW.
 
-              // Let's try sweep-flag 0 first.
-              const largeArcFlag = 0; // Simplified, might need fix for >180
+              // Let's try sweep-flag 0 first, but compute large-arc-flag from the angle.
+              let delta = endAngle - startAngle;
+              if (delta < 0) delta += 2 * Math.PI;
+              const largeArcFlag = delta > Math.PI ? 1 : 0;
               const sweepFlag = 0;
 
               const d = `M ${from.x} ${from.y} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${to.x} ${to.y}`;
@@ -543,9 +544,9 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   left: pos.x,
                   top: pos.y,
                   transform: 'translate(-50%, -50%)',
-                  color: label.color || THEME.colors.text,
+                  color: 'black',
                 }}
-                className={`${THEME.fonts.math} text-sm sm:text-base drop-shadow-md`}
+                className={`${THEME.fonts.math} text-sm sm:text-base`}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkMath]}
@@ -575,9 +576,9 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                   left: midX,
                   top: midY,
                   transform: 'translate(-50%, -100%) translateY(-8px)',
-                  color: arrow.color || THEME.colors.primary,
+                  color: 'black',
                 }}
-                className={`${THEME.fonts.math} text-xs sm:text-sm font-bold drop-shadow-sm`}
+                className={`${THEME.fonts.math} text-xs sm:text-sm font-bold`}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkMath]}

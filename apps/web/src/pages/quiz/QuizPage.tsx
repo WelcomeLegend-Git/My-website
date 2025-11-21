@@ -7,6 +7,12 @@ import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
 import { JeeDiagram } from '../../features/quiz/components/JeeDiagram';
 
+const normalizeQuizMath = (text: string) => {
+  if (!text || !text.includes('\\')) return text;
+  // Convert bracketed LaTeX-style segments like ( \rho_e ) or ( \frac{V^2}{R} ) into $...$
+  return text.replace(/\(\s*(\\[a-zA-Z][^)]*)\s*\)/g, (_match, inner) => `$${inner.trim()}$`);
+};
+
 type Answer = number[]; // Array of selected option indices
 
 export const QuizPage = () => {
@@ -206,7 +212,7 @@ export const QuizPage = () => {
               remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
               rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
             >
-              {currentQuestion.questionText}
+              {normalizeQuizMath(currentQuestion.questionText)}
             </ReactMarkdown>
           </div>
 
@@ -248,7 +254,7 @@ export const QuizPage = () => {
                         remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                         rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                       >
-                        {option}
+                        {normalizeQuizMath(option)}
                       </ReactMarkdown>
                     </div>
                   </div>

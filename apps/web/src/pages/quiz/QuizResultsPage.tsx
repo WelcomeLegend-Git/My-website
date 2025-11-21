@@ -5,6 +5,11 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
+
+const normalizeQuizMath = (text: string) => {
+  if (!text || !text.includes('\\')) return text;
+  return text.replace(/\(\s*(\\[a-zA-Z][^)]*)\s*\)/g, (_match, inner) => `$${inner.trim()}$`);
+};
 import type { ShellOutletContext } from '../../app/layouts/ShellLayout';
 
 type QuizResultsSectionBoundaryProps = {
@@ -324,7 +329,7 @@ export const QuizResultsPage = () => {
                     remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                     rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                   >
-                    {question.questionText}
+                    {normalizeQuizMath(question.questionText)}
                   </ReactMarkdown>
                 </div>
 
@@ -374,7 +379,7 @@ export const QuizResultsPage = () => {
                               remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                               rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                             >
-                              {option}
+                              {normalizeQuizMath(option)}
                             </ReactMarkdown>
                           </div>
                         </div>
@@ -397,7 +402,7 @@ export const QuizResultsPage = () => {
                         remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                         rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                       >
-                        {question.explanation}
+                        {normalizeQuizMath(question.explanation)}
                       </ReactMarkdown>
                     </div>
                   </div>

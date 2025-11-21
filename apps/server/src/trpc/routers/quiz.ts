@@ -420,6 +420,7 @@ Requirements:
 - ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}.
 - Include detailed explanations with LaTeX.
 - Use proper LaTeX notation: inline $...$ and display $$...$$.
+- Do NOT use sizing commands like \\left or \\right; just use normal parentheses ( ) and brackets [ ].
 - When a visual diagram is natural (mechanics setups, circuits, fields, ray diagrams, graphs), include a JSXGraph-style diagram specification using the schema below. Aim for roughly ${Math.round(
       pictureRatio * 100
     )}% of questions to include a diagram when it genuinely helps understanding.

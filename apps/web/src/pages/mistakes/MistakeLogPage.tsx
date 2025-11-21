@@ -489,7 +489,7 @@ export const MistakeLogPage = () => {
               onChange={(nextValue) => setDifficultyFilter((nextValue as "easy" | "medium" | "hard") || undefined)}
               options={difficultySelectOptions}
               placeholder="All difficulty"
-              placement={isMobile ? "center" : "bottom"}
+              placement="center"
               className="min-w-0"
               listClassName="min-w-0 sm:min-w-[12rem]"
             />

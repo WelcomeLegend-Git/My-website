@@ -178,19 +178,29 @@ export const GlowSelect = ({
         <svg
           className={clsx(
             "h-4 w-4 text-slate-400 transition-transform duration-200",
-            isRightPlacement 
-              ? "rotate-0" 
-              : open ? "rotate-180" : "rotate-0",
+            isRightPlacement
+              ? "rotate-0"
+              : isCenterPlacement
+                ? "rotate-0"
+                : open
+                  ? "rotate-180"
+                  : "rotate-0",
           )}
           viewBox="0 0 20 20"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"
         >
-          <path 
-            d={isRightPlacement ? "M7 5l5 5-5 5" : "M5 7l5 5 5-5"} 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
+          <path
+            d={
+              isRightPlacement
+                ? "M7 5l5 5-5 5"
+                : isCenterPlacement
+                  ? "M6 7l4 4 4-4M6 13l4 4 4-4"
+                  : "M5 7l5 5 5-5"
+            }
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </button>

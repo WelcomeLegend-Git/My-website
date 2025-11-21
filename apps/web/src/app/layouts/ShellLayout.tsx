@@ -63,6 +63,12 @@ export const ShellLayout = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  useEffect(() => {
+    if (!showMentor) {
+      setAiOpen(false);
+    }
+  }, [showMentor]);
+
   const backupStatusQuery = trpc.backupApi.getStatus.useQuery(undefined, {
     staleTime: 60_000,
     refetchOnWindowFocus: false,

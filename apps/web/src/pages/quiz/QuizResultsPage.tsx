@@ -5,10 +5,40 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
+import { JeeDiagram } from '../../features/quiz/components/JeeDiagram';
 
-const normalizeQuizMath = (text: string) => {
-  if (!text || !text.includes('\\')) return text;
-  return text.replace(/\(\s*(\\[a-zA-Z][^)]*)\s*\)/g, (_match, inner) => `$${inner.trim()}$`);
+const normalizeQuizMath = (text: string, opts?: { treatAsPureMath?: boolean }) => {
+  if (!text) return text;
+
+  let value = text;
+
+  if (!value.includes('\\')) return value;
+
+  value = value
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$')
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$/');
+
+  // Soften problematic sizing/exponent patterns from the AI
+  value = value
+    .replace(/\\left\s*/g, '')
+    .replace(/\\right\s*/g, '')
+    .replace(/\)\s*\^/g, ')^');
+
+  // Convert bracketed LaTeX-style segments like ( \\rho_e ) or ( \\frac{V^2}{R} ) into $...$
+  value = value.replace(/\(\s*(\\[a-zA-Z][^)]*)\s*\)/g, (_match, inner) => `$${inner.trim()}$`);
+
+  const hasDollar = value.includes('$');
+  const hasMathMacro = /\\(frac|sqrt|sum|int|log|ln|sin|cos|tan|cot|sec|csc|theta|pi|mu|rho|alpha|beta|gamma|delta|lambda|omega|cdot|times|leq|geq|approx)/.test(
+    value,
+  );
+
+  if (!hasDollar && hasMathMacro && (opts?.treatAsPureMath || !/[.?!]/.test(value))) {
+    value = `$${value}$`;
+  }
+
+  return value;
 };
 import type { ShellOutletContext } from '../../app/layouts/ShellLayout';
 
@@ -333,6 +363,12 @@ export const QuizResultsPage = () => {
                   </ReactMarkdown>
                 </div>
 
+                {question.diagram && (
+                  <div className="mb-4">
+                    <JeeDiagram diagram={question.diagram as any} />
+                  </div>
+                )}
+
                 {/* Options */}
                 <div className="space-y-2 mb-4">
                   {(question.options as string[]).map((option, optionIndex) => {
@@ -379,7 +415,7 @@ export const QuizResultsPage = () => {
                               remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                               rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                             >
-                              {normalizeQuizMath(option)}
+                              {normalizeQuizMath(option, { treatAsPureMath: true })}
                             </ReactMarkdown>
                           </div>
                         </div>

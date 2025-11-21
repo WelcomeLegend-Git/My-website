@@ -547,6 +547,16 @@ function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSc
     // Additional cleaning: Fix common LaTeX-related JSON issues
     let jsonString = jsonMatch[0];
 
+    // Fix simple numeric expressions like 270-22 or 270+22 in property values
+    // This is common in diagram configs for startAngle/endAngle, which is invalid JSON.
+    jsonString = jsonString.replace(/:\s*(-?\d+)\s*([+\-])\s*(-?\d+)\s*(?=,|\})/g, (_match, a, op, b) => {
+      const left = Number(a);
+      const right = Number(b);
+      if (Number.isNaN(left) || Number.isNaN(right)) return _match;
+      const result = op === '+' ? left + right : left - right;
+      return `: ${result}`;
+    });
+
     // Try parsing with multiple strategies
     let questions;
     try {

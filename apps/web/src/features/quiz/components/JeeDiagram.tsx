@@ -45,6 +45,22 @@ const THEME = {
   }
 };
 
+const formatMath = (text: string | undefined) => {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+
+  const hasDelimiters =
+    trimmed.includes('$') || trimmed.includes('\\(') || trimmed.includes('\\)');
+  const looksLikeMath = /\\[a-zA-Z]+|[=+\-^]/.test(trimmed);
+
+  if (!hasDelimiters && looksLikeMath) {
+    return `$${trimmed}$`;
+  }
+
+  return trimmed;
+};
+
 export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -202,135 +218,41 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   };
 
   const scale = dimensions.width / (maxX - minX);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const points = cfg.points || [];
-  const getPt = (idx: number) => {
-    const p = points[idx];
-    return p ? toSVG(p.x, p.y) : { x: 0, y: 0 };
+  const getPt = (ref: any) => {
+    if (!dimensions.width || !dimensions.height) {
+      return { x: 0, y: 0 };
+    }
+
+    if (Array.isArray(ref) && ref.length >= 2) {
+      const [x, y] = ref;
+      if (typeof x === 'number' && typeof y === 'number') {
+        return toSVG(x, y);
+      }
+    }
+
+    if (typeof ref === 'string') {
+      const named = points.find((p) => p.name === ref);
+      if (named) {
+        return toSVG(named.x, named.y);
+      }
+    }
+
+    if (typeof ref === 'number' && ref >= 0 && ref < points.length) {
+      const p = points[ref];
+      if (p) {
+        return toSVG(p.x, p.y);
+      }
+    }
+
+    if (ref && typeof ref === 'object' && typeof ref.x === 'number' && typeof ref.y === 'number') {
+      return toSVG(ref.x, ref.y);
+    }
+
+    return { x: dimensions.width / 2, y: dimensions.height / 2 };
   };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
   if (!diagram) return null;
-
-
 
   return (
     <div className="space-y-3 font-sans">
@@ -622,7 +544,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                     p: ({ children }) => <span className="whitespace-nowrap">{children}</span>
                   }}
                 >
-                  {label.text}
+                  {formatMath(label.text)}
                 </ReactMarkdown>
               </div>
             );
@@ -654,7 +576,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
                     p: ({ children }) => <span className="whitespace-nowrap">{children}</span>
                   }}
                 >
-                  {arrow.label}
+                  {formatMath(arrow.label)}
                 </ReactMarkdown>
               </div>
             );

@@ -27,7 +27,6 @@ export const quizRouter = router({
           questionCount: input.questionCount,
           hasContext: !!input.context,
         });
-
         // Determine if we should parallelize
         const keyCount = geminiClient.keyCount;
         const shouldParallelize = input.questionCount > 5 && keyCount > 1;
@@ -115,7 +114,6 @@ export const quizRouter = router({
 
           questions = parseQuizQuestions(result.text, input);
         }
-
         if (questions.length === 0) {
           throw new Error("Failed to generate any questions.");
         }
@@ -405,8 +403,6 @@ ${historyText || "No recent messages were provided. Focus on the chapter and des
     }
   }
 
-  const pictureRatioPercent = Math.round(pictureRatio * 100);
-
   return `You are an expert JEE ${input.examType === "mains" ? "Mains" : "Advanced"
     } question generator.
 
@@ -419,179 +415,200 @@ Requirements:
 - Answer Type: ${input.answerType === "single" ? "Single Correct" : "Multiple Correct"}
 - Difficulty: ${input.examType === "advanced" ? "Advanced (multi-step, conceptual)" : "Moderate (clear, direct)"
     }
-- Aim for roughly ${pictureRatioPercent}% of the questions to include a clear, well-framed diagram when diagrams are naturally useful for this chapter (projectile motion, Newton's laws, WPE, SHM, graphs, vectors, geometry, fields, etc.).
 - Questions must be JEE-style, concise, and physically accurate.
 - Each question must have 4 options.
 - ${input.answerType === "single" ? "Only ONE correct answer" : "Can have MULTIPLE correct answers"}.
 - Include detailed explanations with LaTeX.
-
-CRITICAL LATEX & JSON RULES:
-1. **MATH DELIMITERS**: You MUST wrap ALL math expressions in '$' (inline) or '$$' (block).
-   - Correct: "The force is $F = ma$."
-   - Incorrect: "The force is F = ma."
-2. **JSON ESCAPING**: You MUST double-escape ALL backslashes in the JSON string.
-   - Correct: "Calculate $\\frac{1}{2}mv^2$" (becomes "\\frac" in string)
-   - Incorrect: "Calculate \frac{1}{2}mv^2" (broken JSON)
-   - Correct: "$\\lambda$" (becomes "\\lambda")
-3. **Output Format**: Return ONLY a raw JSON array. No markdown code blocks.
+- Use proper LaTeX notation: inline $...$ and display $$...$$.
+- When a visual diagram is natural (mechanics setups, circuits, fields, ray diagrams, graphs), include a JSXGraph-style diagram specification using the schema below. Aim for roughly ${Math.round(
+      pictureRatio * 100
+    )}% of questions to include a diagram when it genuinely helps understanding.
 
 Diagram specification (when needed):
 - Use this JSON shape inside each question:
   "diagram": {
     "type": "jsxgraph",
     "title": "Short diagram title",
-    "description": "1-2 line description",
+    "description": "1-2 line description of what the figure shows",
     "config": {
-      "boundingBox": [-5, 5, 5, -5], // Adjust to fit the scene tightly
-      "axes": false, // Usually false for physics problems
-      "points": [{ "x": 0, "y": 0, "visible": false }], // Use invisible points for anchors
+      "boundingBox": [-6, 4, 6, -4],
+      "axes": false,
+      "points": [...],
       "segments": [...],
-      "polygons": [...],       // Use for blocks, wedges. Fill with light colors.
-      "circles": [...],        // Pulleys, loops
-      "arcs": [...],           // Angles
-      "arrows": [...],         // Vectors (forces, velocity). MUST touch their targets.
-      "springs": [...],        // Zig-zag lines
-      "labels": [{ "x": 0, "y": 1, "text": "$F$" }] // Math in labels MUST have $
+      "polylines": [...],      // for rails, paths, or light constructions
+      "polygons": [...],       // for blocks, tables, U-shaped wires
+      "circles": [...],        // for circular loops or pulleys
+      "arcs": [...],           // for small angle markings or sectors
+      "arrows": [...],         // for vectors, forces, rays
+      "angles": [...],         // for angle markings
+      "fieldRegions": [...],   // uniform B/E fields with "cross" or "dot" pattern
+      "springs": [...],        // zig-zag springs between two points
+      "labels": [...]          // text labels like "10 cm", "B", "m", etc.
     }
   }
 
-  DIAGRAM QUALITY TIPS:
-  - **Connectedness**: Ensure arrows and vectors actually start/end on the object or point they describe.
-  - **Ground / supports**: Draw a clear horizontal ground line with the "hatch" pattern. Draw cliffs, tables, and walls as filled polygons with light neutral colors.
-  - **Framing & scale**: Use the bounding box so the main objects and trajectory fill most of the card, with only small margins. Avoid huge empty empty regions at the top or sides.
-  - **Projectile motion (if relevant)**: For a projectile from a cliff, draw a tall vertical cliff at the left, launch point at the top, a dashed red trajectory, a launch-velocity arrow with labelled speed and angle near the start, ground with hatching, and a horizontal range arrow at the bottom labeled "R = ?".
-  - **Other chapters**: For mechanics use blocks/wedges/pulleys with vectors, for graphs draw clean axes and curves, and for math/chemistry use clear axes or energy diagrams with well-separated, labeled levels.
-  - **Labels**: Use short LaTeX labels like "$v_0$", "${"$"}\\theta${"$"}", and "$R$" placed near objects without overlapping lines.
+  IMPORTANT DIAGRAM RULES:
+  - Use "arrows" for all vectors, forces, and rays.
+  - Use LaTeX for labels (e.g., "\\( F_{net} \\)").
+  - Use light fills for polygons (bodies/blocks).
+  - Make diagrams professional and not too simple.
 
-Example JSON Object:
-{
-  "questionText": "A block of mass $m$ slides on a frictionless surface...",
-  "options": ["$5 \\text{ m/s}$", "$10 \\text{ m/s}$", "$15 \\text{ m/s}$", "$20 \\text{ m/s}$"],
-  "correctAnswers": [1],
-  "explanation": "Using conservation of energy: $$\\frac{1}{2}mv^2 = mgh$$...",
-  "diagram": { ... }
-}
+CRITICAL JSON FORMATTING RULES:
+1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text.
+2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\ in the JSON string.
+3. Example valid JSON: "questionText": "Calculate $$\\frac{1}{2}mv^2$$".
+4. Escape all quotes and special characters properly.
 
-Generate EXACTLY ${input.questionCount} questions. Output ONLY the JSON array.`;
+Example format (mechanics with diagram):
+[
+  {
+    "questionText": "A light strip of length 10 cm slides on a U-shaped conducting rail in a uniform magnetic field B (into the page), connected to a spring. The strip is pulled slightly and released. Find the approximate number of oscillations before the amplitude decreases by a factor e.",
+    "options": [
+      "5000",
+      "500",
+      "10000",
+      "1000"
+    ],
+    "correctAnswers": [0],
+    "explanation": "Detailed explanation with LaTeX ...",
+    "difficulty": "medium",
+    "topic": "Electromagnetic damping",
+    "diagram": {
+      "type": "jsxgraph",
+      "title": "Strip on U-shaped rail in magnetic field",
+      "description": "A conducting strip attached to a spring sliding on a U-shaped wire in a uniform magnetic field (crosses into the page).",
+      "config": {
+        "boundingBox": [-6, 4, 6, -4],
+        "axes": false,
+        "points": [
+          { "x": -4, "y": -2, "name": "" },   // left bottom of rail
+          { "x": 4, "y": -2, "name": "" },    // right bottom of rail
+          { "x": -4, "y": 2, "name": "" },    // left top of rail
+          { "x": 4, "y": 2, "name": "" },     // right top of rail
+          { "x": 0, "y": -2, "name": "strip" } // strip contact point
+        ],
+        "polygons": [
+          { "vertices": [0, 1, 3, 2] }             // U-shaped conducting region
+        ],
+        "fieldRegions": [
+          { "x1": -4, "y1": 2, "x2": 4, "y2": -2, "pattern": "cross" }
+        ],
+        "springs": [
+          { "from": 0, "to": 4, "coils": 6 }
+        ],
+        "labels": [
+          { "x": 4.2, "y": 2, "text": "10 cm" },
+          { "x": -3.8, "y": 3.2, "text": "B (into page)" }
+        ]
+      }
+    }
+  }
+]
+Generate EXACTLY ${input.questionCount} questions. Output ONLY the JSON array, nothing else.`;
 }
 
 // Helper function to parse quiz questions from AI response
 function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSchema>) {
   try {
+    // Log the response for debugging
+    console.log('=== PARSING AI RESPONSE ===');
+    console.log('Full response length:', response.length);
+    console.log('First 1000 chars:', response.substring(0, 1000));
+    console.log('Last 500 chars:', response.substring(Math.max(0, response.length - 500)));
+
     // Clean response - remove markdown code blocks if present
     let cleanedResponse = response.trim();
+
+    // Remove various markdown code block formats
     cleanedResponse = cleanedResponse
       .replace(/^```json\s*/g, '')
       .replace(/^```\s*/g, '')
       .replace(/```\s*$/g, '')
       .trim();
 
-    // Find JSON array
-    const jsonMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    console.log('Cleaned response (first 500 chars):', cleanedResponse.substring(0, 500));
+
+    // Try to find JSON array with more flexible regex
+    let jsonMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+
     if (!jsonMatch) {
-      // Fallback: try to find just the array brackets if match failed
-      const start = cleanedResponse.indexOf('[');
-      const end = cleanedResponse.lastIndexOf(']');
-      if (start !== -1 && end !== -1) {
-        cleanedResponse = cleanedResponse.substring(start, end + 1);
+      // Try alternative: Maybe it starts with array directly
+      if (cleanedResponse.startsWith('[')) {
+        jsonMatch = [cleanedResponse];
       } else {
-        throw new Error("No JSON array found in response");
+        console.error('=== NO JSON ARRAY FOUND ===');
+        console.error('Cleaned response:', cleanedResponse);
+        throw new Error("No valid JSON array found in response. AI may have returned text instead of JSON.");
       }
-    } else {
-      cleanedResponse = jsonMatch[0];
     }
 
-    // PRE-PROCESSING: Fix common LaTeX JSON escape errors
-    // The AI often outputs "\frac" which JSON.parse sees as "\f" (form feed) + "rac".
-    // We need to replace single backslashes with double backslashes, BUT ignore already escaped ones.
+    console.log('Attempting to parse JSON...');
 
-    // 1. Fix specific known LaTeX commands that start with formatting chars
-    // \f -> \\f, \n -> \\n (if it looks like math), \r -> \\r, \t -> \\t, \b -> \\b
-    // This is tricky because \n is also a newline. 
-    // Safer approach: Look for LaTeX patterns and ensure they are escaped.
+    // Additional cleaning: Fix common LaTeX-related JSON issues
+    let jsonString = jsonMatch[0];
 
-    // Regex to find backslashes that are NOT followed by another backslash or a quote
-    // and are likely part of a LaTeX command (followed by letters)
-    // We'll do a few targeted replacements for common issues
-
-    let fixed = cleanedResponse;
-
-    // Fix \frac, \phi, \pi, \theta, \lambda, \mu, \rho, \sigma, \tau, \omega, \Delta, \alpha, \beta, \gamma
-    // We replace a single backslash followed by these words with a double backslash
-    // We check if it's NOT already double escaped.
-    const latexCommands = [
-      'frac', 'sqrt', 'text', 'cdot', 'times', 'approx',
-      'pi', 'theta', 'lambda', 'mu', 'rho', 'sigma', 'tau', 'omega',
-      'alpha', 'beta', 'gamma', 'delta', 'Delta', 'sin', 'cos', 'tan',
-      'hat', 'vec', 'int', 'sum', 'infty', 'partial'
-    ];
-
-    latexCommands.forEach(cmd => {
-      // Regex: (?<!\\)\\(cmd) -> match \cmd not preceded by \
-      // JS doesn't support lookbehind in all envs, so we use a capture group approach
-      // Replace (anything but \)(\cmd) with $1\\cmd
-      const regex = new RegExp(`([^\\\\])\\\\${cmd}`, 'g');
-      fixed = fixed.replace(regex, `$1\\\\${cmd}`);
-    });
-
-    // Also fix the specific case of start of string
-    latexCommands.forEach(cmd => {
-      if (fixed.startsWith(`\\${cmd}`)) {
-        fixed = `\\${fixed}`;
-      }
-    });
-
+    // Try parsing with multiple strategies
     let questions;
     try {
-      questions = JSON.parse(fixed);
-    } catch (e) {
-      console.warn("First parse failed, trying aggressive backslash fix...");
-      // If targeted fix failed, try global fix: 
-      // Replace single backslashes with double, except for JSON control chars like \", \\, \/
-      // This is risky but often necessary for bad AI output
-      const aggressive = cleanedResponse
-        .replace(/\\(?![/u"bfnrt\\])/g, "\\\\"); // Escape backslashes that aren't valid JSON escapes
+      questions = JSON.parse(jsonString);
+    } catch (firstError) {
+      console.log('First parse failed, trying to fix LaTeX escaping...');
 
+      // Strategy: Use a more lenient JSON parser or fix common issues
+      // Fix: Replace problematic escape sequences (but preserve valid ones)
       try {
-        questions = JSON.parse(aggressive);
-      } catch (e2) {
-        console.error("Aggressive parse failed:", e2);
-        throw new Error("Failed to parse JSON from AI response. The AI generated invalid JSON syntax.");
+        // Alternative: Try parsing with relaxed JSON (JSON5-like approach)
+        // For now, try to fix common LaTeX issues
+        const fixed = jsonString
+          // Fix incomplete escape sequences at the end of strings
+          .replace(/\\(?=\s*["'])/g, '\\\\')
+          // Fix single backslashes followed by non-escape chars
+          .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+
+        questions = JSON.parse(fixed);
+        console.log('✅ Fixed JSON parsing with LaTeX cleanup');
+      } catch (secondError) {
+        console.error('Second parse also failed:', secondError);
+        throw new Error(
+          `Failed to parse JSON even after cleanup. Original error: ${firstError instanceof Error ? firstError.message : 'Unknown'
+          }. This usually means the AI generated malformed JSON with LaTeX notation. Try generating again.`
+        );
       }
     }
+    console.log(`✅ Successfully parsed ${questions.length} questions`);
 
-    if (!Array.isArray(questions)) {
-      throw new Error("Parsed result is not an array");
+    // Validate that we have enough questions
+    if (questions.length === 0) {
+      throw new Error("No questions generated");
     }
 
-    // Post-processing: Ensure math has $ delimiters
-    return questions.map((q: any) => {
-      const ensureMath = (text: string) => {
-        if (!text) return "";
-        // If text has LaTeX commands like \\frac but no $, wrap it
-        if (text.includes('\\') && !text.includes('$')) {
-          // Heuristic: if it looks like a sentence with some math, don't wrap whole thing.
-          // But for options, usually it's just math.
-          // Let's just wrap if it has typical math symbols
-          if (text.match(/\\[a-zA-Z]+|[\+\-\=\^]/)) {
-            return `$${text}$`;
-          }
-        }
-        return text;
-      };
+    // Validate and format questions
+    return questions.map((q: any, index: number) => {
+      if (!q.questionText && !q.question) {
+        console.warn(`Question ${index + 1} missing text`);
+      }
+      if (!Array.isArray(q.options) || q.options.length === 0) {
+        console.warn(`Question ${index + 1} missing options`);
+      }
 
       return {
-        questionText: ensureMath(q.questionText || q.question || ""),
-        options: (Array.isArray(q.options) ? q.options : []).map((opt: string) => ensureMath(opt)),
-        correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [q.correctAnswer || 0],
-        explanation: ensureMath(q.explanation || ""),
+        questionText: q.questionText || q.question || "",
+        options: Array.isArray(q.options) ? q.options : [],
+        correctAnswers: Array.isArray(q.correctAnswers)
+          ? q.correctAnswers
+          : [q.correctAnswer || 0],
+        explanation: q.explanation || "",
         difficulty: q.difficulty || "medium",
         topic: q.topic || "General",
         diagram: q.diagram || undefined,
       };
     });
   } catch (error) {
-    console.error("Parsing error:", error);
-    throw new Error(`Failed to parse generated questions: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error("=== PARSING ERROR ===");
+    console.error("Error details:", error);
+    console.error("Full response:", response);
+
+    const errorMsg = error instanceof Error ? error.message : "Unknown parsing error";
+    throw new Error(`Failed to parse generated questions: ${errorMsg}. Check server logs for full response.`);
   }
 }

@@ -48,7 +48,7 @@ class GeminiClient implements IGeminiClient {
     this.keyIndex = (this.keyIndex + 1) % this.apiKeys.length;
   }
 
-  async generate(options: GenerateOptions) {
+  async generate(options: GenerateOptions): Promise<GenerateResult> {
     const explicitModel = options.model && !options.usePremiumOnly ? options.model : undefined;
     const models = options.usePremiumOnly
       ? ["gemini-2.5-pro"]
@@ -57,9 +57,10 @@ class GeminiClient implements IGeminiClient {
         : [this.primaryModel, ...this.fallbackModels];
 
     // Determine starting key index
-    let currentKeyIndex = options.forceKeyIndex !== undefined
-      ? options.forceKeyIndex % this.apiKeys.length
-      : this.keyIndex;
+    let currentKeyIndex =
+      options.forceKeyIndex !== undefined
+        ? options.forceKeyIndex % this.apiKeys.length
+        : this.keyIndex;
 
     for (const model of models) {
       // Try all keys, starting from currentKeyIndex
@@ -78,7 +79,7 @@ class GeminiClient implements IGeminiClient {
           if (options.images && options.images.length > 0) {
             for (const img of options.images) {
               // Remove data URL prefix if present (data:image/...;base64,)
-              const cleanData = img.data.includes(',') ? img.data.split(',')[1] : img.data;
+              const cleanData = img.data.includes(",") ? img.data.split(",")[1] : img.data;
               parts.push({
                 inlineData: {
                   data: cleanData,
@@ -107,32 +108,38 @@ class GeminiClient implements IGeminiClient {
           });
 
           const text = result.response.text();
-          logger.info({
-            model,
-            keyIndex: tryKeyIndex,
-            premium: options.usePremiumOnly,
-            imageCount: options.images?.length || (options.imageBase64 ? 1 : 0)
-          }, "Gemini API call succeeded");
+          logger.info(
+            {
+              model,
+              keyIndex: tryKeyIndex,
+              premium: options.usePremiumOnly,
+              imageCount: options.images?.length || (options.imageBase64 ? 1 : 0),
+            },
+            "Gemini API call succeeded",
+          );
 
-          // Update global key index if we weren't forcing a specific one (or maybe update it anyway to spread load?)
-          // If we forced a key, we probably don't want to mess with the global rotation state too much, 
-          // but for simplicity, let's leave the global state alone if forced, or update it?
-          // Let's update it only if not forced, to keep the "main" flow rotating.
+          // Update global key index if we weren't forcing a specific one
+          // If we forced a key, keep the global rotation unchanged
           if (options.forceKeyIndex === undefined) {
             this.keyIndex = (tryKeyIndex + 1) % this.apiKeys.length;
           }
 
           return { text, model, apiKeyIndex: tryKeyIndex };
         } catch (error) {
-          logger.warn({ error, model, keyIndex: tryKeyIndex, premium: options.usePremiumOnly }, "Gemini API call failed, trying next key");
+          logger.warn(
+            { error, model, keyIndex: tryKeyIndex, premium: options.usePremiumOnly },
+            "Gemini API call failed, trying next key",
+          );
           // Continue to next key in the loop
         }
       }
     }
 
-    throw new Error(options.usePremiumOnly
-      ? "All Gemini 2.5 Pro API keys exhausted"
-      : "All Gemini API keys exhausted");
+    throw new Error(
+      options.usePremiumOnly
+        ? "All Gemini 2.5 Pro API keys exhausted"
+        : "All Gemini API keys exhausted",
+    );
   }
 }
 

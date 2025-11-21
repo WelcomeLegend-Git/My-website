@@ -330,7 +330,7 @@ export const QuizResultsPage = () => {
 
                 {/* Options */}
                 <div className="space-y-2 mb-4">
-                  {(Array.isArray(question.options) ? (question.options as string[]) : []).map((option, optionIndex) => {
+                  {(question.options as string[]).map((option, optionIndex) => {
                     const isUserSelected = userAnswers.includes(optionIndex);
                     const isCorrectOption = correctAnswers.includes(optionIndex);
                     const optionLabel = String.fromCharCode(65 + optionIndex);

@@ -89,6 +89,10 @@ ${context}`,
         section: z.enum(["formulas", "mistakes", "study"]),
         context: z.record(z.any()).optional(),
         message: z.string().min(1),
+        images: z.array(z.object({
+          data: z.string(),
+          mimeType: z.string()
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -153,12 +157,16 @@ If the student seems confused, anticipate mistakes and give quick exam tips at t
         // If user selected an OpenRouter model for Study Guru, route the request there
         if (isStudyGuruOpenRouterModel && rawRequestedModel) {
           try {
+            // Note: OpenRouter client currently doesn't support images in this simple wrapper
+            // If images are present, we might want to fallback to Gemini or warn
+            // For now, we'll just send text to OpenRouter
             const result = await openRouterClient.generateChat({
               model: rawRequestedModel,
               messages: [
                 {
                   role: "user",
                   content: prompt,
+                  // TODO: Add image support to OpenRouter client if needed
                 },
               ],
             });
@@ -183,6 +191,7 @@ Provide a concise, structured response with actionable guidance.`;
         const response = await ctx.gemini.generate({
           prompt,
           usePremiumOnly: true,
+          images: input.images,
         });
         return { reply: response.text };
       }
@@ -192,6 +201,7 @@ Provide a concise, structured response with actionable guidance.`;
         const response = await ctx.gemini.generate({
           prompt,
           model: requestedModel,
+          images: input.images,
         });
         return { reply: response.text };
       }

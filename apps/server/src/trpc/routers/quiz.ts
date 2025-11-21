@@ -425,7 +425,7 @@ Requirements:
     )}% of questions to include a diagram when it genuinely helps understanding.
 
 Diagram specification (when needed):
-- Use this JSON shape inside each question:
+- Use this JSON shape inside each question (this block is an explanation; your ANSWER must be pure JSON with no comments):
   "diagram": {
     "type": "jsxgraph",
     "title": "Short diagram title",
@@ -433,35 +433,55 @@ Diagram specification (when needed):
     "config": {
       "boundingBox": [-6, 4, 6, -4],
       "axes": false,
-      "points": [...],
-      "segments": [...],
-      "polylines": [...],      // for rails, paths, or light constructions
-      "polygons": [...],       // for blocks, tables, U-shaped wires
-      "circles": [...],        // for circular loops or pulleys
-      "arcs": [...],           // for small angle markings or sectors
-      "arrows": [...],         // for vectors, forces, rays
-      "angles": [...],         // for angle markings
-      "fieldRegions": [...],   // uniform B/E fields with "cross" or "dot" pattern
-      "springs": [...],        // zig-zag springs between two points
-      "labels": [...]          // text labels like "10 cm", "B", "m", etc.
+      "points": [
+        { "x": -4, "y": -2, "name": "A" },
+        { "x": 4, "y": -2, "name": "B" }
+      ],
+      "segments": [
+        { "from": 0, "to": 1 }
+      ],
+      "polylines": [],
+      "polygons": [],
+      "circles": [],
+      "arcs": [],
+      "arrows": [],
+      "angles": [],
+      "fieldRegions": [],
+      "springs": [],
+      "labels": []
     }
   }
 
-  IMPORTANT DIAGRAM STYLE (MATCH REAL JEE ADVANCED PAPERS):
-  - All diagrams must be clean BLACK-AND-WHITE line art (no colors, no gradients, no photos or realistic images).
-  - Use thin, uniform stroke width for all objects.
-  - Use "arrows" for all vectors, forces, and rays, like in JEE figures.
-  - Use LaTeX for labels (e.g., "\\( F_{\\text{net}} \\)", "\\vec{B}", "\\mathbb{R}").
-  - Use hatching via "fieldRegions" for regions like uniform B or shaded areas; do NOT use solid gray fills.
-  - Graphs must have clearly labelled axes with arrowheads and important tick labels (0, \\pi/\\omega, etc.).
-  - Circuit diagrams must use standard textbook symbols for resistors, inductors, capacitors, and AC sources, arranged neatly.
-  - Diagrams should be at exam-level quality: simple but precise, with no decorative UI elements.
+POINT AND COORDINATE RULES:
+- All coordinates must be plain numbers (no expressions like 270-22, 3/5*pi, sin(30), etc.).
+- Prefer to refer to points by their INDEX in the "points" array (0-based).
+- You may also:
+  - use a coordinate array [x, y], or
+  - use a point name string that matches a "name" in the "points" list, or
+  - use an inline object { "x": ..., "y": ... }.
+- Keep all coordinates roughly in [-5, 5] in both x and y so the whole figure is visible.
+
+SHAPE USAGE GUIDELINES:
+- "polylines": rails, tracks, or light constructions.
+- "polygons": solid blocks, tables, plates, U-shaped wires (usually filled).
+- "circles": circular loops or pulleys ("center" is a point reference, "radius" is a NUMBER).
+- "arcs": small angle markings or circular sectors (use point references for center and endpoints).
+- "arrows": all forces, velocity vectors, fields, rays.
+- "angles": angle markers with an optional LaTeX label.
+- "fieldRegions": rectangles filled with "cross" or "dot" pattern to show uniform B/E fields.
+- "springs": zig-zag springs connecting two points.
+
+LABEL RULES:
+- "labels" and "arrows.label" should be short LaTeX-style strings like "mg", "N", "\\theta".
+- For labels inside the diagram config, DO NOT include $ or "\\(" "\\)" delimiters; just write the LaTeX body (we will format it on the frontend).
+- For questionText/options/explanation OUTSIDE the diagram, continue to use normal LaTeX with $...$ or $$...$$ as specified above.
 
 CRITICAL JSON FORMATTING RULES:
 1. Respond with ONLY a JSON array. No markdown, no code blocks, no explanation text.
-2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\ in the JSON string.
-3. Example valid JSON: "questionText": "Calculate $$\\frac{1}{2}mv^2$$".
-4. Escape all quotes and special characters properly.
+2. ALL backslashes in LaTeX MUST be double-escaped for JSON: use \\\\ in the JSON string.
+3. Do NOT include any comments (no // or /* */) in your JSON.
+4. Example valid JSON: "questionText": "Calculate \\\\frac{1}{2}mv^2".
+5. Escape all quotes and special characters properly.
 
 Example format (mechanics with diagram):
 [
@@ -485,14 +505,14 @@ Example format (mechanics with diagram):
         "boundingBox": [-6, 4, 6, -4],
         "axes": false,
         "points": [
-          { "x": -4, "y": -2, "name": "" },   // left bottom of rail
-          { "x": 4, "y": -2, "name": "" },    // right bottom of rail
-          { "x": -4, "y": 2, "name": "" },    // left top of rail
-          { "x": 4, "y": 2, "name": "" },     // right top of rail
-          { "x": 0, "y": -2, "name": "strip" } // strip contact point
+          { "x": -4, "y": -2, "name": "P1" },
+          { "x": 4, "y": -2, "name": "P2" },
+          { "x": -4, "y": 2, "name": "P3" },
+          { "x": 4, "y": 2, "name": "P4" },
+          { "x": 0, "y": -2, "name": "strip" }
         ],
         "polygons": [
-          { "vertices": [0, 1, 3, 2] }             // U-shaped conducting region
+          { "vertices": [0, 1, 3, 2] }
         ],
         "fieldRegions": [
           { "x1": -4, "y1": 2, "x2": 4, "y2": -2, "pattern": "cross" }
@@ -503,7 +523,13 @@ Example format (mechanics with diagram):
         "labels": [
           { "x": 4.2, "y": 2, "text": "10 cm" },
           { "x": -3.8, "y": 3.2, "text": "B (into page)" }
-        ]
+        ],
+        "segments": [],
+        "polylines": [],
+        "circles": [],
+        "arcs": [],
+        "arrows": [],
+        "angles": []
       }
     }
   }

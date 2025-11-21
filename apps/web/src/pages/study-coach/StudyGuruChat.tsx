@@ -138,23 +138,35 @@ type ModelId =
   | "qwen/qwen3-coder:free"
   | "z-ai/glm-4.5-air:free";
 
-const modelLabels: Record<ModelId, string> = {
-  "gemini-2.5-flash": "Gemini 2.5 Flash",
-  "gemini-2.5-pro": "Gemini 2.5 Pro",
-  "openrouter/sherlock-think-alpha": "Sherlock Think Alpha",
-  "tngtech/deepseek-r1t2-chimera:free": "DeepSeek R1T2 Chimera",
-  "deepseek/deepseek-r1-0528:free": "DeepSeek: R1 0528",
-  "qwen/qwen3-coder:free": "Qwen3 Coder 480B A35B",
-  "z-ai/glm-4.5-air:free": "GLM-4.5 Air",
+type ModelConfig = {
+  id: ModelId;
+  label: string;
+  supportsImages: boolean;
+  maxImages: number;
 };
 
-type Chat = {
-  id: number;
-  title: string;
-  recent: boolean;
-  messages: ChatMessage[];
-  pinned?: boolean;
-  userRenamed?: boolean;
+const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
+  "gemini-2.5-flash": { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", supportsImages: true, maxImages: 10 },
+  "gemini-2.5-pro": { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", supportsImages: true, maxImages: 10 },
+  "openrouter/sherlock-think-alpha": { id: "openrouter/sherlock-think-alpha", label: "Sherlock Think Alpha", supportsImages: true, maxImages: 10 },
+  "tngtech/deepseek-r1t2-chimera:free": { id: "tngtech/deepseek-r1t2-chimera:free", label: "DeepSeek R1T2 Chimera", supportsImages: false, maxImages: 0 },
+  "deepseek/deepseek-r1-0528:free": { id: "deepseek/deepseek-r1-0528:free", label: "DeepSeek: R1 0528", supportsImages: false, maxImages: 0 },
+  "qwen/qwen3-coder:free": { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B A35B", supportsImages: false, maxImages: 0 },
+  "z-ai/glm-4.5-air:free": { id: "z-ai/glm-4.5-air:free", label: "GLM-4.5 Air", supportsImages: false, maxImages: 0 },
+};
+
+const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove data:image/xxx;base64, prefix
+      const base64Data = result.split(",")[1];
+      resolve({ data: base64Data, mimeType: file.type });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 export const StudyGuruChat = () => {
@@ -178,6 +190,58 @@ export const StudyGuruChat = () => {
   const [quizDescription, setQuizDescription] = useState("");
   const saveDebounceRef = useRef<number | null>(null);
   const generationCancelledRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: any) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (finalTranscript) {
+            setMessage((prev) => prev + (prev ? " " : "") + finalTranscript);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isRecording && recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        // Already started or error
+      }
+    } else if (!isRecording && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Already stopped
+      }
+    }
+  }, [isRecording]);
 
   const studyAssistantMutation = trpc.studyApi.contextualAssistant.useMutation();
   const quizMutation = trpc.quiz.generateQuiz.useMutation({
@@ -380,10 +444,10 @@ export const StudyGuruChat = () => {
       prev.map((c) =>
         c.id === id
           ? {
-              ...c,
-              title: trimmedTitle,
-              userRenamed: true,
-            }
+            ...c,
+            title: trimmedTitle,
+            userRenamed: true,
+          }
           : c
       )
     );
@@ -453,18 +517,18 @@ export const StudyGuruChat = () => {
         prevChats.map((chat) =>
           chat.id === activeChatId
             ? {
-                ...chat,
-                title: nextTitle,
-                messages: [
-                  ...chat.messages,
-                  { role: "user", content: trimmed },
-                  {
-                    role: "assistant",
-                    content:
-                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
-                  },
-                ],
-              }
+              ...chat,
+              title: nextTitle,
+              messages: [
+                ...chat.messages,
+                { role: "user", content: trimmed },
+                {
+                  role: "assistant",
+                  content:
+                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                },
+              ],
+            }
             : chat
         )
       );
@@ -482,17 +546,33 @@ export const StudyGuruChat = () => {
       prevChats.map((chat) =>
         chat.id === activeChatId
           ? {
-              ...chat,
-              title: nextTitle,
-              messages: chatHistory,
-            }
+            ...chat,
+            title: nextTitle,
+            messages: chatHistory,
+          }
           : chat
       )
     );
 
     setMessage("");
+    // Don't clear attached files yet, wait for success or we might lose them on error
+    // But typically we clear input immediately. Let's keep them in state until sent?
+    // Actually, standard chat UX clears input immediately.
+    // We will clear attachedFiles in the success block or if we want to be optimistic, clear them now.
+    // Let's clear them now for better UX, but if it fails user has to re-select.
+    // For now, let's keep them until we construct the payload.
 
     setIsGenerating(true);
+
+    let imagesPayload: { data: string; mimeType: string }[] | undefined;
+    if (attachedFiles.length > 0) {
+      try {
+        imagesPayload = await Promise.all(attachedFiles.map(fileToBase64));
+      } catch (e) {
+        console.error("Failed to process images", e);
+        // Continue without images or alert?
+      }
+    }
 
     try {
       const response = await studyAssistantMutation.mutateAsync({
@@ -503,9 +583,11 @@ export const StudyGuruChat = () => {
           chatHistory,
         },
         message: trimmed,
+        images: imagesPayload,
       });
 
       if (!generationCancelledRef.current) {
+        setAttachedFiles([]); // Clear images on success
         setChats((prevChats) =>
           prevChats.map((chat) => {
             if (chat.id !== activeChatId) return chat;
@@ -583,9 +665,21 @@ export const StudyGuruChat = () => {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
+
+    const config = MODEL_CONFIGS[selectedModel];
+    if (!config.supportsImages) {
+      alert(`The selected model (${config.label}) does not support images.`);
+      event.target.value = "";
+      return;
+    }
+
     setAttachedFiles((prev) => {
       const combined = [...prev, ...files];
-      return combined.slice(0, 10);
+      if (combined.length > config.maxImages) {
+        alert(`You can only upload up to ${config.maxImages} images with this model.`);
+        return combined.slice(0, config.maxImages);
+      }
+      return combined;
     });
     // Allow selecting the same file again by resetting the input
     event.target.value = "";
@@ -596,6 +690,10 @@ export const StudyGuruChat = () => {
   };
 
   const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
     setIsRecording((prev) => !prev);
   };
 
@@ -626,8 +724,8 @@ export const StudyGuruChat = () => {
       {/* Sidebar */}
       <div
         className={`${sidebarOpen
-            ? "translate-x-0 w-72"
-            : "-translate-x-full w-72 md:w-0 md:translate-x-0"
+          ? "translate-x-0 w-72"
+          : "-translate-x-full w-72 md:w-0 md:translate-x-0"
           } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
       >
         {/* Sidebar Header */}
@@ -900,10 +998,21 @@ export const StudyGuruChat = () => {
             <GlowSelect
               id="study-guru-model"
               value={selectedModel}
-              onChange={(nextValue) => setSelectedModel(nextValue as ModelId)}
+              onChange={(nextValue) => {
+                const newModel = nextValue as ModelId;
+                const config = MODEL_CONFIGS[newModel];
+                if (!config.supportsImages && attachedFiles.length > 0) {
+                  const confirm = window.confirm(
+                    `The selected model (${config.label}) does not support images. Your attached images will be removed. Continue?`
+                  );
+                  if (!confirm) return;
+                  setAttachedFiles([]);
+                }
+                setSelectedModel(newModel);
+              }}
               options={modelOptions.map((option) => ({
                 value: option,
-                label: modelLabels[option] ?? option,
+                label: MODEL_CONFIGS[option]?.label ?? option,
               }))}
               placeholder="Select model"
               placement="top"
@@ -1140,6 +1249,27 @@ export const StudyGuruChat = () => {
         {/* Input Area pinned to bottom of chat column */}
         < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
           <div className="max-w-3xl mx-auto">
+            {attachedFiles.length > 0 && (
+              <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
+                {attachedFiles.map((file, i) => (
+                  <div key={i} className="relative group flex-shrink-0">
+                    <div className="w-16 h-16 rounded-lg border border-slate-700 overflow-hidden bg-slate-900">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="preview"
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3">
                 {/* Plus (attachments) */}

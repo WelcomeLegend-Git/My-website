@@ -45,8 +45,18 @@ const THEME = {
   }
 };
 
-const formatMath = (text: string | undefined) => {
-  if (!text) return '';
+const formatMath = (raw: unknown) => {
+  // Allow either a plain string or an object like { text: "..." }
+  let text = '';
+
+  if (typeof raw === 'string') {
+    text = raw;
+  } else if (raw && typeof raw === 'object' && 'text' in (raw as any)) {
+    text = String((raw as any).text ?? '');
+  } else {
+    return '';
+  }
+
   const trimmed = text.trim();
   if (!trimmed) return '';
 

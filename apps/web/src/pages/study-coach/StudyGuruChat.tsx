@@ -565,10 +565,10 @@ export const StudyGuruChat = () => {
       }
     }
 
-    const userMessage: ChatMessage = { 
-        role: "user", 
-        content: trimmed,
-        images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: trimmed,
+      images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined
     };
     const chatHistory: ChatMessage[] = [...activeChat.messages, userMessage];
 
@@ -585,6 +585,7 @@ export const StudyGuruChat = () => {
     );
 
     setMessage("");
+    setAttachedFiles([]); // Clear images immediately
     setIsGenerating(true);
 
     try {
@@ -598,7 +599,6 @@ export const StudyGuruChat = () => {
       });
 
       if (!generationCancelledRef.current) {
-        setAttachedFiles([]); // Clear images on success
         setChats((prevChats) =>
           prevChats.map((chat) => {
             if (chat.id !== activeChatId) return chat;
@@ -638,145 +638,154 @@ export const StudyGuruChat = () => {
     }
   };
 
-const handleStopGeneration = () => {
-  if (!isGenerating) return;
-  generationCancelledRef.current = true;
-  studyAssistantMutation.reset();
-  setIsGenerating(false);
-};
-
-const handleQuizSubmit = (config: QuizConfig) => {
-  if (!activeChat || quizMutation.isPending) return;
-  const allMessages = activeChat.messages;
-  const start = Math.max(0, allMessages.length - 20);
-  const chatHistoryForQuiz = allMessages.slice(start);
-
-  const safeConfig: QuizConfig = {
-    ...config,
-    questionCount: Math.min(50, Math.max(1, config.questionCount || 10)),
-    pictureQuestionRatio:
-      typeof config.pictureQuestionRatio === "number"
-        ? Math.max(0, Math.min(1, config.pictureQuestionRatio))
-        : config.examType === "advanced"
-          ? 0.3
-          : 0.2,
+  const handleStopGeneration = () => {
+    if (!isGenerating) return;
+    generationCancelledRef.current = true;
+    studyAssistantMutation.reset();
+    setIsGenerating(false);
   };
 
-  quizMutation.mutate({
-    ...safeConfig,
-    context: {
-      entity: "study_guru",
-      chapter: quizChapter,
-      description: quizDescription,
-      chatHistoryForQuiz,
-    },
-  });
-};
+  const handleQuizSubmit = (config: QuizConfig) => {
+    if (!activeChat || quizMutation.isPending) return;
+    const allMessages = activeChat.messages;
+    const start = Math.max(0, allMessages.length - 20);
+    const chatHistoryForQuiz = allMessages.slice(start);
 
-const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(event.target.files || []);
-  if (!files.length) return;
+    const safeConfig: QuizConfig = {
+      ...config,
+      questionCount: Math.min(50, Math.max(1, config.questionCount || 10)),
+      pictureQuestionRatio:
+        typeof config.pictureQuestionRatio === "number"
+          ? Math.max(0, Math.min(1, config.pictureQuestionRatio))
+          : config.examType === "advanced"
+            ? 0.3
+            : 0.2,
+    };
 
-  const config = MODEL_CONFIGS[selectedModel];
-  if (!config.supportsImages) {
-    alert(`The selected model (${config.label}) does not support images.`);
-    event.target.value = "";
-    return;
-  }
+    quizMutation.mutate({
+      ...safeConfig,
+      context: {
+        entity: "study_guru",
+        chapter: quizChapter,
+        description: quizDescription,
+        chatHistoryForQuiz,
+      },
+    });
+  };
 
-  setAttachedFiles((prev) => {
-    const combined = [...prev, ...files];
-    if (combined.length > config.maxImages) {
-      alert(`You can only upload up to ${config.maxImages} images with this model.`);
-      return combined.slice(0, config.maxImages);
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const config = MODEL_CONFIGS[selectedModel];
+    if (!config.supportsImages) {
+      alert(`The selected model (${config.label}) does not support images.`);
+      event.target.value = "";
+      return;
     }
-    return combined;
-  });
-  // Allow selecting the same file again by resetting the input
-  event.target.value = "";
-};
 
-const handleAttachmentClick = () => {
-  fileInputRef.current?.click();
-};
+    setAttachedFiles((prev) => {
+      const combined = [...prev, ...files];
+      if (combined.length > config.maxImages) {
+        alert(`You can only upload up to ${config.maxImages} images with this model.`);
+        return combined.slice(0, config.maxImages);
+      }
+      return combined;
+    });
+    // Allow selecting the same file again by resetting the input
+    event.target.value = "";
+  };
 
-const toggleRecording = () => {
-  if (!recognitionRef.current) {
-    alert("Voice input is not supported in this browser.");
-    return;
-  }
-  setIsRecording((prev) => !prev);
-};
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
 
-const handleQuickPrompt = (prompt: string) => {
-  setMessage(prompt);
-  inputRef.current?.focus();
-};
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
+    setIsRecording((prev) => !prev);
+  };
 
-const modelOptions: ModelId[] = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "tngtech/deepseek-r1t2-chimera:free",
-  "z-ai/glm-4.5-air:free",
-  "deepseek/deepseek-r1-0528:free",
-  "openrouter/sherlock-think-alpha",
-];
+  const handleQuickPrompt = (prompt: string) => {
+    setMessage(prompt);
+    inputRef.current?.focus();
+  };
 
-return (
-  <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-    {/* Mobile Sidebar Backdrop */}
-    {sidebarOpen && (
+  const modelOptions: ModelId[] = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "tngtech/deepseek-r1t2-chimera:free",
+    "z-ai/glm-4.5-air:free",
+    "deepseek/deepseek-r1-0528:free",
+    "openrouter/sherlock-think-alpha",
+  ];
+
+  return (
+    <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <div
-        className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden fade-in"
-        onClick={() => setSidebarOpen(false)}
-      />
-    )}
+        className={`${sidebarOpen
+          ? "translate-x-0 w-72"
+          : "-translate-x-full w-72 md:w-0 md:translate-x-0"
+          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() =>
+                setHistorySearchOpen((prev) => {
+                  const next = !prev;
+                  if (!next) {
+                    setHistorySearch("");
+                  }
+                  return next;
+                })
+              }
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+            >
+              <Search className="w-6 h-6" />
+            </button>
+          </div>
 
-    {/* Sidebar */}
-    <div
-      className={`${sidebarOpen
-        ? "translate-x-0 w-72"
-        : "-translate-x-full w-72 md:w-0 md:translate-x-0"
-        } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
-    >
-      {/* Sidebar Header */}
-      <div className="p-4 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-slate-800/80 rounded-lg transition"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <button
-            onClick={() =>
-              setHistorySearchOpen((prev) => {
-                const next = !prev;
-                if (!next) {
-                  setHistorySearch("");
-                }
-                return next;
-              })
-            }
-            className="p-2 hover:bg-slate-800/80 rounded-lg transition"
-          >
-            <Search className="w-6 h-6" />
-          </button>
-        </div>
+          {historySearchOpen ? (
+            <>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search history"
+                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
+                />
+              </div>
 
-        {historySearchOpen ? (
-          <>
-            <div className="mb-3">
-              <input
-                type="text"
-                value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
-                placeholder="Search history"
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
-              />
-            </div>
-
-            {/* New Chat Button */}
+              {/* New Chat Button */}
+              <button
+                onClick={handleNewChat}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">New chat</span>
+              </button>
+            </>
+          ) : (
             <button
               onClick={handleNewChat}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
@@ -784,609 +793,615 @@ return (
               <Plus className="w-4 h-4" />
               <span className="text-sm font-medium">New chat</span>
             </button>
-          </>
-        ) : (
-          <button
-            onClick={handleNewChat}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="text-sm font-medium">New chat</span>
-          </button>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Chat History - Scrollable */}
-      < div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" >
-        {/* Recent Section */}
-        < div className="p-4" >
-          <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
-          <div className="space-y-1">
-            {[...chats]
-              .filter((chat) => chat.recent)
-              .filter((chat) =>
-                historySearch.trim()
-                  ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
-                  : true
-              )
-              .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
-              .map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
-                    ? "bg-slate-800/80"
-                    : "hover:bg-slate-800/40"
-                    }`}
-                >
-                  <button
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
-                      ? "text-slate-100"
-                      : "text-slate-300 group-hover:text-slate-100"
+        {/* Chat History - Scrollable */}
+        < div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" >
+          {/* Recent Section */}
+          < div className="p-4" >
+            <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
+            <div className="space-y-1">
+              {[...chats]
+                .filter((chat) => chat.recent)
+                .filter((chat) =>
+                  historySearch.trim()
+                    ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
+                    : true
+                )
+                .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+                .map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
                       }`}
                   >
-                    <span className="inline-flex items-center gap-1 min-w-0">
-                      {chat.pinned && <span className="text-xs">📌</span>}
-                      <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenMenuChatId((current) =>
-                        current === chat.id ? null : chat.id
-                      );
-                    }}
-                    className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
-                    aria-label="Chat options"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
+                    >
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
+                      }}
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
 
-                  {openMenuChatId === chat.id && (
-                    <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareChat(chat);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>🔗</span>
-                        <span>Share</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePinChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>📌</span>
-                        <span>{chat.pinned ? "Unpin" : "Pin"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRenameChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>✏️</span>
-                        <span>Rename</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
-                      >
-                        <span>🗑️</span>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-        </div >
-
-        {/* Other Chats */}
-        < div className="p-4" >
-          <div className="space-y-1">
-            {chats
-              .filter((chat) => !chat.recent)
-              .filter((chat) =>
-                historySearch.trim()
-                  ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
-                  : true
-              )
-              .map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
-                    ? "bg-slate-800/80"
-                    : "hover:bg-slate-800/40"
-                    }`}
-                >
-                  <button
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
-                      ? "text-slate-100"
-                      : "text-slate-300 group-hover:text-slate-100"
-                      }`}
-                  >
-                    <span className="inline-flex items-center gap-1 min-w-0">
-                      {chat.pinned && <span className="text-xs">📌</span>}
-                      <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenMenuChatId((current) =>
-                        current === chat.id ? null : chat.id
-                      );
-                    }}
-                    className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
-                    aria-label="Chat options"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-
-                  {openMenuChatId === chat.id && (
-                    <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareChat(chat);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>🔗</span>
-                        <span>Share</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePinChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>📌</span>
-                        <span>{chat.pinned ? "Unpin" : "Pin"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRenameChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
-                      >
-                        <span>✏️</span>
-                        <span>Rename</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteChat(chat.id);
-                          setOpenMenuChatId(null);
-                        }}
-                        className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
-                      >
-                        <span>🗑️</span>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-        </div >
-      </div >
-
-      <div className="px-4 pt-1 pb-0 flex-shrink-0">
-        <div className="space-y-2">
-          <label className="text-xs uppercase tracking-wide text-slate-400">Model</label>
-          <GlowSelect
-            id="study-guru-model"
-            value={selectedModel}
-            onChange={(nextValue) => {
-              const newModel = nextValue as ModelId;
-              const config = MODEL_CONFIGS[newModel];
-              if (!config.supportsImages && attachedFiles.length > 0) {
-                const confirm = window.confirm(
-                  `The selected model (${config.label}) does not support images. Your attached images will be removed. Continue?`
-                );
-                if (!confirm) return;
-                setAttachedFiles([]);
-              }
-              setSelectedModel(newModel);
-            }}
-            options={modelOptions.map((option) => ({
-              value: option,
-              label: MODEL_CONFIGS[option]?.label ?? option,
-            }))}
-            placeholder="Select model"
-            placement="top"
-            className="min-w-0"
-            listClassName="min-w-0 sm:min-w-[12rem]"
-          />
-        </div>
-      </div>
-
-      {/* User Profile */}
-      <div className="p-4 flex-shrink-0">
-        <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
-            {initials}
-          </div>
-          <span className="font-medium truncate">{displayName}</span>
-        </button>
-      </div>
-    </div >
-
-    {/* Main Chat Area */}
-    < div className="flex-1 flex flex-col relative" >
-      {/* Top Header */}
-      < div className="h-16 flex items-center px-4" >
-        {!sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition mr-4"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-        )}
-        <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
-        </div>
-      </div >
-
-      {/* Scrollable Chat Section */}
-      < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
-        <div className="max-w-3xl mx-auto space-y-6">
-          {activeChat && activeChat.messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center space-y-6">
-                <div>
-                  <h2 className="text-3xl sm:text-4xl font-bold">
-                    <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-                      Hello, {firstName}
-                    </span>
-                  </h2>
-                  <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPrompt("Explain this concept in simple terms: ")
-                    }
-                    className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
-                      <span className="group-hover:scale-110 transition-transform">🎨</span>
-                    </div>
-                    <span className="text-sm font-medium text-slate-100">Explain concept</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPrompt("Help me solve this problem step by step: ")
-                    }
-                    className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
-                      <span className="group-hover:scale-110 transition-transform">💻</span>
-                    </div>
-                    <span className="text-sm font-medium text-slate-100">Solve problem</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPrompt("Give me study tips for: ")
-                    }
-                    className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
-                      <span className="group-hover:scale-110 transition-transform">💡</span>
-                    </div>
-                    <span className="text-sm font-medium text-slate-100">Study tips</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickPrompt("Create a practice quiz with answers on: ")
-                    }
-                    className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
-                      <span className="group-hover:scale-110 transition-transform">📝</span>
-                    </div>
-                    <span className="text-sm font-medium text-slate-100">Practice quiz</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            activeChat &&
-            activeChat.messages.map((msg, index) =>
-              msg.role === "user" ? (
-                <div key={index} className="flex justify-end">
-                  <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 max-w-lg border border-primary/60 shadow-md shadow-primary/40">
-                    <p className="text-slate-100">{msg.content}</p>
-                  </div>
-                </div>
-              ) : (
-                <div key={index} className="flex justify-start">
-                  <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
-                      <div>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
-                          rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
-                          className="prose prose-invert prose-sm max-w-none text-slate-100 leading-relaxed"
-                          components={{
-                            h1: ({ node, ...props }) => (
-                              <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />
-                            ),
-                            h2: ({ node, ...props }) => (
-                              <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />
-                            ),
-                            h3: ({ node, ...props }) => (
-                              <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />
-                            ),
-                            ul: ({ node, ...props }) => (
-                              <ul className="list-disc list-inside space-y-1 my-2" {...props} />
-                            ),
-                            ol: ({ node, ...props }) => (
-                              <ol className="list-decimal list-inside space-y-1 my-2" {...props} />
-                            ),
-                            li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
-                            code: ({ node, inline, ...props }) =>
-                              inline ? (
-                                <code
-                                  className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono"
-                                  {...props}
-                                />
-                              ) : (
-                                <code
-                                  className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto"
-                                  {...props}
-                                />
-                              ),
-                            p: ({ node, ...props }) => (
-                              <p className="text-slate-200 my-2" {...props} />
-                            ),
-                            strong: ({ node, ...props }) => (
-                              <strong className="font-bold text-emerald-300" {...props} />
-                            ),
-                            em: ({ node, ...props }) => (
-                              <em className="italic text-slate-300" {...props} />
-                            ),
-                            hr: ({ node, ...props }) => (
-                              <hr className="my-4 border-slate-700" {...props} />
-                            ),
-                            table: ({ node, ...props }) => (
-                              <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
-                                <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
-                              </div>
-                            ),
-                            thead: ({ node, ...props }) => (
-                              <thead className="bg-slate-900/80" {...props} />
-                            ),
-                            tbody: ({ node, ...props }) => <tbody {...props} />,
-                            tr: ({ node, ...props }) => (
-                              <tr className="border-b border-slate-800/80 last:border-0" {...props} />
-                            ),
-                            th: ({ node, ...props }) => (
-                              <th className="px-3 py-2 font-semibold text-slate-100" {...props} />
-                            ),
-                            td: ({ node, ...props }) => (
-                              <td className="px-3 py-2 align-top text-slate-200" {...props} />
-                            ),
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
                           }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
                         >
-                          {ensureMathDelimiters(msg.content)}
-                        </ReactMarkdown>
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
-                </div>
-              )
-            )
-          )}
-          {activeChat && isGenerating && (
-            <div className="flex justify-start">
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
-                <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/90 rounded-2xl border border-slate-800/50 shadow-2xl backdrop-blur-xl">
-                  <div className="relative flex items-center justify-center w-6 h-6">
-                    <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 border-r-blue-500 animate-spin [animation-duration:1.5s]" />
-                    <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-purple-500 border-b-pink-500 animate-spin [animation-duration:1s] [animation-direction:reverse]" />
-                    <div className="absolute inset-1.5 rounded-full bg-cyan-500/20 animate-pulse" />
-                  </div>
-                  <span className="text-sm font-medium bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent animate-pulse">
-                    Study Guru is thinking...
-                  </span>
-                </div>
-              </div>
+                ))}
             </div>
-          )}
-          {activeChat && isQuizPanelOpen && (
-            <div className="mt-3">
-              <QuizConfigForm
-                onSubmit={(config) => {
-                  handleQuizSubmit(config);
-                  setIsQuizPanelOpen(false);
-                }}
-                onCancel={() => setIsQuizPanelOpen(false)}
-                isLoading={quizMutation.isPending}
-                section="study"
-                studyChapter={quizChapter}
-                studyDescription={quizDescription}
-                onChangeStudyChapter={setQuizChapter}
-                onChangeStudyDescription={setQuizDescription}
-              />
-            </div>
-          )}
-        </div>
-      </div >
+          </div >
 
-      {/* Input Area pinned to bottom of chat column */}
-      < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
-        <div className="max-w-3xl mx-auto">
-          {attachedFiles.length > 0 && (
-            <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
-              {attachedFiles.map((file, i) => (
-                <div key={i} className="relative group flex-shrink-0">
-                  <div className="w-16 h-16 rounded-lg border border-slate-700 overflow-hidden bg-slate-900">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt="preview"
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
-                    />
-                  </div>
-                  <button
-                    onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition"
+          {/* Other Chats */}
+          < div className="p-4" >
+            <div className="space-y-1">
+              {chats
+                .filter((chat) => !chat.recent)
+                .filter((chat) =>
+                  historySearch.trim()
+                    ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
+                    : true
+                )
+                .map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
+                      }`}
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
+                    >
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
+                      }}
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
-          )}
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
-            <div className="flex items-center gap-3">
-              {/* Plus (attachments) */}
-              <button
-                type="button"
-                onClick={handleAttachmentClick}
-                className="w-8 h-8 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition flex-shrink-0"
-                title={
-                  attachedFiles.length
-                    ? `${attachedFiles.length} photo${attachedFiles.length > 1 ? "s" : ""} selected`
-                    : "Add photos (up to 10)"
+          </div >
+        </div >
+
+        <div className="px-4 pt-1 pb-0 flex-shrink-0">
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Model</label>
+            <GlowSelect
+              id="study-guru-model"
+              value={selectedModel}
+              onChange={(nextValue) => {
+                const newModel = nextValue as ModelId;
+                const config = MODEL_CONFIGS[newModel];
+                if (!config.supportsImages && attachedFiles.length > 0) {
+                  const confirm = window.confirm(
+                    `The selected model (${config.label}) does not support images. Your attached images will be removed. Continue?`
+                  );
+                  if (!confirm) return;
+                  setAttachedFiles([]);
                 }
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-
-              {/* Message input */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Ask study guru"
-                disabled={quizMutation.isPending}
-                className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
-              />
-
-              {/* Mic (voice UI only) */}
-              <button
-                type="button"
-                onClick={toggleRecording}
-                className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${isRecording
-                  ? "border-red-500/80 bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/30"
-                  : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
-                  }`}
-                title="Voice input"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-
-              {/* Send / Stop button */}
-              {isGenerating ? (
-                <button
-                  type="button"
-                  onClick={handleStopGeneration}
-                  className="w-24 h-11 rounded-full bg-slate-900/90 border border-primary/70 flex items-center justify-center gap-2 text-xs font-medium text-primary hover:bg-slate-800 transition flex-shrink-0"
-                >
-                  <span className="w-4 h-4 border-2 border-primary/70 border-t-transparent rounded-full animate-spin" />
-                  <span>Stop</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={quizMutation.isPending}
-                  className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5 text-white" />
-                </button>
-              )}
-            </div>
-
-            {/* Hidden file input for attachments */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
+                setSelectedModel(newModel);
+              }}
+              options={modelOptions.map((option) => ({
+                value: option,
+                label: MODEL_CONFIGS[option]?.label ?? option,
+              }))}
+              placeholder="Select model"
+              placement="top"
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
             />
           </div>
         </div>
-      </div >
-    </div >
 
-    <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
-      SG v33
-    </div>
-    {/* Image Viewer Modal */}
-    {viewingImage && (
-      <div
-        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-        onClick={() => setViewingImage(null)}
-      >
-        <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
-          <img
-            src={viewingImage}
-            alt="Full view"
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-          />
-          <button
-            onClick={() => setViewingImage(null)}
-            className="absolute top-4 right-4 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition backdrop-blur-md"
-          >
-            ×
+        {/* User Profile */}
+        <div className="p-4 flex-shrink-0">
+          <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+              {initials}
+            </div>
+            <span className="font-medium truncate">{displayName}</span>
           </button>
         </div>
+      </div >
+
+      {/* Main Chat Area */}
+      < div className="flex-1 flex flex-col relative" >
+        {/* Top Header */}
+        < div className="h-16 flex items-center px-4" >
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 hover:bg-zinc-800 rounded-lg transition mr-4"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+          <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
+          </div>
+        </div >
+
+        {/* Scrollable Chat Section */}
+        < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
+          <div className="max-w-3xl mx-auto space-y-6">
+            {activeChat && activeChat.messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-6">
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl font-bold">
+                      <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                        Hello, {firstName}
+                      </span>
+                    </h2>
+                    <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Explain this concept in simple terms: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">🎨</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Explain concept</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Help me solve this problem step by step: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💻</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Solve problem</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Give me study tips for: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💡</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Study tips</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Create a practice quiz with answers on: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">📝</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Practice quiz</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              activeChat &&
+              activeChat.messages.map((msg, index) =>
+                msg.role === "user" ? (
+                  <div key={index} className="flex justify-end">
+                    <div className="flex flex-col items-end max-w-lg">
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-2 flex flex-wrap justify-end gap-2">
+                          {msg.images.map((imgSrc, idx) => (
+                            <div
+                              key={idx}
+                              className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-slate-700/50 cursor-pointer hover:opacity-90 transition"
+                              onClick={() => setViewingImage(imgSrc)}
+                            >
+                              <img src={imgSrc} alt="uploaded" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 border border-primary/60 shadow-md shadow-primary/40">
+                        <p className="text-slate-100">{msg.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={index} className="flex justify-start">
+                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
+                        <div>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
+                            rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
+                            className="prose prose-invert prose-sm max-w-none text-slate-100 leading-relaxed"
+                            components={{
+                              h1: ({ node, ...props }) => (
+                                <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />
+                              ),
+                              h3: ({ node, ...props }) => (
+                                <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul className="list-disc list-inside space-y-1 my-2" {...props} />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol className="list-decimal list-inside space-y-1 my-2" {...props} />
+                              ),
+                              li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
+                              code: ({ node, inline, ...props }) =>
+                                inline ? (
+                                  <code
+                                    className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono"
+                                    {...props}
+                                  />
+                                ) : (
+                                  <code
+                                    className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto"
+                                    {...props}
+                                  />
+                                ),
+                              p: ({ node, ...props }) => (
+                                <p className="text-slate-200 my-2" {...props} />
+                              ),
+                              strong: ({ node, ...props }) => (
+                                <strong className="font-bold text-emerald-300" {...props} />
+                              ),
+                              em: ({ node, ...props }) => (
+                                <em className="italic text-slate-300" {...props} />
+                              ),
+                              hr: ({ node, ...props }) => (
+                                <hr className="my-4 border-slate-700" {...props} />
+                              ),
+                              table: ({ node, ...props }) => (
+                                <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
+                                  <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                                </div>
+                              ),
+                              thead: ({ node, ...props }) => (
+                                <thead className="bg-slate-900/80" {...props} />
+                              ),
+                              tbody: ({ node, ...props }) => <tbody {...props} />,
+                              tr: ({ node, ...props }) => (
+                                <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                              ),
+                              th: ({ node, ...props }) => (
+                                <th className="px-3 py-2 font-semibold text-slate-100" {...props} />
+                              ),
+                              td: ({ node, ...props }) => (
+                                <td className="px-3 py-2 align-top text-slate-200" {...props} />
+                              ),
+                            }}
+                          >
+                            {ensureMathDelimiters(msg.content)}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )
+            )}
+            {activeChat && isGenerating && (
+              <div className="flex justify-start">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
+                  <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/90 rounded-2xl border border-slate-800/50 shadow-2xl backdrop-blur-xl">
+                    <div className="relative flex items-center justify-center w-6 h-6">
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 border-r-blue-500 animate-spin [animation-duration:1.5s]" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-purple-500 border-b-pink-500 animate-spin [animation-duration:1s] [animation-direction:reverse]" />
+                      <div className="absolute inset-1.5 rounded-full bg-cyan-500/20 animate-pulse" />
+                    </div>
+                    <span className="text-sm font-medium bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent animate-pulse">
+                      Study Guru is thinking...
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeChat && isQuizPanelOpen && (
+              <div className="mt-3">
+                <QuizConfigForm
+                  onSubmit={(config) => {
+                    handleQuizSubmit(config);
+                    setIsQuizPanelOpen(false);
+                  }}
+                  onCancel={() => setIsQuizPanelOpen(false)}
+                  isLoading={quizMutation.isPending}
+                  section="study"
+                  studyChapter={quizChapter}
+                  studyDescription={quizDescription}
+                  onChangeStudyChapter={setQuizChapter}
+                  onChangeStudyDescription={setQuizDescription}
+                />
+              </div>
+            )}
+          </div>
+        </div >
+
+        {/* Input Area pinned to bottom of chat column */}
+        < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
+          <div className="max-w-3xl mx-auto">
+            {attachedFiles.length > 0 && (
+              <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
+                {attachedFiles.map((file, i) => (
+                  <div key={i} className="relative group flex-shrink-0">
+                    <div className="w-16 h-16 rounded-lg border border-slate-700 overflow-hidden bg-slate-900">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="preview"
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
+              <div className="flex items-center gap-3">
+                {/* Plus (attachments) */}
+                <button
+                  type="button"
+                  onClick={handleAttachmentClick}
+                  className="w-8 h-8 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition flex-shrink-0"
+                  title={
+                    attachedFiles.length
+                      ? `${attachedFiles.length} photo${attachedFiles.length > 1 ? "s" : ""} selected`
+                      : "Add photos (up to 10)"
+                  }
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+
+                {/* Message input */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask study guru"
+                  disabled={quizMutation.isPending}
+                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+
+                {/* Mic (voice UI only) */}
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${isRecording
+                    ? "border-red-500/80 bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/30"
+                    : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
+                    }`}
+                  title="Voice input"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+
+                {/* Send / Stop button */}
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    className="w-24 h-11 rounded-full bg-slate-900/90 border border-primary/70 flex items-center justify-center gap-2 text-xs font-medium text-primary hover:bg-slate-800 transition flex-shrink-0"
+                  >
+                    <span className="w-4 h-4 border-2 border-primary/70 border-t-transparent rounded-full animate-spin" />
+                    <span>Stop</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={quizMutation.isPending}
+                    className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Send className="w-5 h-5 text-white" />
+                  </button>
+                )}
+              </div>
+
+              {/* Hidden file input for attachments */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+          </div>
+        </div >
+      </div >
+
+      <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
+        SG v33
       </div>
-    )}
-  </div>
-);
+      {/* Image Viewer Modal */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setViewingImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <img
+              src={viewingImage}
+              alt="Full view"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+            <button
+              onClick={() => setViewingImage(null)}
+              className="absolute top-4 right-4 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition backdrop-blur-md"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };

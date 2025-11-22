@@ -592,6 +592,8 @@ export const StudyGuruChat = () => {
       const response = await studyAssistantMutation.mutateAsync({
         section: "study",
         context: {
+          mode: "study_guru",
+          model: selectedModel,
           chatHistory,
         },
         message: trimmed,

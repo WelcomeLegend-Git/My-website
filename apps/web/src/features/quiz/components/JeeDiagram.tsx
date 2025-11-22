@@ -596,5 +596,3 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
     </div>
   );
 };
-
-OK push now”

@@ -106,6 +106,35 @@ const Send = (props: IconProps) => (
   </svg>
 );
 
+const Copy = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const Pencil = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+  </svg>
+);
+
 const ensureMathDelimiters = (text: string): string => {
   if (!text) return text;
   let processed = text;
@@ -193,6 +222,36 @@ export const StudyGuruChat = () => {
   const generationCancelledRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: ChatMessage } | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCopy = (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(console.error);
+    }
+    setContextMenu(null);
+  };
+
+  const handleEdit = (text: string) => {
+    setMessage(text);
+    inputRef.current?.focus();
+    setContextMenu(null);
+  };
+
+  const handleLongPressStart = (msg: ChatMessage, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const { clientX, clientY } = touch;
+    longPressTimerRef.current = setTimeout(() => {
+      setContextMenu({ x: clientX, y: clientY, message: msg });
+    }, 500); // 500ms long press
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -1137,7 +1196,7 @@ export const StudyGuruChat = () => {
               activeChat &&
               activeChat.messages.map((msg, index) =>
                 msg.role === "user" ? (
-                  <div key={index} className="flex justify-end">
+                  <div key={index} className="flex justify-end group relative">
                     <div className="flex flex-col items-end max-w-lg">
                       {msg.images && msg.images.length > 0 && (
                         <div className="mb-2 flex flex-wrap justify-end gap-2">
@@ -1152,15 +1211,43 @@ export const StudyGuruChat = () => {
                           ))}
                         </div>
                       )}
-                      <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 border border-primary/60 shadow-md shadow-primary/40">
-                        <p className="text-slate-100">{msg.content}</p>
+                      <div className="flex items-end gap-2">
+                        {/* Desktop Actions */}
+                        <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 mr-1">
+                          <button
+                            onClick={() => handleCopy(msg.content)}
+                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            title="Copy"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(msg.content)}
+                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div
+                          className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 border border-primary/60 shadow-md shadow-primary/40"
+                          onTouchStart={(e) => handleLongPressStart(msg, e)}
+                          onTouchEnd={handleLongPressEnd}
+                          onTouchMove={handleLongPressEnd}
+                        >
+                          <p className="text-slate-100">{msg.content}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div key={index} className="flex justify-start">
-                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
-                      <div className="flex items-start gap-3">
+                  <div key={index} className="flex justify-start group relative">
+                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60 flex flex-col">
+                      <div className="flex items-start gap-3"
+                        onTouchStart={(e) => handleLongPressStart(msg, e)}
+                        onTouchEnd={handleLongPressEnd}
+                        onTouchMove={handleLongPressEnd}
+                      >
                         <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
                         <div>
                           <ReactMarkdown
@@ -1231,6 +1318,30 @@ export const StudyGuruChat = () => {
                             {ensureMathDelimiters(msg.content)}
                           </ReactMarkdown>
                         </div>
+                      </div>
+                      {/* Desktop Actions for Assistant */}
+                      <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 mt-2 self-end">
+                        <button
+                          onClick={() => handleCopy(msg.content)}
+                          className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                          title="Copy"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        {/* Only allow editing user messages, or maybe allow copying assistant messages to input? 
+                            User request implied editing their own message. Let's keep Edit for user messages primarily, 
+                            but Copy is useful for both. For assistant, maybe just Copy? 
+                            The user screenshot showed 'Edit Message' in the context menu. 
+                            Let's assume Edit is for User messages. But context menu is generic.
+                            Let's support Edit for both for now (copy to input), as it's harmless.
+                         */}
+                        <button
+                          onClick={() => handleEdit(msg.content)}
+                          className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1383,6 +1494,42 @@ export const StudyGuruChat = () => {
       <div className="absolute bottom-1 right-3 text-[10px] text-zinc-500/70 pointer-events-none select-none">
         SG v33
       </div>
+
+      {/* Context Menu for Mobile */}
+      {contextMenu && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200"
+          onClick={() => setContextMenu(null)}
+        >
+          <div
+            className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: window.innerWidth >= 640 ? "absolute" : "relative",
+              left: window.innerWidth >= 640 ? contextMenu.x : undefined,
+              top: window.innerWidth >= 640 ? contextMenu.y : undefined,
+            }}
+          >
+            <div className="p-2 space-y-1">
+              <button
+                onClick={() => handleCopy(contextMenu.message.content)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+              >
+                <Copy className="w-5 h-5 text-slate-400" />
+                <span className="font-medium">Copy</span>
+              </button>
+              <button
+                onClick={() => handleEdit(contextMenu.message.content)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+              >
+                <Pencil className="w-5 h-5 text-slate-400" />
+                <span className="font-medium">Edit Message</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Image Viewer Modal */}
       {viewingImage && (
         <div

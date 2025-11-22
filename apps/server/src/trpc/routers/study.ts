@@ -124,11 +124,17 @@ ${context}`,
       let prompt: string;
 
       if (isStudyGuru) {
-        const rawHistory = Array.isArray((baseContext as any).chatHistory)
+        const rawHistoryFull = Array.isArray((baseContext as any).chatHistory)
           ? ((baseContext as any).chatHistory as Array<{ role?: string; content?: unknown }>)
           : [];
 
-        const historyText = rawHistory
+        const maxMessages = 40;
+        const rawHistory =
+          rawHistoryFull.length > maxMessages
+            ? rawHistoryFull.slice(rawHistoryFull.length - maxMessages)
+            : rawHistoryFull;
+
+        let historyText = rawHistory
           .map((m, index) => {
             const role = m?.role === "assistant" ? "Study Guru" : "Student";
             const content =
@@ -136,6 +142,11 @@ ${context}`,
             return `${index + 1}. ${role}: ${content}`;
           })
           .join("\n");
+
+        const maxChars = 24000;
+        if (historyText.length > maxChars) {
+          historyText = historyText.slice(historyText.length - maxChars);
+        }
 
         prompt = `You are **Study Guru**, a highly tuned AI mentor for JEE aspirants.
 

@@ -240,12 +240,22 @@ const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> =
   });
 };
 
+const dataUrlToFile = (dataUrl: string, filename: string): File => {
+  const [meta, base64] = dataUrl.split(",");
+  const mimeMatch = meta.match(/data:(.*?);/);
+  const mimeType = mimeMatch?.[1] || "image/png";
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new File([bytes], filename, { type: mimeType });
+};
+
 export const StudyGuruChat = () => {
   const [message, setMessage] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.innerWidth >= 768;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number>(0);
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
@@ -266,166 +276,18 @@ export const StudyGuruChat = () => {
   const generationCancelledRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: ChatMessage } | null>(null);
-  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
-  const [regeneratingMessageIndex, setRegeneratingMessageIndex] = useState<number | null>(null);
-  const [regeneratePopover, setRegeneratePopover] = useState<{ index: number; anchor: HTMLElement } | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const dataURLtoFile = (dataurl: string, filename: string) => {
-    const arr = dataurl.split(',');
-    const mime = arr[0].match(/:(.*?);/)?.[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new File([u8arr], filename, { type: mime });
-  };
-
-  const handleCopy = (text: string) => {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(console.error);
-    }
-    setContextMenu(null);
-  };
-
-  const handleSpeak = (text: string) => {
-    if ('speechSynthesis' in window) {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        return;
-      }
-      // Strip markdown for cleaner speech
-      const cleanText = text.replace(/[*#_`]/g, '');
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
-  const handleEdit = (msg: ChatMessage, index: number) => {
-    setMessage(msg.content);
-    setEditingMessageIndex(index);
-
-    // Restore images
-    if (msg.images && msg.images.length > 0) {
-      const restoredFiles = msg.images.map((img, i) =>
-        dataURLtoFile(img, `restored-image-${i}.png`)
-      );
-      setAttachedFiles(restoredFiles);
-    } else {
-      setAttachedFiles([]);
-    }
-
-    inputRef.current?.focus();
-    setContextMenu(null);
-  };
-
-  const handleRegenerate = (index: number, model?: ModelId) => {
-    if (!activeChat) return;
-
-    if (model) {
-      setSelectedModel(model);
-    }
-
-    // Truncate history up to the user message at 'index'
-    // The user message at 'index' is the one we want to regenerate a response FOR.
-    // So we keep messages 0 to index (inclusive).
-    const truncatedMessages = activeChat.messages.slice(0, index + 1);
-
-    setChats((prevChats) =>
-      prevChats.map((chat) =>
-        chat.id === activeChatId
-          ? { ...chat, messages: truncatedMessages }
-          : chat
-      )
-    );
-
-    setRegeneratePopover(null);
-    setIsGenerating(true);
-
-    // Trigger generation for the last user message
-    const lastUserMessage = truncatedMessages[index];
-    // Images? If the user message had images, they are in the message object as data URLs.
-    // We need to convert them back to the payload format { data: string; mimeType: string }
-    let imagesPayload: { data: string; mimeType: string }[] | undefined;
-    if (lastUserMessage.images) {
-      imagesPayload = lastUserMessage.images.map(img => {
-        const [meta, data] = img.split(',');
-        const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/png';
-        return { data, mimeType };
-      });
-    }
-
-    const historyForContext = truncatedMessages.slice(0, -1).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    studyAssistantMutation.mutate(
-      {
-        section: "study",
-        context: {
-          mode: "study_guru",
-          model: selectedModel,
-          chatHistory: historyForContext,
-        },
-        message: lastUserMessage.content,
-        images: imagesPayload,
-      },
-      {
-        onSuccess: (response) => {
-          setChats((prevChats) =>
-            prevChats.map((chat) => {
-              if (chat.id !== activeChatId) return chat;
-              const updatedMessages: ChatMessage[] = [
-                ...chat.messages,
-                { role: "assistant", content: response.reply },
-              ];
-              return {
-                ...chat,
-                messages: updatedMessages,
-              };
-            })
-          );
-          setIsGenerating(false);
-        },
-        onError: (error) => {
-          const fallbackMessage = error instanceof Error ? error.message : "Something went wrong.";
-          setChats((prevChats) =>
-            prevChats.map((chat) => {
-              if (chat.id !== activeChatId) return chat;
-              const updatedMessages: ChatMessage[] = [
-                ...chat.messages,
-                { role: "assistant", content: fallbackMessage },
-              ];
-              return {
-                ...chat,
-                messages: updatedMessages,
-              };
-            })
-          );
-          setIsGenerating(false);
-        },
-      }
-    );
-  };
-
-  const handleLongPressStart = (msg: ChatMessage, e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const { clientX, clientY } = touch;
-    longPressTimerRef.current = setTimeout(() => {
-      setContextMenu({ x: clientX, y: clientY, message: msg });
-    }, 500); // 500ms long press
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    messageIndex: number;
+    role: "user" | "assistant";
+  } | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [regeneratePopover, setRegeneratePopover] = useState<{
+    userIndex: number;
+    anchor: HTMLElement;
+  } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -738,155 +600,360 @@ export const StudyGuruChat = () => {
     }
   };
 
+  const handleCopyText = (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { });
+    }
+  };
+
+  const handleEditMessage = (index: number) => {
+    if (!activeChat) return;
+    const msg = activeChat.messages[index];
+    if (!msg || msg.role !== "user") return;
+    setEditingIndex(index);
+    setMessage(msg.content);
+
+    if (msg.images && msg.images.length > 0) {
+      const files = msg.images.map((url, i) => dataUrlToFile(url, `edited-image-${i}.png`));
+      setAttachedFiles(files);
+    } else {
+      setAttachedFiles([]);
+    }
+
+    inputRef.current?.focus();
+    setContextMenu(null);
+  };
+
+  const handleSpeak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      return;
+    }
+    const clean = text.replace(/[*#_`]/g, "");
+    const utterance = new SpeechSynthesisUtterance(clean);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const findUserIndexForAssistant = (assistantIndex: number): number | null => {
+    if (!activeChat) return null;
+    for (let i = assistantIndex - 1; i >= 0; i--) {
+      if (activeChat.messages[i].role === "user") return i;
+    }
+    return null;
+  };
+
+  const handleRegenerateWithModel = async (userIndex: number, model: ModelId) => {
+    if (!activeChat) return;
+
+    const baseMessages = activeChat.messages.slice(0, userIndex);
+    const userMessage = activeChat.messages[userIndex];
+    if (!userMessage || userMessage.role !== "user") return;
+
+    generationCancelledRef.current = false;
+    setSelectedModel(model);
+
+    let imagesPayload: { data: string; mimeType: string }[] | undefined;
+    if (userMessage.images && userMessage.images.length > 0) {
+      imagesPayload = userMessage.images.map((img) => {
+        const [meta, data] = img.split(",");
+        const mimeType = meta.match(/data:(.*?);/)?.[1] || "image/png";
+        return { data, mimeType };
+      });
+    }
+
+    const truncatedMessages: ChatMessage[] = [...baseMessages, { ...userMessage }];
+
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeChatId ? { ...chat, messages: truncatedMessages } : chat
+      )
+    );
+    setRegeneratePopover(null);
+    setIsGenerating(true);
+
+    try {
+      const response = await studyAssistantMutation.mutateAsync({
+        section: "study",
+        context: {
+          mode: "study_guru",
+          model,
+          chatHistory: baseMessages,
+        },
+        message: userMessage.content,
+        images: imagesPayload,
+      });
+
+      if (!generationCancelledRef.current) {
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            return {
+              ...chat,
+              messages: [
+                ...chat.messages,
+                { role: "assistant", content: response.reply },
+              ],
+            };
+          })
+        );
+      }
+    } catch (error) {
+      if (!generationCancelledRef.current) {
+        const fallbackMessage =
+          error instanceof Error ? error.message : "Something went wrong.";
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            return {
+              ...chat,
+              messages: [
+                ...chat.messages,
+                { role: "assistant", content: fallbackMessage },
+              ],
+            };
+          })
+        );
+      }
+    } finally {
+      if (!generationCancelledRef.current) {
+        setIsGenerating(false);
+      }
+    }
+  };
+
+  const handleRegenerateClick = (assistantIndex: number, anchor: HTMLElement) => {
+    const userIndex = findUserIndexForAssistant(assistantIndex);
+    if (userIndex === null) return;
+    setRegeneratePopover({ userIndex, anchor });
+  };
+
+  const handleLongPressStart = (
+    index: number,
+    role: "user" | "assistant",
+    e: React.TouchEvent<HTMLDivElement>
+  ) => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+    }
+    const touch = e.touches[0];
+    const { clientX, clientY } = touch;
+    longPressTimerRef.current = window.setTimeout(() => {
+      setContextMenu({ x: clientX, y: clientY, messageIndex: index, role });
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
   const handleSend = async () => {
-    if ((!message.trim() && attachedFiles.length === 0) || !activeChat) return;
+    if (!message.trim() || !activeChat || isGenerating || quizMutation.isPending) return;
 
     const trimmed = message.trim();
-    setMessage("");
-    setAttachedFiles([]);
-    setIsGenerating(true);
-    setHistorySearchOpen(false); // Close history search on send
+    const isEditing =
+      editingIndex !== null &&
+      activeChat.messages[editingIndex] &&
+      activeChat.messages[editingIndex].role === "user";
 
-    // Process images
-    const imagesDataUrls: string[] = [];
-    const imagesPayload: { data: string; mimeType: string }[] = [];
+    const baseMessages = isEditing
+      ? activeChat.messages.slice(0, editingIndex as number)
+      : activeChat.messages;
 
-    for (const file of attachedFiles) {
+    const lower = trimmed.toLowerCase();
+    const practiceKeywords = ["practice", "quiz", "test", "questions", "exam", "solve"];
+    const wantsPractice = practiceKeywords.some((keyword) => lower.includes(keyword));
+    const willHaveMessagesCount = baseMessages.length + 1;
+    const isDefaultTitle =
+      !activeChat.title || activeChat.title.toLowerCase().startsWith("new chat ");
+    const isFirstAutoTitleTrigger = isDefaultTitle && willHaveMessagesCount === 5;
+    const isPeriodicTrigger = willHaveMessagesCount > 1 && willHaveMessagesCount % 20 === 0;
+    const canAutoTitle = !activeChat.userRenamed;
+    const shouldUpdateTitle = canAutoTitle && (isFirstAutoTitleTrigger || isPeriodicTrigger);
+    const nextTitle = shouldUpdateTitle
+      ? buildChatTitleFromMessage(trimmed)
+      : activeChat.title;
+
+    // Only trigger quiz flow for fresh messages, not when editing history
+    if (wantsPractice && !isEditing) {
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat.id === activeChatId
+            ? {
+              ...chat,
+              title: nextTitle,
+              messages: [
+                ...chat.messages,
+                { role: "user", content: trimmed },
+                {
+                  role: "assistant",
+                  content:
+                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                },
+              ],
+            }
+            : chat
+        )
+      );
+      setMessage("");
+      setIsQuizPanelOpen(true);
+      return;
+    }
+
+    generationCancelledRef.current = false;
+
+    // Process images for display and payload
+    let imagesPayload: { data: string; mimeType: string }[] | undefined;
+    let imagesDataUrls: string[] = [];
+
+    if (attachedFiles.length > 0) {
       try {
-        const { data, mimeType } = await fileToBase64(file);
-        imagesDataUrls.push(`data:${mimeType};base64,${data}`);
-        imagesPayload.push({ data, mimeType });
+        const processed = await Promise.all(attachedFiles.map(fileToBase64));
+        imagesPayload = processed;
+        // Reconstruct data URLs for local display
+        imagesDataUrls = processed.map(p => `data:${p.mimeType};base64,${p.data}`);
       } catch (e) {
-        console.error("Failed to process image", e);
+        console.error("Failed to process images", e);
       }
     }
 
-    // Update UI optimistically
-    // If editing, we replace the history from the edit point.
-    // If not editing, we append.
-    let currentMessages: ChatMessage[] = [];
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: trimmed,
+      images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined,
+    };
+    const nextMessages: ChatMessage[] = [...baseMessages, userMessage];
 
     setChats((prevChats) =>
-      prevChats.map((chat) => {
-        if (chat.id !== activeChatId) return chat;
-
-        let updatedMessages: ChatMessage[];
-
-        if (editingMessageIndex !== null) {
-          // Truncate and append new message
-          updatedMessages = [
-            ...chat.messages.slice(0, editingMessageIndex),
-            {
-              role: "user",
-              content: trimmed,
-              images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined,
-            },
-          ];
-        } else {
-          // Append new message
-          updatedMessages = [
-            ...chat.messages,
-            {
-              role: "user",
-              content: trimmed,
-              images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined,
-            },
-          ];
-        }
-        currentMessages = updatedMessages;
-        return { ...chat, messages: updatedMessages };
-      })
+      prevChats.map((chat) =>
+        chat.id === activeChatId
+          ? {
+            ...chat,
+            title: nextTitle,
+            messages: nextMessages,
+          }
+          : chat
+      )
     );
 
-    // Reset editing state immediately after updating UI
-    if (editingMessageIndex !== null) {
-      setEditingMessageIndex(null);
-    }
+    setMessage("");
+    setAttachedFiles([]); // Clear images immediately
+    setEditingIndex(null);
+    setIsGenerating(true);
 
-    // Prepare context for API
-    // We send the *entire* history (up to the new message) as context?
-    // Or just the previous messages?
-    // The API expects `chatHistory` which usually excludes the current message if it's passed separately.
-    // But here we are passing `message` separately.
-    // So context should be messages BEFORE the new one.
-    // However, if we just edited, `currentMessages` includes the new one at the end.
-    const historyForContext = currentMessages.slice(0, -1).map(m => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    studyAssistantMutation.mutate(
-      {
+    try {
+      const response = await studyAssistantMutation.mutateAsync({
         section: "study",
         context: {
           mode: "study_guru",
           model: selectedModel,
-          chatHistory: historyForContext,
+          // Only send messages before the current one as history; the
+          // current message goes separately in `message`.
+          chatHistory: baseMessages,
         },
         message: trimmed,
-        images: imagesPayload.length > 0 ? imagesPayload : undefined,
-      },
-      {
-        onSuccess: (response) => {
-          setChats((prevChats) =>
-            prevChats.map((chat) => {
-              if (chat.id !== activeChatId) return chat;
-              return {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  { role: "assistant", content: response.reply },
-                ],
-              };
-            })
-          );
-          setIsGenerating(false);
-        },
-        onError: (error) => {
-          const fallbackMessage =
-            error instanceof Error ? error.message : "Something went wrong.";
-          setChats((prevChats) =>
-            prevChats.map((chat) => {
-              if (chat.id !== activeChatId) return chat;
-              return {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  { role: "assistant", content: fallbackMessage },
-                ],
-              };
-            })
-          );
-          setIsGenerating(false);
-        },
+        images: imagesPayload,
+      });
+
+      if (!generationCancelledRef.current) {
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            const updatedMessages: ChatMessage[] = [
+              ...chat.messages,
+              { role: "assistant", content: response.reply },
+            ];
+            return {
+              ...chat,
+              messages: updatedMessages,
+            };
+          })
+        );
       }
-    );
+    } catch (error) {
+      if (!generationCancelledRef.current) {
+        const fallbackMessage =
+          error instanceof Error ? error.message : "Something went wrong. Try again.";
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id !== activeChatId) return chat;
+            const updatedMessages: ChatMessage[] = [
+              ...chat.messages,
+              { role: "assistant", content: fallbackMessage },
+            ];
+            return {
+              ...chat,
+              messages: updatedMessages,
+            };
+          })
+        );
+      }
+    } finally {
+      if (!generationCancelledRef.current) {
+        setIsGenerating(false);
+      }
+    }
   };
 
   const handleStopGeneration = () => {
-    if (isGenerating) {
-      generationCancelledRef.current = true;
-      setIsGenerating(false);
-      // We can't easily cancel the HTTP request with TRPC without an AbortController hooked up,
-      // but we can stop the UI from showing "Generating..."
-    }
+    if (!isGenerating) return;
+    generationCancelledRef.current = true;
+    studyAssistantMutation.reset();
+    setIsGenerating(false);
   };
 
   const handleQuizSubmit = (config: QuizConfig) => {
-    setIsQuizPanelOpen(false);
+    if (!activeChat || quizMutation.isPending) return;
+    const allMessages = activeChat.messages;
+    const start = Math.max(0, allMessages.length - 20);
+    const chatHistoryForQuiz = allMessages.slice(start);
+
+    const safeConfig: QuizConfig = {
+      ...config,
+      questionCount: Math.min(50, Math.max(1, config.questionCount || 10)),
+      pictureQuestionRatio:
+        typeof config.pictureQuestionRatio === "number"
+          ? Math.max(0, Math.min(1, config.pictureQuestionRatio))
+          : config.examType === "advanced"
+            ? 0.3
+            : 0.2,
+    };
+
     quizMutation.mutate({
-      topic: quizChapter || "General Physics",
-      difficulty: config.examType === 'advanced' ? 'hard' : 'medium',
-      questionCount: config.questionCount,
-      chapterId: quizChapter || undefined,
-      description: quizDescription || undefined,
+      ...safeConfig,
+      context: {
+        entity: "study_guru",
+        chapter: quizChapter,
+        description: quizDescription,
+        chatHistoryForQuiz,
+      },
     });
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAttachedFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const config = MODEL_CONFIGS[selectedModel];
+    if (!config.supportsImages) {
+      alert(`The selected model (${config.label}) does not support images.`);
+      event.target.value = "";
+      return;
     }
+
+    setAttachedFiles((prev) => {
+      const combined = [...prev, ...files];
+      if (combined.length > config.maxImages) {
+        alert(`You can only upload up to ${config.maxImages} images with this model.`);
+        return combined.slice(0, config.maxImages);
+      }
+      return combined;
+    });
+    // Allow selecting the same file again by resetting the input
+    event.target.value = "";
   };
 
   const handleAttachmentClick = () => {
@@ -894,512 +961,785 @@ export const StudyGuruChat = () => {
   };
 
   const toggleRecording = () => {
-    if (isRecording) {
-      setIsRecording(false);
-    } else {
-      setIsRecording(true);
+    if (!recognitionRef.current) {
+      alert("Voice input is not supported in this browser.");
+      return;
     }
+    setIsRecording((prev) => !prev);
   };
 
   const handleQuickPrompt = (prompt: string) => {
     setMessage(prompt);
-    // Optional: auto-send?
-    // handleSend();
+    inputRef.current?.focus();
   };
 
-  const modelOptions = Object.values(MODEL_CONFIGS).map((cfg) => ({
-    value: cfg.id,
-    label: cfg.label,
-  }));
-
-  const renderSidebar = () => (
-    <div
-      className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } fixed inset-y-0 left-0 z-40 w-72 bg-slate-900 border-r border-slate-800 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col`}
-    >
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-        <button
-          onClick={handleNewChat}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition font-medium shadow-lg shadow-indigo-900/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Chat</span>
-        </button>
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="md:hidden ml-2 p-2 text-slate-400 hover:text-white"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search chats..."
-            value={historySearch}
-            onChange={(e) => setHistorySearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-        {chats
-          .filter((chat) =>
-            chat.title.toLowerCase().includes(historySearch.toLowerCase())
-          )
-          .map((chat) => (
-            <div
-              key={chat.id}
-              className={`group relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${activeChatId === chat.id
-                ? "bg-indigo-600/10 border-indigo-500/50 text-indigo-100"
-                : "hover:bg-slate-800 border-transparent text-slate-300"
-                }`}
-              onClick={() => {
-                setActiveChatId(chat.id);
-                if (window.innerWidth < 768) setSidebarOpen(false);
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate text-sm">{chat.title}</div>
-                <div className="text-xs text-slate-500 truncate mt-0.5">
-                  {chat.messages.length > 0
-                    ? chat.messages[chat.messages.length - 1].content
-                    : "Empty chat"}
-                </div>
-              </div>
-
-              {/* Chat Actions Dropdown Trigger (visible on hover or active) */}
-              <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${openMenuChatId === chat.id ? 'opacity-100' : ''}`}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenMenuChatId(openMenuChatId === chat.id ? null : chat.id);
-                  }}
-                  className="p-1 hover:bg-slate-700 rounded"
-                >
-                  <MoreVertical className="w-4 h-4 text-slate-400" />
-                </button>
-              </div>
-
-              {/* Dropdown Menu */}
-              {openMenuChatId === chat.id && (
-                <div className="absolute right-2 top-10 z-50 w-32 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRenameChat(chat.id);
-                      setOpenMenuChatId(null);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-slate-700"
-                  >
-                    Rename
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShareChat(chat);
-                      setOpenMenuChatId(null);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-slate-700"
-                  >
-                    Share
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePinChat(chat.id);
-                      setOpenMenuChatId(null);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-slate-700"
-                  >
-                    {chat.pinned ? "Unpin" : "Pin"}
-                  </button>
-                  <div className="h-px bg-slate-700 my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteChat(chat.id);
-                      setOpenMenuChatId(null);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-slate-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-      </div>
-
-      <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">
-              {displayName}
-            </div>
-            <div className="text-xs text-slate-500 truncate">Pro Member</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderMessages = () => (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-      {!activeChat || activeChat.messages.length === 0 ? (
-        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-0 animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 ring-1 ring-indigo-500/30">
-            <span className="text-4xl">🎓</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Welcome back, {firstName}!
-          </h2>
-          <p className="text-slate-400 max-w-md mb-8">
-            I'm your advanced AI study companion. Ask me anything about your
-            courses, upload materials, or generate quizzes.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-            {[
-              "Explain quantum entanglement",
-              "Generate a quiz on calculus",
-              "Summarize this PDF",
-              "Help me plan my study schedule",
-            ].map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => handleQuickPrompt(prompt)}
-                className="p-3 text-sm text-slate-300 bg-slate-900 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-indigo-500/50 hover:text-indigo-200 transition text-left"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        activeChat.messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"
-              } animate-in slide-in-from-bottom-2 duration-300`}
-            onTouchStart={(e) => handleLongPressStart(msg, e)}
-            onTouchEnd={handleLongPressEnd}
-          >
-            <div
-              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 shadow-sm relative group ${msg.role === "user"
-                ? "bg-indigo-600 text-white rounded-br-none"
-                : "bg-slate-900/80 border border-slate-800 text-slate-200 rounded-bl-none"
-                }`}
-            >
-              {/* Images */}
-              {msg.images && msg.images.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {msg.images.map((img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt="Attached"
-                      className="w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-white/10"
-                      onClick={() => setViewingImage(img)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Content */}
-              {msg.role === "user" ? (
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-              ) : (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath, remarkGfm]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={{
-                      code({ node, inline, className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || "");
-                        return !inline && match ? (
-                          <div className="relative group/code my-4">
-                            <div className="absolute right-2 top-2 opacity-0 group-hover/code:opacity-100 transition">
-                              <button
-                                onClick={() =>
-                                  handleCopy(String(children).replace(/\n$/, ""))
-                                }
-                                className="p-1 bg-slate-700 rounded text-slate-300 hover:text-white"
-                                title="Copy code"
-                              >
-                                <Copy className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <pre className="bg-slate-950 rounded-lg p-4 overflow-x-auto border border-slate-800">
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            </pre>
-                          </div>
-                        ) : (
-                          <code
-                            className="bg-slate-800/50 px-1.5 py-0.5 rounded text-indigo-200 font-mono text-sm"
-                            {...props}
-                          >
-                            {children}
-                          </code>
-                        );
-                      },
-                    }}
-                  >
-                    {ensureMathDelimiters(msg.content)}
-                  </ReactMarkdown>
-                </div>
-              )}
-
-              {/* User Message Actions (Desktop Hover) */}
-              {msg.role === "user" && (
-                <div className="absolute -left-14 top-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex flex-col gap-1">
-                  <button
-                    onClick={() => handleCopy(msg.content)}
-                    className="p-1.5 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition"
-                    title="Copy"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEdit(msg, index)}
-                    className="p-1.5 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition"
-                    title="Edit"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* AI Message Actions (Always Visible) */}
-              {msg.role === "assistant" && (
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-800/50">
-                  <button
-                    onClick={() => handleCopy(msg.content)}
-                    className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-300 transition"
-                    title="Copy"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleSpeak(msg.content)}
-                    className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-300 transition"
-                    title="Read Aloud"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      setRegeneratePopover({ index, anchor: e.currentTarget });
-                    }}
-                    className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-300 transition"
-                    title="Regenerate"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))
-      )}
-      {isGenerating && (
-        <div className="flex justify-start animate-in fade-in duration-300">
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl rounded-bl-none p-4 shadow-sm flex items-center gap-3">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
-            </div>
-            <span className="text-sm text-slate-400">Thinking...</span>
-            <button
-              onClick={handleStopGeneration}
-              className="ml-2 text-xs text-red-400 hover:text-red-300 underline"
-            >
-              Stop
-            </button>
-          </div>
-        </div>
-      )}
-      <div ref={(el) => el?.scrollIntoView({ behavior: "smooth" })} />
-    </div>
-  );
-
-  const renderInput = () => (
-    <div className="p-4 bg-slate-950 border-t border-slate-800">
-      {/* Attached files preview */}
-      {attachedFiles.length > 0 && (
-        <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-          {attachedFiles.map((file, i) => (
-            <div key={i} className="relative group flex-shrink-0">
-              <div className="w-16 h-16 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden">
-                {file.type.startsWith('image/') ? (
-                  <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-slate-400">File</span>
-                )}
-              </div>
-              <button
-                onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
-                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="relative flex items-end gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition">
-        <button
-          onClick={handleAttachmentClick}
-          className="p-2 text-slate-400 hover:text-white transition"
-          title="Attach file"
-        >
-          <Plus className="w-5 h-5 rotate-45" />
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          multiple
-          accept="image/*"
-        />
-
-        <textarea
-          ref={inputRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="Ask anything..."
-          className="flex-1 bg-transparent border-none focus:ring-0 text-slate-200 placeholder-slate-500 resize-none py-2 max-h-32 min-h-[40px]"
-          rows={1}
-          style={{ height: 'auto', minHeight: '24px' }}
-          onInput={(e) => {
-            e.currentTarget.style.height = 'auto';
-            e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
-          }}
-        />
-
-        <button
-          onClick={toggleRecording}
-          className={`p-2 rounded-lg transition ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-slate-400 hover:text-white'}`}
-          title="Voice Input"
-        >
-          <Mic className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={handleSend}
-          disabled={!message.trim() && attachedFiles.length === 0}
-          className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-indigo-900/20"
-        >
-          <Send className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="text-center mt-2">
-        <p className="text-[10px] text-slate-600">
-          AI can make mistakes. Check important info.
-        </p>
-      </div>
-    </div>
-  );
+  const modelOptions: ModelId[] = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "tngtech/deepseek-r1t2-chimera:free",
+    "z-ai/glm-4.5-air:free",
+    "deepseek/deepseek-r1-0528:free",
+    "openrouter/sherlock-think-alpha",
+  ];
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
+    <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {/* Mobile Sidebar Backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"
+          className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {renderSidebar()}
+      {/* Sidebar */}
+      <div
+        className={`${sidebarOpen
+          ? "translate-x-0 w-72"
+          : "-translate-x-full w-72 md:w-0 md:translate-x-0"
+          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() =>
+                setHistorySearchOpen((prev) => {
+                  const next = !prev;
+                  if (!next) {
+                    setHistorySearch("");
+                  }
+                  return next;
+                })
+              }
+              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+            >
+              <Search className="w-6 h-6" />
+            </button>
+          </div>
 
-      <div className="flex-1 flex flex-col h-full relative w-full">
-        {/* Header (Mobile only, mainly) */}
-        <div className="md:hidden p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 backdrop-blur-md">
-          <button onClick={() => setSidebarOpen(true)} className="text-slate-400">
-            <Menu className="w-6 h-6" />
-          </button>
-          <span className="font-medium truncate max-w-[200px]">
-            {activeChat?.title || "Study Guru"}
-          </span>
-          <div className="w-6" /> {/* Spacer */}
+          {historySearchOpen ? (
+            <>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search history"
+                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
+                />
+              </div>
+
+              {/* New Chat Button */}
+              <button
+                onClick={handleNewChat}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">New chat</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleNewChat}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-sm font-medium">New chat</span>
+            </button>
+          )}
         </div>
 
-        {renderMessages()}
-        {renderInput()}
-      </div>
+        {/* Chat History - Scrollable */}
+        < div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" >
+          {/* Recent Section */}
+          < div className="p-4" >
+            <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
+            <div className="space-y-1">
+              {[...chats]
+                .filter((chat) => chat.recent)
+                .filter((chat) =>
+                  historySearch.trim()
+                    ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
+                    : true
+                )
+                .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+                .map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
+                      }`}
+                  >
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
+                    >
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
+                      }}
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
 
-      {/* Quiz Panel */}
-      {isQuizPanelOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <h3 className="font-bold text-lg">Generate Quiz</h3>
-              <button onClick={() => setIsQuizPanelOpen(false)} className="text-slate-400 hover:text-white">×</button>
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
-            <div className="p-6">
-              <QuizConfigForm
-                onSubmit={handleQuizSubmit}
-                isGenerating={quizMutation.isPending}
+          </div >
+
+          {/* Other Chats */}
+          < div className="p-4" >
+            <div className="space-y-1">
+              {chats
+                .filter((chat) => !chat.recent)
+                .filter((chat) =>
+                  historySearch.trim()
+                    ? chat.title.toLowerCase().includes(historySearch.toLowerCase())
+                    : true
+                )
+                .map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
+                      ? "bg-slate-800/80"
+                      : "hover:bg-slate-800/40"
+                      }`}
+                  >
+                    <button
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
+                        ? "text-slate-100"
+                        : "text-slate-300 group-hover:text-slate-100"
+                        }`}
+                    >
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        {chat.pinned && <span className="text-xs">📌</span>}
+                        <span className="truncate max-w-[150px] sm:max-w-[190px]">{chat.title}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuChatId((current) =>
+                          current === chat.id ? null : chat.id
+                        );
+                      }}
+                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Chat options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {openMenuChatId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareChat(chat);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>🔗</span>
+                          <span>Share</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>📌</span>
+                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                        >
+                          <span>✏️</span>
+                          <span>Rename</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChat(chat.id);
+                            setOpenMenuChatId(null);
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div >
+        </div >
+
+        <div className="px-4 pt-1 pb-0 flex-shrink-0">
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-wide text-slate-400">Model</label>
+            <GlowSelect
+              id="study-guru-model"
+              value={selectedModel}
+              onChange={(nextValue) => {
+                const newModel = nextValue as ModelId;
+                const config = MODEL_CONFIGS[newModel];
+                if (!config.supportsImages && attachedFiles.length > 0) {
+                  const confirm = window.confirm(
+                    `The selected model (${config.label}) does not support images. Your attached images will be removed. Continue?`
+                  );
+                  if (!confirm) return;
+                  setAttachedFiles([]);
+                }
+                setSelectedModel(newModel);
+              }}
+              options={modelOptions.map((option) => ({
+                value: option,
+                label: MODEL_CONFIGS[option]?.label ?? option,
+              }))}
+              placeholder="Select model"
+              placement="top"
+              className="min-w-0"
+              listClassName="min-w-0 sm:min-w-[12rem]"
+            />
+          </div>
+        </div>
+
+        {/* User Profile */}
+        <div className="p-4 flex-shrink-0">
+          <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+              {initials}
+            </div>
+            <span className="font-medium truncate">{displayName}</span>
+          </button>
+        </div>
+      </div >
+
+      {/* Main Chat Area */}
+      < div className="flex-1 flex flex-col relative" >
+        {/* Top Header */}
+        < div className="h-16 flex items-center px-4" >
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 hover:bg-zinc-800 rounded-lg transition mr-4"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+          <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
+          </div>
+        </div >
+
+        {/* Scrollable Chat Section */}
+        < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
+          <div className="max-w-3xl mx-auto space-y-6">
+            {activeChat && activeChat.messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-6">
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl font-bold">
+                      <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                        Hello, {firstName}
+                      </span>
+                    </h2>
+                    <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Explain this concept in simple terms: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">🎨</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Explain concept</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Help me solve this problem step by step: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💻</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Solve problem</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Give me study tips for: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">💡</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Study tips</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPrompt("Create a practice quiz with answers on: ")
+                      }
+                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                        <span className="group-hover:scale-110 transition-transform">📝</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-100">Practice quiz</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              activeChat &&
+              activeChat.messages.map((msg, index) =>
+                msg.role === "user" ? (
+                  <div
+                    key={index}
+                    className="flex justify-end group"
+                    onTouchStart={(e) => handleLongPressStart(index, "user", e)}
+                    onTouchEnd={handleLongPressEnd}
+                    onTouchMove={handleLongPressEnd}
+                  >
+                    <div className="flex flex-col items-end max-w-lg">
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-2 flex flex-wrap justify-end gap-2">
+                          {msg.images.map((imgSrc, idx) => (
+                            <div
+                              key={idx}
+                              className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-slate-700/50 cursor-pointer hover:opacity-90 transition"
+                              onClick={() => setViewingImage(imgSrc)}
+                            >
+                              <img src={imgSrc} alt="uploaded" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-end gap-2">
+                        <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 mr-1">
+                          <button
+                            onClick={() => handleCopyText(msg.content)}
+                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            title="Copy"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditMessage(index)}
+                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 border border-primary/60 shadow-md shadow-primary/40">
+                          <p className="text-slate-100">{msg.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={index}
+                    className="flex justify-start group"
+                    onTouchStart={(e) => handleLongPressStart(index, "assistant", e)}
+                    onTouchEnd={handleLongPressEnd}
+                    onTouchMove={handleLongPressEnd}
+                  >
+                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
+                        <div>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
+                            rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
+                            className="prose prose-invert prose-sm max-w-none text-slate-100 leading-relaxed"
+                            components={{
+                              h1: ({ node, ...props }) => (
+                                <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />
+                              ),
+                              h3: ({ node, ...props }) => (
+                                <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul className="list-disc list-inside space-y-1 my-2" {...props} />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol className="list-decimal list-inside space-y-1 my-2" {...props} />
+                              ),
+                              li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
+                              code: ({ node, inline, ...props }) =>
+                                inline ? (
+                                  <code
+                                    className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono"
+                                    {...props}
+                                  />
+                                ) : (
+                                  <code
+                                    className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto"
+                                    {...props}
+                                  />
+                                ),
+                              p: ({ node, ...props }) => (
+                                <p className="text-slate-200 my-2" {...props} />
+                              ),
+                              strong: ({ node, ...props }) => (
+                                <strong className="font-bold text-emerald-300" {...props} />
+                              ),
+                              em: ({ node, ...props }) => (
+                                <em className="italic text-slate-300" {...props} />
+                              ),
+                              hr: ({ node, ...props }) => (
+                                <hr className="my-4 border-slate-700" {...props} />
+                              ),
+                              table: ({ node, ...props }) => (
+                                <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
+                                  <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                                </div>
+                              ),
+                              thead: ({ node, ...props }) => (
+                                <thead className="bg-slate-900/80" {...props} />
+                              ),
+                              tbody: ({ node, ...props }) => <tbody {...props} />,
+                              tr: ({ node, ...props }) => (
+                                <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                              ),
+                              th: ({ node, ...props }) => (
+                                <th className="px-3 py-2 font-semibold text-slate-100" {...props} />
+                              ),
+                              td: ({ node, ...props }) => (
+                                <td className="px-3 py-2 align-top text-slate-200" {...props} />
+                              ),
+                            }}
+                          >
+                            {ensureMathDelimiters(msg.content)}
+                          </ReactMarkdown>
+                          <div className="mt-3 pt-3 border-t border-slate-800/60 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => handleCopyText(msg.content)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </button>
+                            <button
+                              onClick={() => handleSpeak(msg.content)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                            >
+                              <Volume2 className="w-3 h-3" />
+                              <span>Read aloud</span>
+                            </button>
+                            <button
+                              onClick={(e) => handleRegenerateClick(index, e.currentTarget)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Regenerate</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )
+            )}
+            {activeChat && isGenerating && (
+              <div className="flex justify-start">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
+                  <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/90 rounded-2xl border border-slate-800/50 shadow-2xl backdrop-blur-xl">
+                    <div className="relative flex items-center justify-center w-6 h-6">
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 border-r-blue-500 animate-spin [animation-duration:1.5s]" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-purple-500 border-b-pink-500 animate-spin [animation-duration:1s] [animation-direction:reverse]" />
+                      <div className="absolute inset-1.5 rounded-full bg-cyan-500/20 animate-pulse" />
+                    </div>
+                    <span className="text-sm font-medium bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent animate-pulse">
+                      Study Guru is thinking...
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeChat && isQuizPanelOpen && (
+              <div className="mt-3">
+                <QuizConfigForm
+                  onSubmit={(config) => {
+                    handleQuizSubmit(config);
+                    setIsQuizPanelOpen(false);
+                  }}
+                  onCancel={() => setIsQuizPanelOpen(false)}
+                  isLoading={quizMutation.isPending}
+                  section="study"
+                  studyChapter={quizChapter}
+                  studyDescription={quizDescription}
+                  onChangeStudyChapter={setQuizChapter}
+                  onChangeStudyDescription={setQuizDescription}
+                />
+              </div>
+            )}
+          </div>
+        </div >
+
+        {/* Input Area pinned to bottom of chat column */}
+        < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
+          <div className="max-w-3xl mx-auto">
+            {attachedFiles.length > 0 && (
+              <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
+                {attachedFiles.map((file, i) => (
+                  <div key={i} className="relative group flex-shrink-0">
+                    <div className="w-16 h-16 rounded-lg border border-slate-700 overflow-hidden bg-slate-900">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="preview"
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
+              <div className="flex items-center gap-3">
+                {/* Plus (attachments) */}
+                <button
+                  type="button"
+                  onClick={handleAttachmentClick}
+                  className="w-8 h-8 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition flex-shrink-0"
+                  title={
+                    attachedFiles.length
+                      ? `${attachedFiles.length} photo${attachedFiles.length > 1 ? "s" : ""} selected`
+                      : "Add photos (up to 10)"
+                  }
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+
+                {/* Message input */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask study guru"
+                  disabled={quizMutation.isPending}
+                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+
+                {/* Mic (voice UI only) */}
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${isRecording
+                    ? "border-red-500/80 bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/30"
+                    : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
+                    }`}
+                  title="Voice input"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+
+                {/* Send / Stop button */}
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    className="w-24 h-11 rounded-full bg-slate-900/90 border border-primary/70 flex items-center justify-center gap-2 text-xs font-medium text-primary hover:bg-slate-800 transition flex-shrink-0"
+                  >
+                    <span className="w-4 h-4 border-2 border-primary/70 border-t-transparent rounded-full animate-spin" />
+                    <span>Stop</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={quizMutation.isPending}
+                    className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Send className="w-5 h-5 text-white" />
+                  </button>
+                )}
+              </div>
+
+              {/* Hidden file input for attachments */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
               />
             </div>
           </div>
-        </div>
-      )}
+        </div >
+      </div >
 
-      {/* Regenerate Popover */}
+      {/* Regenerate model chooser */}
       {regeneratePopover && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setRegeneratePopover(null)} />
           <div
-            className="fixed z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 flex flex-col min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
+            className="fixed inset-0 z-40"
+            onClick={() => setRegeneratePopover(null)}
+          />
+          <div
+            className="fixed z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[180px]"
             style={{
-              top: regeneratePopover.anchor.getBoundingClientRect().bottom + 8,
-              left: Math.min(regeneratePopover.anchor.getBoundingClientRect().left, window.innerWidth - 170),
+              top: Math.min(
+                regeneratePopover.anchor.getBoundingClientRect().bottom + 8,
+                window.innerHeight - 200,
+              ),
+              left: Math.min(
+                regeneratePopover.anchor.getBoundingClientRect().left,
+                window.innerWidth - 220,
+              ),
             }}
           >
-            <div className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
               Regenerate with
             </div>
-            {modelOptions.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => handleRegenerate(regeneratePopover.index, opt.value as ModelId)}
-                className="text-left px-3 py-2 hover:bg-slate-700 rounded text-sm text-slate-200 transition flex items-center justify-between group"
-              >
-                <span>{opt.label}</span>
-                {selectedModel === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
-              </button>
-            ))}
+            <div className="space-y-1">
+              {modelOptions.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => handleRegenerateWithModel(regeneratePopover.userIndex, id)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-slate-100 hover:bg-slate-800 transition"
+                >
+                  <span>{MODEL_CONFIGS[id].label}</span>
+                  {id === selectedModel && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}
 
-      {/* Context Menu (Mobile) */}
-      {contextMenu && (
+      {/* Mobile / desktop long-press context menu */}
+      {contextMenu && activeChat && (
         <div
-          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
           onClick={() => setContextMenu(null)}
         >
           <div
-            className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
+            className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             style={{
               position: window.innerWidth >= 640 ? "absolute" : "relative",
@@ -1409,19 +1749,36 @@ export const StudyGuruChat = () => {
           >
             <div className="p-2 space-y-1">
               <button
-                onClick={() => handleCopy(contextMenu.message.content)}
+                onClick={() => {
+                  const msg = activeChat.messages[contextMenu.messageIndex];
+                  if (msg) handleCopyText(msg.content);
+                  setContextMenu(null);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
               >
                 <Copy className="w-5 h-5 text-slate-400" />
                 <span className="font-medium">Copy</span>
               </button>
-              {contextMenu.message.role === 'user' && (
+              {contextMenu.role === "user" && (
                 <button
-                  onClick={() => handleEdit(contextMenu.message, activeChat.messages.indexOf(contextMenu.message))}
+                  onClick={() => handleEditMessage(contextMenu.messageIndex)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
                 >
                   <Pencil className="w-5 h-5 text-slate-400" />
-                  <span className="font-medium">Edit Message</span>
+                  <span className="font-medium">Edit message</span>
+                </button>
+              )}
+              {contextMenu.role === "assistant" && (
+                <button
+                  onClick={() => {
+                    const msg = activeChat.messages[contextMenu.messageIndex];
+                    if (msg) handleSpeak(msg.content);
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                >
+                  <Volume2 className="w-5 h-5 text-slate-400" />
+                  <span className="font-medium">Read aloud</span>
                 </button>
               )}
             </div>
@@ -1429,7 +1786,7 @@ export const StudyGuruChat = () => {
         </div>
       )}
 
-      {/* Image Viewer */}
+      {/* Image Viewer Modal */}
       {viewingImage && (
         <div
           className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"

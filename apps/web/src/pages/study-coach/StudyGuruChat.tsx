@@ -2280,112 +2280,127 @@ export const StudyGuruChat = () => {
                   <Plus className="w-4 h-4" />
                 </button>
 
-                {/* Message input */}
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  value={message}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setMessage(value);
+                {/* Message input with inline mention chip */}
+                <div className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-3 py-1.5 flex items-center gap-2">
+                  {activeMention && (
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                        activeMention.kind === "formulaCollection"
+                          ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                          : activeMention.kind === "mistake"
+                          ? "text-red-300 bg-red-500/10 border-red-500/40"
+                          : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                      }`}
+                    >
+                      @{getMentionDisplayLabel(activeMention.kind, activeMention.title)}
+                    </span>
+                  )}
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    value={message}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMessage(value);
 
-                    const info = findActiveMentionInText(value, e.target.selectionStart);
+                      const info = findActiveMentionInText(value, e.target.selectionStart);
 
-                    if (info) {
-                      setIsMentionOpen(true);
-                      setMentionQuery(info.query);
-                      setMentionHighlightIndex(0);
-                    } else {
-                      setIsMentionOpen(false);
-                      setMentionQuery("");
-                      setMentionHighlightIndex(0);
-                    }
-
-                    if (activeMention) {
-                      const label = getMentionDisplayLabel(
-                        activeMention.kind,
-                        activeMention.title,
-                      );
-                      const token = `@${label}`;
-                      if (!value.includes(token)) {
-                        setActiveMention(null);
+                      if (info) {
+                        setIsMentionOpen(true);
+                        setMentionQuery(info.query);
+                        setMentionHighlightIndex(0);
+                      } else {
+                        setIsMentionOpen(false);
+                        setMentionQuery("");
+                        setMentionHighlightIndex(0);
                       }
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Backspace") {
-                      backspaceOnMentionEndRef.current = false;
-                    }
 
-                    if (e.key === "Backspace" && activeMention) {
-                      const inputEl = e.currentTarget;
-                      const value = inputEl.value;
-                      const cursorPos = inputEl.selectionStart ?? value.length;
-                      const label = getMentionDisplayLabel(
-                        activeMention.kind,
-                        activeMention.title,
-                      );
-                      const token = `@${label}`;
-                      const idx = value.lastIndexOf(token);
+                      if (activeMention) {
+                        const label = getMentionDisplayLabel(
+                          activeMention.kind,
+                          activeMention.title,
+                        );
+                        const token = `@${label}`;
+                        if (!value.includes(token)) {
+                          setActiveMention(null);
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Backspace") {
+                        backspaceOnMentionEndRef.current = false;
+                      }
 
-                      if (cursorPos === value.length && idx !== -1) {
-                        const trailing = value.slice(idx).trimEnd();
-                        if (trailing === token) {
-                          if (backspaceOnMentionEndRef.current) {
-                            e.preventDefault();
-                            const before = value.slice(0, idx).replace(/\s+$/, "");
-                            setMessage(before);
-                            setActiveMention(null);
-                            backspaceOnMentionEndRef.current = false;
-                            return;
+                      if (e.key === "Backspace" && activeMention) {
+                        const inputEl = e.currentTarget;
+                        const value = inputEl.value;
+                        const cursorPos = inputEl.selectionStart ?? value.length;
+                        const label = getMentionDisplayLabel(
+                          activeMention.kind,
+                          activeMention.title,
+                        );
+                        const token = `@${label}`;
+                        const idx = value.lastIndexOf(token);
+
+                        if (cursorPos === value.length && idx !== -1) {
+                          const trailing = value.slice(idx).trimEnd();
+                          if (trailing === token) {
+                            if (backspaceOnMentionEndRef.current) {
+                              e.preventDefault();
+                              const before = value.slice(0, idx).replace(/\s+$/, "");
+                              setMessage(before);
+                              setActiveMention(null);
+                              backspaceOnMentionEndRef.current = false;
+                              return;
+                            } else {
+                              backspaceOnMentionEndRef.current = true;
+                            }
                           } else {
-                            backspaceOnMentionEndRef.current = true;
+                            backspaceOnMentionEndRef.current = false;
                           }
                         } else {
                           backspaceOnMentionEndRef.current = false;
                         }
-                      } else {
-                        backspaceOnMentionEndRef.current = false;
                       }
-                    }
 
-                    if (isMentionOpen && mentionSuggestions.length > 0) {
-                      if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        setMentionHighlightIndex((prev) =>
-                          (prev + 1) % mentionSuggestions.length,
-                        );
-                        return;
+                      if (isMentionOpen && mentionSuggestions.length > 0) {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setMentionHighlightIndex((prev) =>
+                            (prev + 1) % mentionSuggestions.length,
+                          );
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setMentionHighlightIndex((prev) =>
+                            (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+                          );
+                          return;
+                        }
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSelectMention(mentionSuggestions[mentionHighlightIndex]);
+                          return;
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setIsMentionOpen(false);
+                          setMentionQuery("");
+                          return;
+                        }
                       }
-                      if (e.key === "ArrowUp") {
-                        e.preventDefault();
-                        setMentionHighlightIndex((prev) =>
-                          (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length,
-                        );
-                        return;
-                      }
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleSelectMention(mentionSuggestions[mentionHighlightIndex]);
-                        return;
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setIsMentionOpen(false);
-                        setMentionQuery("");
-                        return;
-                      }
-                    }
 
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Ask study guru"
-                  disabled={quizMutation.isPending}
-                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed resize-none"
-                />
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Ask study guru"
+                    disabled={quizMutation.isPending}
+                    className="flex-1 bg-transparent border-none outline-none text-sm text-slate-100 placeholder-slate-500 resize-none"
+                  />
+                </div>
 
                 {/* Mic (voice UI only) */}
                 <button

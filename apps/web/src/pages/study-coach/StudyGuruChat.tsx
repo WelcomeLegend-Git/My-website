@@ -1402,7 +1402,7 @@ export const StudyGuruChat = () => {
                     onTouchEnd={handleLongPressEnd}
                     onTouchMove={handleLongPressEnd}
                   >
-                    <div className="flex flex-col items-end max-w-lg">
+                    <div className="flex flex-col items-end w-full max-w-lg md:max-w-none">
                       {msg.images && msg.images.length > 0 && (
                         <div className="mb-2 flex flex-wrap justify-end gap-2">
                           {msg.images.map((imgSrc, idx) => (
@@ -1447,7 +1447,7 @@ export const StudyGuruChat = () => {
                     onTouchEnd={handleLongPressEnd}
                     onTouchMove={handleLongPressEnd}
                   >
-                    <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl shadow-lg shadow-slate-900/60">
+                    <div className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60">
                       <div className="flex items-start gap-3">
                         <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
                         <div>
@@ -1521,24 +1521,24 @@ export const StudyGuruChat = () => {
                           <div className="mt-3 pt-3 border-t border-slate-800/60 flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => handleCopyText(msg.content)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              title="Copy"
                             >
                               <Copy className="w-3 h-3" />
-                              <span>Copy</span>
                             </button>
                             <button
                               onClick={() => handleSpeak(msg.content)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              title="Read aloud"
                             >
                               <Volume2 className="w-3 h-3" />
-                              <span>Read aloud</span>
                             </button>
                             <button
                               onClick={(e) => handleRegenerateClick(index, e.currentTarget)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              title="Regenerate"
                             >
                               <RefreshCw className="w-3 h-3" />
-                              <span>Regenerate</span>
                             </button>
                           </div>
                         </div>

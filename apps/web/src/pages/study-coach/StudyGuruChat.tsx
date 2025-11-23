@@ -230,14 +230,14 @@ const findActiveMentionInText = (
   return null;
 };
 
-const getMentionDisplayLabel = (kind: MentionKind, title: string): string => {
+const getMentionDisplayLabel = (kind: MentionKind, _title: string): string => {
   const typeLabel =
     kind === "formulaCollection"
       ? "Formula"
       : kind === "mistake"
       ? "Mistake"
       : "Quiz";
-  return `${typeLabel} - ${title}`;
+  return typeLabel;
 };
 
 const buildFormulaCollectionContextSummary = (collection: any): string => {
@@ -386,7 +386,8 @@ export const StudyGuruChat = () => {
   const [mentionHighlightIndex, setMentionHighlightIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const backspaceOnMentionEndRef = useRef(false);
   const [openMenuChatId, setOpenMenuChatId] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.5-flash");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -410,6 +411,20 @@ export const StudyGuruChat = () => {
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const [highlightedMessageIndex, setHighlightedMessageIndex] = useState<number | null>(null);
+
+  const resizeInput = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const maxHeight = 8 * 22; // roughly 7-8 lines
+    const newHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${newHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  };
+
+  useEffect(() => {
+    resizeInput();
+  }, [message]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -2175,7 +2190,7 @@ export const StudyGuruChat = () => {
               </div>
             )}
             {activeMention && (
-              <div className="mb-2 flex justify-end">
+              <div className="mb-2 flex justify-start">
                 <button
                   type="button"
                   onClick={handleClearMention}
@@ -2266,9 +2281,9 @@ export const StudyGuruChat = () => {
                 </button>
 
                 {/* Message input */}
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={message}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -2298,6 +2313,42 @@ export const StudyGuruChat = () => {
                     }
                   }}
                   onKeyDown={(e) => {
+                    if (e.key !== "Backspace") {
+                      backspaceOnMentionEndRef.current = false;
+                    }
+
+                    if (e.key === "Backspace" && activeMention) {
+                      const inputEl = e.currentTarget;
+                      const value = inputEl.value;
+                      const cursorPos = inputEl.selectionStart ?? value.length;
+                      const label = getMentionDisplayLabel(
+                        activeMention.kind,
+                        activeMention.title,
+                      );
+                      const token = `@${label}`;
+                      const idx = value.lastIndexOf(token);
+
+                      if (cursorPos === value.length && idx !== -1) {
+                        const trailing = value.slice(idx).trimEnd();
+                        if (trailing === token) {
+                          if (backspaceOnMentionEndRef.current) {
+                            e.preventDefault();
+                            const before = value.slice(0, idx).replace(/\s+$/, "");
+                            setMessage(before);
+                            setActiveMention(null);
+                            backspaceOnMentionEndRef.current = false;
+                            return;
+                          } else {
+                            backspaceOnMentionEndRef.current = true;
+                          }
+                        } else {
+                          backspaceOnMentionEndRef.current = false;
+                        }
+                      } else {
+                        backspaceOnMentionEndRef.current = false;
+                      }
+                    }
+
                     if (isMentionOpen && mentionSuggestions.length > 0) {
                       if (e.key === "ArrowDown") {
                         e.preventDefault();
@@ -2326,14 +2377,14 @@ export const StudyGuruChat = () => {
                       }
                     }
 
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSend();
                     }
                   }}
                   placeholder="Ask study guru"
                   disabled={quizMutation.isPending}
-                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/30 transition disabled:opacity-60 disabled:cursor-not-allowed resize-none"
                 />
 
                 {/* Mic (voice UI only) */}

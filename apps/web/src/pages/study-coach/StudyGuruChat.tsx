@@ -1073,17 +1073,15 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
-                      ? "bg-slate-800/80"
-                      : "hover:bg-slate-800/40"
-                      }`}
+                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${
+                      activeChatId === chat.id
+                        ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
+                        : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                    }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
-                        ? "text-slate-100"
-                        : "text-slate-300 group-hover:text-slate-100"
-                        }`}
+                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-slate-200"
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -1098,10 +1096,10 @@ export const StudyGuruChat = () => {
                           current === chat.id ? null : chat.id
                         );
                       }}
-                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
                       aria-label="Chat options"
                     >
-                      <MoreVertical className="w-4 h-4" />
+                      ...
                     </button>
 
                     {openMenuChatId === chat.id && (
@@ -1174,17 +1172,15 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center gap-2 rounded-full px-2 ${activeChatId === chat.id
-                      ? "bg-slate-800/80"
-                      : "hover:bg-slate-800/40"
-                      }`}
+                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${
+                      activeChatId === chat.id
+                        ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
+                        : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                    }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex-1 py-2 text-left text-sm rounded-full transition ${activeChatId === chat.id
-                        ? "text-slate-100"
-                        : "text-slate-300 group-hover:text-slate-100"
-                        }`}
+                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-slate-200"
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -1199,10 +1195,10 @@ export const StudyGuruChat = () => {
                           current === chat.id ? null : chat.id
                         );
                       }}
-                      className="p-1.5 rounded-full text-slate-400 hover:bg-slate-800/90 hover:text-slate-100 opacity-0 group-hover:opacity-100 transition"
+                      className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
                       aria-label="Chat options"
                     >
-                      <MoreVertical className="w-4 h-4" />
+                      ...
                     </button>
 
                     {openMenuChatId === chat.id && (

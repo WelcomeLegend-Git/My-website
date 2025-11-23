@@ -1323,7 +1323,7 @@ export const StudyGuruChat = () => {
 
         {/* Scrollable Chat Section */}
         < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="max-w-3xl md:max-w-4xl mx-auto md:mx-0 space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-6">
@@ -1587,7 +1587,7 @@ export const StudyGuruChat = () => {
 
         {/* Input Area pinned to bottom of chat column */}
         < div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6" >
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl md:max-w-4xl mx-auto md:mx-0">
             {attachedFiles.length > 0 && (
               <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
                 {attachedFiles.map((file, i) => (

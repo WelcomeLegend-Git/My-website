@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -6,6 +6,9 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
 import { JeeDiagram } from '../../features/quiz/components/JeeDiagram';
+
+const ReactMarkdownAny: any = ReactMarkdown;
+const trpcAny: any = trpc as any;
 
 const normalizeQuizMath = (text: string, opts?: { treatAsPureMath?: boolean }) => {
   if (!text) return text;
@@ -46,20 +49,20 @@ type Answer = number[]; // Array of selected option indices
 export const QuizPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const utils = trpc.useUtils();
+  const utils = trpcAny.useUtils();
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [startTime] = useState(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: quiz, isLoading } = trpc.quiz.getQuiz.useQuery(
+  const { data: quiz, isLoading } = trpcAny.quiz.getQuiz.useQuery(
     { id: id! },
     { enabled: !!id }
   );
 
-  const submitMutation = trpc.quiz.submitQuiz.useMutation({
-    onSuccess: async (data) => {
+  const submitMutation = trpcAny.quiz.submitQuiz.useMutation({
+    onSuccess: async (data: any) => {
       // Invalidate quiz cache so results page gets fresh data
       await utils.quiz.getQuiz.invalidate({ id: id! });
       navigate(`/quiz/${id}/results?attemptId=${data.attemptId}`);
@@ -146,10 +149,7 @@ export const QuizPage = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = useMemo(() => {
-    if (!quiz) return 0;
-    return (Object.keys(answers).length / quiz.questions.length) * 100;
-  }, [answers, quiz]);
+  const progress = !quiz ? 0 : (Object.keys(answers).length / quiz.questions.length) * 100;
 
   if (isLoading) {
     return (
@@ -236,12 +236,12 @@ export const QuizPage = () => {
 
           {/* Question Text */}
           <div className="prose prose-invert prose-sm sm:prose-base lg:prose-lg max-w-none mb-6 sm:mb-8">
-            <ReactMarkdown
+            <ReactMarkdownAny
               remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
               rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
             >
               {normalizeQuizMath(currentQuestion.questionText)}
-            </ReactMarkdown>
+            </ReactMarkdownAny>
           </div>
 
           {/* Optional diagram (JSXGraph via Gemini config) */}
@@ -278,12 +278,12 @@ export const QuizPage = () => {
                       {optionLabel}
                     </div>
                     <div className="flex-1 prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown
+                      <ReactMarkdownAny
                         remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                         rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                       >
                         {normalizeQuizMath(option, { treatAsPureMath: true })}
-                      </ReactMarkdown>
+                      </ReactMarkdownAny>
                     </div>
                   </div>
                 </button>

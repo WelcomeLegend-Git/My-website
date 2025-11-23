@@ -32,19 +32,6 @@ type MistakeFilters = {
   difficulty?: "easy" | "medium" | "hard";
 };
 
-const toAiContext = (mistake: Mistake) => ({
-  entity: "mistake",
-  id: mistake.id,
-  title: mistake.title,
-  description: mistake.description,
-  difficulty: mistake.difficulty,
-  status: mistake.status,
-  errorType: mistake.errorType,
-  subject: mistake.subject.name,
-  chapter: mistake.chapter.title,
-  aiSummary: mistake.aiSummary,
-});
-
 const toAiListContext = (
   items: Mistake[],
   filters: { subjectId?: string; chapterId?: string; status?: "new" | "reviewing" | "resolved"; difficulty?: "easy" | "medium" | "hard"; sortBy: 'recent' | 'oldest' | 'difficulty-high' | 'difficulty-low' }
@@ -103,15 +90,12 @@ export const MistakeLogPage = () => {
   const [statusFilter, setStatusFilter] = useState<"new" | "reviewing" | "resolved" | undefined>();
   const [difficultyFilter, setDifficultyFilter] = useState<"easy" | "medium" | "hard" | undefined>();
   const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'difficulty-high' | 'difficulty-low'>('recent');
-  const [selectedMistake, setSelectedMistake] = useState<Mistake | null>(null);
   const [formState, setFormState] = useState<FormState | null>(null);
-  const [pendingMistakeId, setPendingMistakeId] = useState<string | null>(null);
   const [choiceModalOpen, setChoiceModalOpen] = useState(false);
   const [aiDialogOpen, setAIDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
-  const [viewerImages, setViewerImages] = useState<Mistake['assets']>([]);
-  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
-  const [analyzingMistake, setAnalyzingMistake] = useState<string | null>(null);
+  const [viewerImages] = useState<Mistake['assets']>([]);
+  const [viewerInitialIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [mistakeToDelete, setMistakeToDelete] = useState<Mistake | null>(null);
 
@@ -156,6 +140,27 @@ export const MistakeLogPage = () => {
     }
   }, [mistakesData, sortBy]);
 
+  const bookmarkStatusQuery = trpc.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'mistake',
+      targets: mistakes.map((m) => ({ entityId: m.id })),
+    },
+    {
+      enabled: mistakes.length > 0,
+    },
+  );
+
+  const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
+
+  const bookmarkedMistakeIds = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
+      if (!item) return;
+      set.add(item.entityId);
+    });
+    return set;
+  }, [bookmarkStatusQuery.data]);
+
   useEffect(() => {
     const currentFilters = {
       subjectId,
@@ -175,8 +180,6 @@ export const MistakeLogPage = () => {
   const createMutation = trpc.mistakes.create.useMutation();
   const updateMutation = trpc.mistakes.update.useMutation();
   const deleteMutation = trpc.mistakes.remove.useMutation();
-  const transitionMutation = trpc.mistakes.transition.useMutation();
-  const analyzeMutation = trpc.mistakes.analyze.useMutation();
   const createChapterMutation = trpc.subjects.createChapter.useMutation();
 
   const handleCreateChapter = async (targetSubjectId: string) => {
@@ -268,7 +271,6 @@ export const MistakeLogPage = () => {
     }
   }, [chapterId, subjectId, subjects]);
 
-
   const handleFormSubmit = async (draft: MistakeDraft) => {
     const payload: MistakeCreateInput = {
       subjectId: draft.subjectId,
@@ -290,54 +292,12 @@ export const MistakeLogPage = () => {
       } else {
         setSubjectId(draft.subjectId);
         setChapterId(draft.chapterId);
-        const created = await createMutation.mutateAsync(payload);
-        setPendingMistakeId(created.id);
+        await createMutation.mutateAsync(payload);
       }
       await utils.mistakes.list.invalidate();
       setFormState(null);
     } catch {
       // handled by mutation errors
-    }
-  };
-
-  const handleAnalyze = async (mistake: Mistake) => {
-    if (analyzeMutation.isPending || analyzingMistake) {
-      return;
-    }
-
-    setAnalyzingMistake(mistake.id);
-
-    try {
-      const result = await analyzeMutation.mutateAsync({
-        description: mistake.description,
-      });
-
-      // Update the mistake with AI analysis
-      const updatePayload: MistakeUpdateInput = {
-        id: mistake.id,
-        subjectId: mistake.subjectId,
-        chapterId: mistake.chapterId,
-        title: mistake.title,
-        description: mistake.description,
-        difficulty: mistake.difficulty,
-        status: mistake.status,
-        errorType: mistake.errorType,
-        aiSummary: result.summary ?? null,
-        aiMindMap: result.mindMap ?? null,
-        attachments: mistake.assets.map((asset) => ({
-          id: asset.id,
-          url: asset.url,
-          kind: asset.kind,
-          caption: asset.caption,
-        })),
-      };
-
-      await updateMutation.mutateAsync(updatePayload);
-      await utils.mistakes.list.invalidate();
-    } catch (error) {
-      console.error("AI analysis failed:", error);
-    } finally {
-      setAnalyzingMistake(null);
     }
   };
 
@@ -414,6 +374,31 @@ export const MistakeLogPage = () => {
 
   const formError = formState?.mode === "edit" ? updateMutation.error?.message : createMutation.error?.message;
   const isSaving = formState?.mode === "edit" ? updateMutation.isPending : createMutation.isPending;
+
+  const handleToggleMistakeBookmark = async (event: any, mistake: Mistake) => {
+    event.stopPropagation();
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'mistake',
+        entityId: mistake.id,
+        metadata: {
+          title: mistake.title,
+          subjectName: mistake.subject.name,
+          chapterTitle: mistake.chapter.title,
+          status: mistake.status,
+          difficulty: mistake.difficulty,
+        },
+      });
+
+      await Promise.all([
+        bookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'mistakes' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
 
   return (
     <section className="space-y-6 min-w-0">
@@ -547,6 +532,7 @@ export const MistakeLogPage = () => {
               reviewing: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
               resolved: 'text-green-400 bg-green-500/10 border-green-500/30',
             };
+            const isBookmarked = bookmarkedMistakeIds.has(mistake.id);
 
             return (
               <button
@@ -554,9 +540,29 @@ export const MistakeLogPage = () => {
                 onClick={() => navigate(`/mistakes/${mistake.id}`)}
                 className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all"
               >
-                {/* Delete Button */}
-                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div
+                {/* Bookmark + Delete Buttons */}
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleMistakeBookmark(e, mistake)}
+                    className={`p-2 rounded-lg border text-slate-200 transition-colors ${
+                      isBookmarked
+                        ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                        : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                    }`}
+                    title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setMistakeToDelete(mistake);
@@ -567,28 +573,15 @@ export const MistakeLogPage = () => {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Card Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start mb-4">
                   <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/25">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className={`px-2 py-1 rounded-lg border text-xs font-semibold ${statusColors[mistake.status]}`}>
-                      {mistake.status}
-                    </span>
-                    {imageCount > 0 && (
-                      <span className="px-2 py-1 rounded-lg bg-slate-500/10 border border-slate-500/30 text-slate-400 text-xs font-bold flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {imageCount}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -638,11 +631,26 @@ export const MistakeLogPage = () => {
                 <p className="text-xs text-slate-500 line-clamp-2 mb-3">{mistake.description}</p>
 
                 {/* Hover Arrow */}
-                <div className="flex items-center gap-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-sm font-medium">View Details</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-sm font-medium">View Details</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-lg border text-xs font-semibold ${statusColors[mistake.status]}`}>
+                      {mistake.status}
+                    </span>
+                    {imageCount > 0 && (
+                      <span className="px-2 py-1 rounded-lg bg-slate-500/10 border border-slate-500/30 text-slate-400 text-xs font-bold flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {imageCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             );

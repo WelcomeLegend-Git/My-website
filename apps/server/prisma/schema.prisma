@@ -49,6 +49,15 @@ enum MistakeAssetKind {
   link
 }
 
+enum BookmarkEntityType {
+  formula_collection
+  formula
+  mistake
+  practice_quiz
+  practice_question
+  study_guru_message
+}
+
 model User {
   id                 String              @id @default(uuid())
   email              String              @unique
@@ -61,6 +70,7 @@ model User {
   formulaCollections FormulaCollection[]
   practiceQuizzes    PracticeQuiz[]
   practiceAttempts   PracticeAttempt[]
+  bookmarks          Bookmark[]
   passwordResetTokens PasswordResetToken[]
   googleDriveConnection GoogleDriveConnection?
   studyGuruConversations StudyGuruConversation[]
@@ -113,7 +123,8 @@ model FormulaCollection {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  formulas Formula[]
+  formulas  Formula[]
+  bookmarks Bookmark[]
 
   deletedAt DateTime? // Soft delete - moved to trash
 
@@ -152,6 +163,7 @@ model Formula {
   chapter         Chapter           @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   assets          FormulaAsset[]
   quizQuestions   QuizQuestion[]
+  bookmarks       Bookmark[]
   collectionId    String?
   collection      FormulaCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
   createdAt       DateTime          @default(now())
@@ -190,6 +202,7 @@ model Mistake {
   chapterId  String
   chapter    Chapter           @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   assets     MistakeAsset[]
+  bookmarks  Bookmark[]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -284,6 +297,7 @@ model PracticeQuiz {
   owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   questions     PracticeQuestion[]
   attempts      PracticeAttempt[]
+  bookmarks     Bookmark[]
   completedAt   DateTime?
   score         Float?
   accuracy      Int?
@@ -308,6 +322,7 @@ model PracticeQuestion {
   difficulty     String        // "easy", "medium", "hard"
   topic          String
   diagram        Json?
+  bookmarks      Bookmark[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -335,6 +350,46 @@ model PracticeAttempt {
   @@index([createdAt])
 }
 
+model Bookmark {
+  id                      String                  @id @default(uuid())
+  ownerId                 String
+  owner                   User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  entityType              BookmarkEntityType
+
+  formulaCollectionId     String?
+  formulaCollection       FormulaCollection?      @relation(fields: [formulaCollectionId], references: [id], onDelete: Cascade)
+
+  formulaId               String?
+  formula                 Formula?                @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+
+  mistakeId               String?
+  mistake                 Mistake?                @relation(fields: [mistakeId], references: [id], onDelete: Cascade)
+
+  practiceQuizId          String?
+  practiceQuiz            PracticeQuiz?           @relation(fields: [practiceQuizId], references: [id], onDelete: Cascade)
+
+  practiceQuestionId      String?
+  practiceQuestion        PracticeQuestion?       @relation(fields: [practiceQuestionId], references: [id], onDelete: Cascade)
+
+  studyGuruConversationId String?
+  studyGuruConversation   StudyGuruConversation?  @relation(fields: [studyGuruConversationId], references: [id], onDelete: Cascade)
+
+  studyGuruMessageIndex   Int?
+
+  metadata                Json?
+  createdAt               DateTime                @default(now())
+
+  @@index([ownerId])
+  @@index([entityType])
+  @@index([formulaCollectionId])
+  @@index([formulaId])
+  @@index([mistakeId])
+  @@index([practiceQuizId])
+  @@index([practiceQuestionId])
+  @@index([studyGuruConversationId])
+}
+
 model StudyGuruConversation {
   id        String   @id @default(uuid())
   ownerId   String
@@ -342,6 +397,7 @@ model StudyGuruConversation {
   title     String
   messages  Json     @default("[]")
   model     String?
+  bookmarks Bookmark[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

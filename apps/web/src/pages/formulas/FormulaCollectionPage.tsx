@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { FormulaCollectionView } from '../../features/formulas/components/FormulaCollectionView';
 import { useShellContext } from '../../app/layouts/useShellContext';
@@ -28,6 +28,7 @@ export const FormulaCollectionPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setAiContext, setAiSection } = useShellContext();
+  const [searchParams] = useSearchParams();
 
   const { data: collection, isLoading, error } = trpc.formulas.getCollection.useQuery(
     { id: id! },
@@ -49,6 +50,9 @@ export const FormulaCollectionPage = () => {
       setAiContext(undefined);
     }
   }, [collection, setAiContext]);
+
+  const highlightCollection = searchParams.get('highlightCollection') === '1';
+  const highlightFormulaId = searchParams.get('highlightFormulaId') || undefined;
 
   if (isLoading) {
     return (
@@ -85,5 +89,11 @@ export const FormulaCollectionPage = () => {
     );
   }
 
-  return <FormulaCollectionView collection={collection} />;
+  return (
+    <FormulaCollectionView
+      collection={collection as any}
+      highlightCollection={highlightCollection}
+      highlightFormulaId={highlightFormulaId}
+    />
+  );
 };

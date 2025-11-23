@@ -16,10 +16,16 @@ const ensureMathDelimiters = (text: string): string => {
   let processed = text;
   
   // Convert \(...\) to $...$  (inline math)
-  processed = processed.replace(/\\\((.+?)\\\)/g, (match, p1) => `$${p1}$`);
+  processed = processed.replace(/\\\((.+?)\\\)/g, (match, p1) => {
+    void match;
+    return `$${p1}$`;
+  });
   
   // Convert \[...\] to $$...$$ (display math)
-  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => `$$${p1}$$`);
+  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => {
+    void match;
+    return `$$${p1}$$`;
+  });
   
   return processed;
 };
@@ -157,6 +163,12 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       setShowVerification(true);
     }
   }, [open]);
+
+  // Open history drawer when external signal changes
+  useEffect(() => {
+    if (!openHistorySignal || openHistorySignal === 0) return;
+    setHistoryOpen(true);
+  }, [openHistorySignal]);
 
   const handleVerified = () => {
     setIsVerified(true);
@@ -662,10 +674,12 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                     ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
                     li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
                     // Style code
-                    code: ({node, inline, ...props}) => 
-                      inline 
-                        ? <code className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono" {...props} />
-                        : <code className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto" {...props} />,
+                    code: (props: any) => {
+                      const { inline, ...rest } = props || {};
+                      return inline
+                        ? <code className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono" {...rest} />
+                        : <code className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto" {...rest} />;
+                    },
                     // Style paragraphs
                     p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
                     // Style strong/bold

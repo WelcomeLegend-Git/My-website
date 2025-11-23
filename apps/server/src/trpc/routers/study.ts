@@ -634,7 +634,7 @@ Respond STRICTLY in this JSON format:
   verifyAiAccess: procedure
     .use(requireUser)
     .input(z.object({ code: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { env } = await import("../../env");
 
       if (input.code.trim() !== env.AI_ACCESS_CODE) {

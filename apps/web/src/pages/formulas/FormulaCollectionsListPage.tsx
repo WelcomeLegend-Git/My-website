@@ -1,13 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type MouseEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { useShellContext } from '../../app/layouts/useShellContext';
-import { FormulaFormDialog, type FormulaDraft } from '../../features/formulas/components/FormulaFormDialog';
+import { FormulaFormDialog } from '../../features/formulas/components/FormulaFormDialog';
 import { DeleteConfirmationDialog } from '../../components/ui/DeleteConfirmationDialog';
-import type { RouterOutputs } from '../../types/trpc';
 import { GlowSelect, type GlowSelectOption } from '../../components/ui/GlowSelect';
-
-type Subject = RouterOutputs["subjects"]["list"][number];
 
 // Helper to create AI context from collections list
 const toAiContext = (collections: any[], filters: { subjectId?: string; chapterId?: string; searchTerm: string }) => ({
@@ -31,8 +28,7 @@ export const FormulaCollectionsListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { setAiContext, setAiSection } = useShellContext();
   const [sortBy, setSortBy] = useState<SortOption>('recent');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [showDeleted] = useState(false);
   const [collectionToDelete, setCollectionToDelete] = useState<any | null>(null);
   const [subjectId, setSubjectId] = useState<string>();
   const [chapterId, setChapterId] = useState<string>();
@@ -46,7 +42,27 @@ export const FormulaCollectionsListPage = () => {
   const createFormulaMutation = trpc.formulas.create.useMutation();
   const { data: collections, isLoading } = trpc.formulas.listCollections.useQuery({ includeDeleted: showDeleted });
   const deleteMutation = trpc.formulas.deleteCollections.useMutation();
-  const restoreMutation = trpc.formulas.restoreCollections.useMutation();
+
+  const bookmarkStatusQuery = trpc.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'formula_collection',
+      targets: (collections ?? []).map((c) => ({ entityId: c.id })),
+    },
+    {
+      enabled: !!collections && collections.length > 0,
+    },
+  );
+
+  const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
+
+  const bookmarkedCollectionIds = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
+      if (!item) return;
+      set.add(item.entityId);
+    });
+    return set;
+  }, [bookmarkStatusQuery.data]);
 
   // Filter by subject and chapter
   const filteredCollections = useMemo(() => {
@@ -125,6 +141,30 @@ export const FormulaCollectionsListPage = () => {
       setAiContext(undefined);
     };
   }, [setAiContext, setAiSection]);
+
+  const handleToggleCollectionBookmark = async (event: MouseEvent<HTMLButtonElement>, collection: (typeof sortedCollections)[number]) => {
+    event.stopPropagation();
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'formula_collection',
+        entityId: collection.id,
+        metadata: {
+          title: collection.title,
+          subjectName: collection.subject.name,
+          chapterTitle: collection.chapter.title,
+          formulaCount: collection._count.formulas,
+        },
+      });
+
+      await Promise.all([
+        bookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'formulas' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -277,8 +317,8 @@ export const FormulaCollectionsListPage = () => {
                   }`}
               >
                 {option.label}
-              </button>
-            ))}
+               </button>
+             ))}
           </div>
         </div>
 
@@ -301,86 +341,112 @@ export const FormulaCollectionsListPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {sortedCollections.map((collection) => (
-              <button
-                key={collection.id}
-                onClick={() => navigate(`/formulas/collections/${collection.id}`)}
-                className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all"
-              >
-                {/* Delete Button */}
-                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCollectionToDelete(collection);
-                    }}
-                    className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
-                    title="Delete collection"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </div>
-                </div>
+            {sortedCollections.map((collection) => {
+              const isBookmarked = bookmarkedCollectionIds.has(collection.id);
 
-                {/* Collection Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
+              return (
+                <button
+                  key={collection.id}
+                  onClick={() => navigate(`/formulas/collections/${collection.id}`)}
+                  className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all"
+                >
+                  {/* Bookmark + Delete Buttons */}
+                  <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleCollectionBookmark(e, collection)}
+                      className={`p-2 rounded-lg border text-slate-200 transition-colors ${
+                        isBookmarked
+                          ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                          : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                      }`}
+                      title={isBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCollectionToDelete(collection);
+                      }}
+                      className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
+                      title="Delete collection"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
-                  <span className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold">
-                    {collection._count.formulas}
-                  </span>
-                </div>
 
-                {/* Collection Info */}
-                <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
-                  {collection.title}
-                </h3>
+                  {/* Collection Header */}
+                  <div className="flex items-start mb-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                  </div>
 
-                <div className="space-y-1 text-sm text-slate-400 mb-3">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    <span>{collection.subject.name}</span>
+                  {/* Collection Info */}
+                  <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
+                    {collection.title}
+                  </h3>
+
+                  <div className="space-y-1 text-sm text-slate-400 mb-3">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span>{collection.subject.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      <span>{collection.chapter.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>
+                        {new Date(collection.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    <span>{collection.chapter.title}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>
-                      {new Date(collection.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+
+                  {collection.description && (
+                    <p className="text-xs text-slate-500 line-clamp-2">{collection.description}</p>
+                  )}
+
+                  {/* Bottom row: arrow + formulas count */}
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-sm font-medium">View Collection</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    <span className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold">
+                      {collection._count.formulas}
                     </span>
                   </div>
-                </div>
-
-                {collection.description && (
-                  <p className="text-xs text-slate-500 line-clamp-2">{collection.description}</p>
-                )}
-
-                {/* Hover Arrow */}
-                <div className="mt-4 flex items-center gap-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-sm font-medium">View Collection</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -36,6 +36,11 @@ const navItems = [
     label: "Quiz History",
     description: "Track and analyze",
   },
+  {
+    to: "/bookmarks",
+    label: "Bookmarks",
+    description: "Saved gems",
+  },
 ];
 
 const resolveSection = (pathname: string): AiSection => {
@@ -195,13 +200,13 @@ export const ShellLayout = () => {
             <div className="flex items-center justify-between h-16 sm:h-16 lg:h-20">
               {/* Logo & Brand */}
               <div className="flex items-center gap-3 sm:gap-6 lg:gap-8">
-                <div className="relative group">
+                <Link to="/" className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
                   <div className="relative px-4 sm:px-4 py-2 sm:py-2 bg-slate-900 rounded-lg min-w-0">
                     <p className="text-[14px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-primary font-bold">JEE Companion</p>
                     <h1 className="text-[14px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
                   </div>
-                </div>
+                </Link>
 
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center gap-2">

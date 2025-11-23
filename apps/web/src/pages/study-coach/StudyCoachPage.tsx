@@ -36,10 +36,10 @@ const ensureMathDelimiters = (text: string): string => {
   let processed = text;
   
   // Convert \(...\) to $...$  (inline math)
-  processed = processed.replace(/\\\((.+?)\\\)/g, (match, p1) => `$${p1}$`);
+  processed = processed.replace(/\\\((.+?)\\\)/g, (_match, p1) => `$${p1}$`);
   
   // Convert \[...\] to $$...$$ (display math)
-  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => `$$${p1}$$`);
+  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (_match, p1) => `$$${p1}$$`);
   
   return processed;
 };
@@ -67,7 +67,7 @@ type ArchivedConversation = ConversationHistory & {
   archivedAt: number;
 };
 
-const StudyGuruInterface = () => {
+export const StudyGuruInterface = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -344,8 +344,6 @@ const StudyGuruInterface = () => {
             chatHistory.map((conv) => {
               const firstUserMsg = conv.messages.find(m => m.role === 'user');
               const msgCount = conv.messages.filter(m => m.role === 'user').length;
-              const date = new Date(conv.archivedAt);
-              const timeStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
               
               return (
                 <div
@@ -461,10 +459,12 @@ const StudyGuruInterface = () => {
                               ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
                               ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
                               li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
-                              code: ({node, inline, ...props}) => 
-                                inline 
-                                  ? <code className="px-1.5 py-0.5 rounded bg-slate-800/70 text-primary text-xs font-mono" {...props} />
-                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...props} />,
+                              code: (props: any) => {
+                                const { inline, ...rest } = props || {};
+                                return inline
+                                  ? <code className="px-1.5 py-0.5 rounded bg-slate-800/70 text-primary text-xs font-mono" {...rest} />
+                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...rest} />;
+                              },
                               p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
                               strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
                               em: ({node, ...props}) => <em className="italic" {...props} />,

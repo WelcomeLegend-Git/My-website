@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import type React from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import type { ShellOutletContext } from '../../app/layouts/ShellLayout';
@@ -11,12 +12,36 @@ type SourceTypeFilter = 'all' | 'formula' | 'mistake';
 export const QuizHistoryPage = () => {
   const navigate = useNavigate();
   const { setAiContext, setAiSection } = useOutletContext<ShellOutletContext>();
+  const utils = trpc.useUtils();
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [examTypeFilter, setExamTypeFilter] = useState<ExamTypeFilter>('all');
   const [sourceTypeFilter, setSourceTypeFilter] = useState<SourceTypeFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: quizzes, isLoading } = trpc.quiz.listQuizzes.useQuery();
+  const quizzesSafe = (quizzes ?? []) as any[];
+  const bookmarksClient: any = trpc as any;
+
+  const bookmarkStatusQuery = bookmarksClient.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'practice_quiz',
+      targets: quizzesSafe.map((q: any) => ({ entityId: q.id })),
+    },
+    {
+      enabled: !!quizzes && quizzes.length > 0,
+    },
+  );
+
+  const toggleBookmarkMutation = bookmarksClient.bookmarks.toggle.useMutation();
+
+  const bookmarkedQuizIds = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
+      if (!item) return;
+      set.add(item.entityId);
+    });
+    return set;
+  }, [bookmarkStatusQuery.data]);
 
   // Define GlowSelect options
   const examTypeOptions: GlowSelectOption[] = [
@@ -40,9 +65,9 @@ export const QuizHistoryPage = () => {
 
   // Filter and sort quizzes
   const filteredQuizzes = useMemo(() => {
-    if (!quizzes) return [];
+    if (!quizzes) return [] as any[];
 
-    let filtered = [...quizzes];
+    let filtered = [...quizzesSafe];
 
     // Apply exam type filter
     if (examTypeFilter !== 'all') {
@@ -79,17 +104,27 @@ export const QuizHistoryPage = () => {
     });
 
     return filtered;
-  }, [quizzes, examTypeFilter, sourceTypeFilter, searchQuery, sortBy]);
+  }, [quizzesSafe, examTypeFilter, sourceTypeFilter, searchQuery, sortBy]);
+
+  const averageScore = quizzesSafe.length
+    ? quizzesSafe.reduce((acc: number, q: any) => acc + (q.score || 0), 0) / quizzesSafe.length
+    : 0;
+
+  const completedCount = quizzesSafe.filter((q: any) => q.completedAt).length;
+
+  const totalTime = quizzesSafe.reduce((acc: number, q: any) => acc + (q.timeSpent || 0), 0);
 
   // Set AI context for quiz history analysis
   useEffect(() => {
     setAiSection('study');
 
-    if (quizzes && quizzes.length > 0) {
+    const quizzesAny = (quizzes ?? []) as any[];
+
+    if (quizzesAny.length > 0) {
       setAiContext({
         type: 'quiz_history',
-        totalQuizzes: quizzes.length,
-        quizzes: quizzes.map((q) => ({
+        totalQuizzes: quizzesAny.length,
+        quizzes: quizzesAny.map((q: any) => ({
           id: q.id,
           title: q.title,
           examType: q.examType,
@@ -132,6 +167,34 @@ export const QuizHistoryPage = () => {
     return 'text-red-400';
   };
 
+  const handleToggleQuizBookmark = async (
+    event: React.MouseEvent<HTMLButtonElement>,
+    quiz: (typeof filteredQuizzes)[number],
+  ) => {
+    event.stopPropagation();
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'practice_quiz',
+        entityId: quiz.id,
+        metadata: {
+          title: quiz.title,
+          examType: quiz.examType,
+          questionCount: quiz._count.questions,
+          score: quiz.score,
+          accuracy: quiz.accuracy,
+        },
+      });
+
+      await Promise.all([
+        bookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'quizzes' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -154,30 +217,28 @@ export const QuizHistoryPage = () => {
         </div>
 
         {/* Stats Summary */}
-        {quizzes && quizzes.length > 0 && (
+        {quizzesSafe.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="glass-card rounded-xl p-4 border border-slate-800/50">
               <p className="text-slate-400 text-sm mb-1">Total Quizzes</p>
-              <p className="text-2xl font-bold text-white">{quizzes.length}</p>
+              <p className="text-2xl font-bold text-white">{quizzesSafe.length}</p>
             </div>
             <div className="glass-card rounded-xl p-4 border border-slate-800/50">
               <p className="text-slate-400 text-sm mb-1">Average Score</p>
-              <p className={`text-2xl font-bold ${getScoreColor(
-                quizzes.reduce((acc, q) => acc + (q.score || 0), 0) / quizzes.length
-              )}`}>
-                {((quizzes.reduce((acc, q) => acc + (q.score || 0), 0) / quizzes.length) || 0).toFixed(1)}%
+              <p className={`text-2xl font-bold ${getScoreColor(averageScore)}`}>
+                {(averageScore || 0).toFixed(1)}%
               </p>
             </div>
             <div className="glass-card rounded-xl p-4 border border-slate-800/50">
               <p className="text-slate-400 text-sm mb-1">Completed</p>
               <p className="text-2xl font-bold text-emerald-400">
-                {quizzes.filter((q) => q.completedAt).length}
+                {completedCount}
               </p>
             </div>
             <div className="glass-card rounded-xl p-4 border border-slate-800/50">
               <p className="text-slate-400 text-sm mb-1">Total Time</p>
               <p className="text-2xl font-bold text-purple-400">
-                {formatTime(quizzes.reduce((acc, q) => acc + (q.timeSpent || 0), 0))}
+                {formatTime(totalTime)}
               </p>
             </div>
           </div>
@@ -252,7 +313,10 @@ export const QuizHistoryPage = () => {
         </div>
       ) : (
         <div className="space-y-4 min-w-0">
-          {filteredQuizzes.map((quiz) => (
+          {filteredQuizzes.map((quiz) => {
+            const isBookmarked = bookmarkedQuizIds.has(quiz.id);
+
+            return (
             <div
               key={quiz.id}
               onClick={() => navigate(`/quiz/${quiz.id}/results`)}
@@ -280,6 +344,25 @@ export const QuizHistoryPage = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleQuizBookmark(e, quiz)}
+                    className={`p-2 rounded-lg border text-slate-200 transition-colors ${
+                      isBookmarked
+                        ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                        : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                    }`}
+                    title={isBookmarked ? 'Remove bookmark' : 'Bookmark quiz'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                      />
+                    </svg>
+                  </button>
                   {quiz.score !== null && quiz.score !== undefined && (
                     <div className="text-right">
                       <p className="text-sm text-slate-400 mb-1">Score</p>
@@ -311,7 +394,8 @@ export const QuizHistoryPage = () => {
                 </div>
               )}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

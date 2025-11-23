@@ -9,20 +9,21 @@ import {
   type FormulaDraft,
 } from "../../features/formulas/components/FormulaFormDialog";
 import { trpc } from "../../lib/trpc";
-import type { RouterInputs, RouterOutputs } from "../../types/trpc";
 import { JeeDiagram } from "../../features/quiz/components/JeeDiagram";
 
-type Formula = RouterOutputs["formulas"]["list"][number];
-type Subject = RouterOutputs["subjects"]["list"][number];
-type FormulaCreateInput = RouterInputs["formulas"]["create"];
-type FormulaUpdateInput = RouterInputs["formulas"]["update"];
+const trpcAny: any = trpc as any;
+
+type Formula = any;
+type Subject = any;
+type FormulaCreateInput = any;
+type FormulaUpdateInput = any;
 
 type FormState =
   | { mode: "create" }
   | {
-    mode: "edit";
-    formula: Formula;
-  };
+      mode: "edit";
+      formula: Formula;
+    };
 
 type FormulaFilters = {
   subjectId?: string;
@@ -77,7 +78,7 @@ const buildDraftFromFormula = (formula: Formula): FormulaDraft => ({
   tags: (formula.tags as string[]) ?? [],
   derivationSteps: formula.derivationSteps ?? [],
   attachments:
-    formula.assets?.map((asset) => ({
+    formula.assets?.map((asset: any) => ({
       id: asset.id,
       url: asset.url,
       kind: asset.kind as "image" | "pdf" | "link",
@@ -88,7 +89,7 @@ const buildDraftFromFormula = (formula: Formula): FormulaDraft => ({
 export const FormulaLibraryPage = () => {
   const location = useLocation();
   const { setAiSection, setAiContext, openAi } = useShellContext();
-  const utils = trpc.useUtils();
+  const utils = trpcAny.useUtils();
 
   const { data: subjects, isLoading: subjectsLoading } = trpc.subjects.list.useQuery();
 
@@ -120,8 +121,8 @@ export const FormulaLibraryPage = () => {
     data: formulas,
     isLoading: formulasLoading,
     isFetching: formulasFetching,
-  } = trpc.formulas.list.useQuery(filters, {
-    placeholderData: (previousData) => previousData,
+  } = trpcAny.formulas.list.useQuery(filters as any, {
+    placeholderData: (previousData: any) => previousData,
   });
 
   const createMutation = trpc.formulas.create.useMutation();
@@ -213,8 +214,8 @@ export const FormulaLibraryPage = () => {
     }
 
     const desired =
-      (pendingFormulaId ? formulas.find((formula) => formula.id === pendingFormulaId) : undefined) ??
-      (selectedFormula ? formulas.find((formula) => formula.id === selectedFormula.id) : undefined) ??
+      (pendingFormulaId ? formulas.find((formula: any) => formula.id === pendingFormulaId) : undefined) ??
+      (selectedFormula ? formulas.find((formula: any) => formula.id === selectedFormula.id) : undefined) ??
       formulas[0];
 
     if (!desired) {
@@ -232,7 +233,7 @@ export const FormulaLibraryPage = () => {
       setSelectedFormula(desired);
     }
 
-    if (pendingFormulaId && formulas.some((formula) => formula.id === pendingFormulaId)) {
+    if (pendingFormulaId && formulas.some((formula: any) => formula.id === pendingFormulaId)) {
       setPendingFormulaId(null);
     }
   }, [formulas, pendingFormulaId, selectedFormula]);
@@ -243,11 +244,12 @@ export const FormulaLibraryPage = () => {
       return;
     }
     const chapters = ensureChapterOptions(subjectId, subjects);
+
     if (!chapters.length) {
       setChapterId(undefined);
       return;
     }
-    if (chapterId && !chapters.some((chapter) => chapter.id === chapterId)) {
+    if (chapterId && !chapters.some((chapter: any) => chapter.id === chapterId)) {
       setChapterId(undefined);
     }
   }, [chapterId, subjectId, subjects]);
@@ -262,7 +264,7 @@ export const FormulaLibraryPage = () => {
     try {
       await deleteMutation.mutateAsync({ id: formulaToDelete.id });
       await utils.formulas.list.invalidate();
-      setSelectedFormula((current) => (current?.id === formulaToDelete.id ? null : current));
+      setSelectedFormula((current: any) => (current?.id === formulaToDelete.id ? null : current));
       setFormulaToDelete(null);
     } catch {
       // Error surfaces via mutation state.
@@ -332,7 +334,7 @@ export const FormulaLibraryPage = () => {
     }
     return [
       { value: "", label: "All chapters" },
-      ...chapterOptions.map((chapter) => ({ value: chapter.id, label: chapter.title })),
+      ...chapterOptions.map((chapter: any) => ({ value: chapter.id, label: chapter.title })),
     ];
   }, [chapterOptions, subjectId]);
 
@@ -340,18 +342,18 @@ export const FormulaLibraryPage = () => {
     ? formState.mode === "edit"
       ? buildDraftFromFormula(formState.formula)
       : {
-        subjectId:
-          subjectId ?? subjects?.[0]?.id ?? "",
-        chapterId:
-          chapterId ?? ensureChapterOptions(subjectId ?? subjects?.[0]?.id, subjects)[0]?.id ?? "",
-        title: "",
-        expression: "",
-        explanation: "",
-        difficulty: "medium",
-        tags: [],
-        derivationSteps: [],
-        attachments: [],
-      }
+          subjectId:
+            subjectId ?? subjects?.[0]?.id ?? "",
+          chapterId:
+            chapterId ?? ensureChapterOptions(subjectId ?? subjects?.[0]?.id, subjects)[0]?.id ?? "",
+          title: "",
+          expression: "",
+          explanation: "",
+          difficulty: "medium",
+          tags: [],
+          derivationSteps: [],
+          attachments: [],
+        }
     : undefined;
 
   const formError = formState?.mode === "edit" ? updateMutation.error?.message : createMutation.error?.message;
@@ -408,7 +410,7 @@ export const FormulaLibraryPage = () => {
                 <GlowSelect
                   id="formula-subject"
                   value={subjectId ?? ""}
-                  onChange={(nextValue) => setSubjectId(nextValue || undefined)}
+                  onChange={(nextValue: any) => setSubjectId(nextValue || undefined)}
                   options={subjectSelectOptions}
                   placeholder="All subjects"
                   placement={isMobile ? "bottom" : undefined}
@@ -422,7 +424,7 @@ export const FormulaLibraryPage = () => {
                 <GlowSelect
                   id="formula-chapter"
                   value={chapterId ?? ""}
-                  onChange={(nextValue) => setChapterId(nextValue || undefined)}
+                  onChange={(nextValue: any) => setChapterId(nextValue || undefined)}
                   options={chapterSelectOptions}
                   placeholder={subjectId ? "All chapters" : "Select a subject"}
                   disabled={!subjectId || !chapterOptions.length}
@@ -437,7 +439,7 @@ export const FormulaLibraryPage = () => {
                 <input
                   type="search"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onChange={(event: any) => setSearchTerm(event.target.value)}
                   placeholder="Title, expression, explanation keywords"
                   className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
                 />
@@ -464,7 +466,10 @@ export const FormulaLibraryPage = () => {
               {subjectsLoading || formulasLoading ? (
                 <div className="space-y-3">
                   {[0, 1, 2].map((item) => (
-                    <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40" />
+                    <div
+                      key={item}
+                      className="h-28 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40"
+                    />
                   ))}
                 </div>
               ) : isEmpty ? (
@@ -472,13 +477,13 @@ export const FormulaLibraryPage = () => {
                   No formulas yet. Capture your first derivation to unlock AI powered insights.
                 </div>
               ) : (
-                formulas?.map((formula) => (
+                formulas?.map((formula: any) => (
                   <FormulaCard
                     key={formula.id}
                     formula={formula}
                     isActive={selectedFormula?.id === formula.id}
-                    onSelect={setSelectedFormula}
-                    onEdit={openEditForm}
+                    onSelect={(formula: any) => setSelectedFormula(formula)}
+                    onEdit={(formula: any) => openEditForm(formula)}
                     onDelete={handleDeleteClick}
                   />
                 ))
@@ -513,8 +518,11 @@ export const FormulaLibraryPage = () => {
                     <div className="mt-4 space-y-2">
                       <p className="text-xs uppercase tracking-wide text-slate-400">Derivation steps</p>
                       <ol className="space-y-2 text-sm text-slate-300">
-                        {selectedFormula.derivationSteps.map((step, index) => (
-                          <li key={index} className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
+                        {selectedFormula.derivationSteps.map((step: any, index: number) => (
+                          <li
+                            key={index}
+                            className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2"
+                          >
                             <span className="mr-2 text-xs text-slate-500">{index + 1}.</span>
                             {step}
                           </li>
@@ -524,8 +532,11 @@ export const FormulaLibraryPage = () => {
                   ) : null}
                   {selectedFormula.tags?.length ? (
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {selectedFormula.tags.map((tag) => (
-                        <span key={tag} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wide text-primary">
+                      {selectedFormula.tags.map((tag: any) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wide text-primary"
+                        >
                           {tag}
                         </span>
                       ))}

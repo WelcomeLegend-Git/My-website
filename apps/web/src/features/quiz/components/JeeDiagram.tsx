@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
+
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -75,8 +76,6 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-
-
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
@@ -85,128 +84,7 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
         setDimensions({
           width: entry.contentRect.width,
           height: entry.contentRect.height,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       }
     });
     observer.observe(containerRef.current);
@@ -274,7 +152,6 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
       )}
 
       <div
-
         ref={containerRef}
         className="relative w-full h-80 bg-white rounded-xl border border-slate-200 overflow-hidden select-none"
       >
@@ -419,12 +296,6 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
               const to = getPt(arc.to);
               const r = Math.sqrt(Math.pow(from.x - c.x, 2) + Math.pow(from.y - c.y, 2));
 
-              // Calculate angles for SVG arc
-              // Math coordinates: Y is up. SVG: Y is down.
-              // We need to be careful.
-              // Let's use the SVG coordinates directly.
-              const startAngle = Math.atan2(from.y - c.y, from.x - c.x);
-              const endAngle = Math.atan2(to.y - c.y, to.x - c.x);
 
               // SVG Arc flag logic
               // large-arc-flag: 1 if angle > 180

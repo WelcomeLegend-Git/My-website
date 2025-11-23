@@ -49,9 +49,12 @@ type Mistake = {
 type Props = {
   mistake: Mistake;
   onImageClick?: (imageUrl: string, imageIndex: number, allImages: string[]) => void;
+  highlightHeader?: boolean;
+  isBookmarked?: boolean;
+  onToggleBookmark?: () => void;
 };
 
-export const MistakeDetailView = ({ mistake, onImageClick }: Props) => {
+export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBookmarked, onToggleBookmark }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
 
   const toggleSection = (section: string) => {
@@ -93,7 +96,14 @@ export const MistakeDetailView = ({ mistake, onImageClick }: Props) => {
       <style>{mathStyles}</style>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-4 sm:p-6 lg:p-8 shadow-2xl">
+        <div
+          className={
+            "mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl border bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-4 sm:p-6 lg:p-8 shadow-2xl " +
+            (highlightHeader
+              ? "border-red-400 shadow-[0_0_40px_rgba(248,113,113,0.45)] animate-pulse"
+              : "border-slate-800")
+          }
+        >
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
@@ -149,6 +159,27 @@ export const MistakeDetailView = ({ mistake, onImageClick }: Props) => {
               <button onClick={collapseAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-700 transition-colors">
                 Collapse All
               </button>
+              {onToggleBookmark && (
+                <button
+                  type="button"
+                  onClick={onToggleBookmark}
+                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border text-xs sm:text-sm font-medium flex items-center justify-center gap-1 transition-colors ${
+                    isBookmarked
+                      ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                      : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                  }`}
+                  title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>

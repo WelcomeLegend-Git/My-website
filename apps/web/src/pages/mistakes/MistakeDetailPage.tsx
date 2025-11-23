@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../../lib/trpc';
 import { MistakeDetailView } from '../../features/mistakes/components/MistakeDetailView';
 import { ImageViewerModal } from '../../features/mistakes/components/ImageViewerModal';
@@ -24,6 +24,7 @@ const toAiContext = (mistake: any) => ({
 export const MistakeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setAiContext, setAiSection } = useShellContext();
   const utils = trpc.useUtils();
   const deleteMutation = trpc.mistakes.remove.useMutation();
@@ -32,10 +33,27 @@ export const MistakeDetailPage = () => {
     initialIndex: number;
   }>({ open: false, initialIndex: 0 });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [highlightHeader, setHighlightHeader] = useState(false);
 
   const { data: mistake, isLoading, error } = trpc.mistakes.getMistake.useQuery(
     { id: id! },
     { enabled: !!id }
+  );
+
+  const bookmarkStatusQuery = trpc.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'mistake',
+      targets: id ? [{ entityId: id }] : [],
+    },
+    {
+      enabled: !!id && !!mistake,
+    },
+  );
+
+  const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
+
+  const isBookmarked = !!(bookmarkStatusQuery.data?.items ?? []).some(
+    (item: any) => item && item.entityId === id,
   );
 
   // Set AI context when mistake loads
@@ -54,6 +72,14 @@ export const MistakeDetailPage = () => {
     }
   }, [mistake, setAiContext]);
 
+  useEffect(() => {
+    if (searchParams.get('highlight') === '1') {
+      setHighlightHeader(true);
+      const timeout = window.setTimeout(() => setHighlightHeader(false), 1600);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [searchParams]);
+
   const handleImageClick = (_imageUrl: string, imageIndex: number, _allImages: string[]) => {
     setImageViewerState({
       open: true,
@@ -67,10 +93,6 @@ export const MistakeDetailPage = () => {
 
   const imageAssets = mistake?.assets.filter((a: any) => a.kind === 'image') || [];
 
-  const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
-  };
-
   const handleConfirmDelete = async () => {
     if (!mistake) return;
 
@@ -81,6 +103,31 @@ export const MistakeDetailPage = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete mistake.';
       alert(message);
+    }
+  };
+
+  const handleToggleBookmark = async () => {
+    if (!mistake) return;
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'mistake',
+        entityId: mistake.id,
+        metadata: {
+          title: mistake.title,
+          subjectName: mistake.subject.name,
+          chapterTitle: mistake.chapter.title,
+          status: mistake.status,
+          difficulty: mistake.difficulty,
+        },
+      });
+
+      await Promise.all([
+        bookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'mistakes' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
     }
   };
 
@@ -121,7 +168,13 @@ export const MistakeDetailPage = () => {
 
   return (
     <>
-      <MistakeDetailView mistake={mistake} onImageClick={handleImageClick} onDelete={handleDeleteClick} />
+      <MistakeDetailView
+        mistake={mistake}
+        onImageClick={handleImageClick}
+        highlightHeader={highlightHeader}
+        isBookmarked={isBookmarked}
+        onToggleBookmark={handleToggleBookmark}
+      />
       <ImageViewerModal
         open={imageViewerState.open}
         images={imageAssets}

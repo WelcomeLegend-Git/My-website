@@ -44,10 +44,6 @@ class GeminiClient implements IGeminiClient {
     return new GoogleGenerativeAI(key);
   }
 
-  private rotateKey() {
-    this.keyIndex = (this.keyIndex + 1) % this.apiKeys.length;
-  }
-
   async generate(options: GenerateOptions): Promise<GenerateResult> {
     const explicitModel = options.model && !options.usePremiumOnly ? options.model : undefined;
     const models = options.usePremiumOnly

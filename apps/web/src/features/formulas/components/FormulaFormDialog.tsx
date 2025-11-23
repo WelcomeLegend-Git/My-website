@@ -88,7 +88,7 @@ const toFormValues = (draft?: FormulaDraft, subjects?: Subject[]): FormValues =>
   };
 };
 
-const normalizeDraft = (values: FormValues, attachments: FormulaAttachment[], enhancedData?: Partial<FormulaDraft>): FormulaDraft => {
+const normalizeDraft = (values: FormValues, attachments: FormulaAttachment[]): FormulaDraft => {
   const sanitizeList = (input?: string | null) =>
     input
       ?.split(/[,\n]/)
@@ -137,11 +137,9 @@ export const FormulaFormDialog = ({
   const [extractionProgress, setExtractionProgress] = useState<string>('');
   
   // Enhanced fields from AI extraction
-  const [aiEnhancedData, setAiEnhancedData] = useState<Partial<FormulaDraft>>({});
 
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const extractMutation = trpc.formulas.extractFormulaDetails.useMutation();
   const bulkExtractMutation = trpc.formulas.extractAndCreateBulk.useMutation();
 
   const {
@@ -323,73 +321,11 @@ export const FormulaFormDialog = ({
     }
   };
 
-  const handleAiExtract = async () => {
-    if (!aiDescription.trim() && attachments.length === 0) {
-      setUploadError('Please provide a description or upload an image');
-      return;
-    }
-
-    setIsExtracting(true);
-    setUploadError(null);
-
-    try {
-      // Get first image attachment if any
-      const imageAttachment = attachments.find((a) => a.kind === 'image');
-      let imageBase64: string | undefined;
-      let mimeType: string | undefined;
-
-      if (imageAttachment) {
-        // Fetch the image and convert to base64
-        const response = await fetch(imageAttachment.url);
-        const blob = await response.blob();
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(blob);
-        });
-        imageBase64 = base64;
-        mimeType = blob.type;
-      }
-
-      const result = await extractMutation.mutateAsync({
-        description: aiDescription.trim() || 'Extract formula details from this image',
-        imageBase64,
-        mimeType,
-      });
-
-      // Auto-fill the form fields (except difficulty)
-      setValue('title', result.title, { shouldDirty: true });
-      setValue('expression', result.expression, { shouldDirty: true });
-      setValue('explanation', result.explanation || '', { shouldDirty: true });
-      setValue('tagsText', result.tags.join(', '), { shouldDirty: true });
-      setValue('stepsText', result.derivationSteps.join('\n'), { shouldDirty: true });
-      
-      // Store enhanced AI data, including optional diagram spec for JSXGraph
-      setAiEnhancedData({
-        applications: result.applications,
-        examples: result.examples,
-        prerequisites: result.prerequisites,
-        relatedFormulas: result.relatedFormulas,
-        commonMistakes: result.commonMistakes,
-        diagram: result.diagram,
-      });
-
-      // Switch to manual mode so user can review and set difficulty
-      setEntryMode('manual');
-    } catch (error) {
-      console.error('AI extraction failed:', error);
-      setUploadError(error instanceof Error ? error.message : 'Failed to extract formula details. Please try again.');
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
   const submit = async (values: FormValues) => {
     const draft = normalizeDraft(values, attachments);
     // Merge with AI-enhanced data if available
     const completeDraft = {
       ...draft,
-      ...aiEnhancedData,
     };
     await onSubmit(completeDraft);
   };

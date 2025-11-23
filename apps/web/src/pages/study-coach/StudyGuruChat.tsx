@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type SVGProps, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, useMemo, type SVGProps, type ChangeEvent } from "react";
 import { useAuth } from "../../app/providers/AuthProvider";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { trpc } from "../../lib/trpc";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { QuizConfigForm, type QuizConfig } from "../../features/quiz/components/QuizConfigForm";
 import { GlowSelect } from "../../components/ui/GlowSelect";
 
@@ -25,22 +25,6 @@ const Menu = (props: IconProps) => (
     <line x1="4" y1="6" x2="20" y2="6" />
     <line x1="4" y1="12" x2="20" y2="12" />
     <line x1="4" y1="18" x2="20" y2="18" />
-  </svg>
-);
-
-const MoreVertical = (props: IconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <circle cx="12" cy="5" r="1" />
-    <circle cx="12" cy="12" r="1" />
-    <circle cx="12" cy="19" r="1" />
   </svg>
 );
 
@@ -188,6 +172,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   images?: string[]; // Base64 data URLs
+  mention?: MentionAttachment;
 };
 
 type Chat = {
@@ -198,6 +183,137 @@ type Chat = {
   pinned?: boolean;
   userRenamed?: boolean;
   serverId?: string;
+};
+
+type MentionKind = "formulaCollection" | "mistake" | "quiz";
+
+type MentionAttachment = {
+  kind: MentionKind;
+  id: string;
+  title: string;
+  subtitle?: string;
+};
+
+type MentionSuggestion = MentionAttachment & {
+  typeLabel: string;
+};
+
+const truncate = (text: string, max: number): string => {
+  if (!text) return "";
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
+
+const findActiveMentionInText = (
+  value: string,
+  cursorPos: number | null,
+): { start: number; end: number; query: string } | null => {
+  const cursor = cursorPos ?? value.length;
+  if (cursor <= 0 || cursor > value.length) return null;
+
+  for (let i = cursor - 1; i >= 0; i--) {
+    const ch = value[i];
+    if (ch === "@") {
+      const beforeChar = i > 0 ? value[i - 1] : " ";
+      if (!/\s/.test(beforeChar)) {
+        // Likely an email/handle, not a Study Guru @-mention
+        return null;
+      }
+      const raw = value.slice(i + 1, cursor);
+      if (/\s/.test(raw)) {
+        return null;
+      }
+      return { start: i, end: cursor, query: raw };
+    }
+    if (/\s/.test(ch)) break;
+  }
+
+  return null;
+};
+
+const getMentionDisplayLabel = (kind: MentionKind, title: string): string => {
+  const typeLabel =
+    kind === "formulaCollection"
+      ? "Formula"
+      : kind === "mistake"
+      ? "Mistake"
+      : "Quiz";
+  return `${typeLabel} - ${title}`;
+};
+
+const buildFormulaCollectionContextSummary = (collection: any): string => {
+  if (!collection) return "";
+
+  const subject = collection.subject?.name ?? "";
+  const chapter = collection.chapter?.title ?? "";
+  const formulas: any[] = Array.isArray(collection.formulas)
+    ? collection.formulas
+    : [];
+
+  const headerLines = [
+    `Context: The student is asking about their formula collection "${collection.title}".`,
+    subject || chapter
+      ? `Subject: ${subject || "?"}, Chapter: ${chapter || "?"}.`
+      : "",
+    `Total formulas: ${formulas.length}.`,
+  ].filter(Boolean);
+
+  return headerLines.join(" \n");
+};
+
+const buildMistakeContextSummary = (mistake: any): string => {
+  if (!mistake) return "";
+
+  const subject = mistake.subject?.name ?? "";
+  const chapter = mistake.chapter?.title ?? "";
+  const description = truncate(mistake.description ?? "", 260);
+  const aiSummary = truncate(mistake.aiSummary ?? "", 260);
+  const imageCount = Array.isArray(mistake.assets)
+    ? mistake.assets.filter((a: any) => a.kind === "image").length
+    : 0;
+
+  const lines = [
+    "Context: The student is referring to a mistake log they saved.",
+    `Title: ${mistake.title ?? "(untitled)"}.`,
+    subject || chapter
+      ? `Subject: ${subject || "?"}, Chapter: ${chapter || "?"}.`
+      : "",
+    `Difficulty: ${mistake.difficulty ?? "?"}, Error type: ${
+      mistake.errorType ?? "?"
+    }, Status: ${mistake.status ?? "?"}.`,
+    imageCount ? `Attached images: ${imageCount}.` : "",
+    description ? `Description: ${description}` : "",
+    aiSummary ? `AI summary: ${aiSummary}` : "",
+  ].filter(Boolean);
+
+  return lines.join(" \n");
+};
+
+const buildQuizContextSummary = (quiz: any): string => {
+  if (!quiz) return "";
+
+  const questions: any[] = Array.isArray(quiz.questions)
+    ? quiz.questions
+    : [];
+  const totalQuestions = questions.length;
+  const score: number = typeof quiz.score === "number" ? quiz.score : 0;
+  const accuracy: number = quiz.accuracy ?? 0;
+  const timeSpentSeconds: number =
+    (quiz as any).actualTimeSpent ?? quiz.timeSpent ?? 0;
+
+  const headerLines = [
+    "Context: The student is referring to a practice quiz result.",
+    `Quiz: ${quiz.title ?? "(untitled)"} ${
+      quiz.examType === "mains" ? "(JEE Mains)" : "(JEE Advanced)"
+    }.`,
+    `Questions: ${totalQuestions}. Score: ${score.toFixed(
+      1,
+    )}%. Accuracy (correct count): ${accuracy}.`,
+    timeSpentSeconds > 0
+      ? `Time spent: ~${Math.round(timeSpentSeconds / 60)} minutes.`
+      : "",
+  ].filter(Boolean);
+
+  return headerLines.join(" \n");
 };
 
 type ModelId =
@@ -262,7 +378,12 @@ export const StudyGuruChat = () => {
   const [historySearch, setHistorySearch] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [activeMention, setActiveMention] = useState<MentionAttachment | null>(null);
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionHighlightIndex, setMentionHighlightIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -288,6 +409,7 @@ export const StudyGuruChat = () => {
     anchor: HTMLElement;
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+  const [highlightedMessageIndex, setHighlightedMessageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -349,21 +471,38 @@ export const StudyGuruChat = () => {
     }
   }, [isRecording]);
 
-  const studyAssistantMutation = trpc.studyApi.contextualAssistant.useMutation();
-  const quizMutation = trpc.quiz.generateQuiz.useMutation({
-    onSuccess: (data) => {
+  const studyAssistantMutation = (trpc as any).studyApi.contextualAssistant.useMutation();
+  const quizMutation = (trpc as any).quiz.generateQuiz.useMutation({
+    onSuccess: (data: { quizId: string }) => {
       navigate(`/quiz/${data.quizId}`);
     },
   });
-  const listConversationsQuery = trpc.studyApi.listStudyGuruConversations.useQuery(
+  const listConversationsQuery = (trpc as any).studyApi.listStudyGuruConversations.useQuery(
     { limit: 50 },
     {
       staleTime: 30000,
       refetchOnWindowFocus: false,
     }
   );
-  const saveConversationMutation = trpc.studyApi.saveStudyGuruConversation.useMutation();
-  const deleteConversationMutation = trpc.studyApi.deleteStudyGuruConversation.useMutation();
+  const saveConversationMutation = (trpc as any).studyApi.saveStudyGuruConversation.useMutation();
+  const deleteConversationMutation = (trpc as any).studyApi.deleteStudyGuruConversation.useMutation();
+
+  const utils = trpc.useUtils() as any;
+
+  const { data: formulaCollections } = trpc.formulas.listCollections.useQuery(undefined, {
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: mistakes } = trpc.mistakes.list.useQuery(undefined, {
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: quizzes } = trpc.quiz.listQuizzes.useQuery(undefined, {
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
 
   const displayName = user?.name || "Guest User";
   const firstName = displayName.split(" ")[0] || "legend";
@@ -376,6 +515,37 @@ export const StudyGuruChat = () => {
       .join("") || "GU";
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null;
+
+  const activeServerConversationId = (activeChat as any)?.serverId as string | undefined;
+
+  const studyBookmarksQuery = trpc.bookmarks.getStatusForEntities.useQuery(
+    activeServerConversationId
+      ? {
+          entityType: 'study_guru_message',
+          targets: [{ entityId: activeServerConversationId }],
+        }
+      : {
+          // Placeholder input; query will be disabled when no conversation id
+          entityType: 'study_guru_message',
+          targets: [{ entityId: '', messageIndex: 0 }] as any,
+        },
+    {
+      enabled: !!activeServerConversationId,
+    }
+  );
+
+  const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
+
+  const bookmarkedAssistantIndexes = useMemo(() => {
+    const set = new Set<number>();
+    (studyBookmarksQuery.data?.items ?? []).forEach((item: any) => {
+      if (!item) return;
+      if (typeof item.messageIndex === 'number') {
+        set.add(item.messageIndex);
+      }
+    });
+    return set;
+  }, [studyBookmarksQuery.data]);
 
   const storageKey = "study_guru_chats_v2";
 
@@ -414,6 +584,28 @@ export const StudyGuruChat = () => {
   }, [chats, activeChatId, selectedModel]);
 
   useEffect(() => {
+    if (openMenuChatId === null) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const inMenu = target.closest("[data-history-menu='true']");
+      const inTrigger = target.closest("[data-history-menu-trigger='true']");
+
+      if (!inMenu && !inTrigger) {
+        setOpenMenuChatId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openMenuChatId]);
+
+  useEffect(() => {
     if (!listConversationsQuery.data) return;
     const conversations = listConversationsQuery.data;
     setChats((prev) => {
@@ -421,7 +613,7 @@ export const StudyGuruChat = () => {
       let nextId =
         updated.length > 0 ? Math.max(...updated.map((c) => c.id)) + 1 : 1;
 
-      conversations.forEach((conv) => {
+      conversations.forEach((conv: any) => {
         const existingIndex = updated.findIndex(
           (chat) => (chat as any).serverId === conv.id
         );
@@ -470,6 +662,41 @@ export const StudyGuruChat = () => {
   }, [chats.length, listConversationsQuery.isLoading, listConversationsQuery.data]);
 
   useEffect(() => {
+    const convId = searchParams.get('conversationId');
+    const messageIndexParam = searchParams.get('messageIndex');
+    const shouldHighlight = searchParams.get('highlight') === '1';
+
+    if (!convId) return;
+
+    const targetChat = chats.find((chat) => (chat as any).serverId === convId);
+    if (!targetChat) return;
+
+    if (activeChatId !== targetChat.id) {
+      setActiveChatId(targetChat.id);
+    }
+
+    if (messageIndexParam) {
+      const idx = parseInt(messageIndexParam, 10);
+      if (!Number.isNaN(idx)) {
+        setHighlightedMessageIndex(idx);
+        if (shouldHighlight) {
+          const timeout = window.setTimeout(() => setHighlightedMessageIndex(null), 2000);
+          return () => window.clearTimeout(timeout);
+        }
+      }
+    }
+
+    // Clean up URL params so highlight only triggers once
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('conversationId');
+      next.delete('messageIndex');
+      next.delete('highlight');
+      return next;
+    }, { replace: true });
+  }, [searchParams, chats, activeChatId, setSearchParams, setActiveChatId]);
+
+  useEffect(() => {
     if (!activeChat || !activeChat.messages.length) return;
 
     if (saveDebounceRef.current !== null) {
@@ -489,7 +716,7 @@ export const StudyGuruChat = () => {
           model: selectedModel,
         },
         {
-          onSuccess: (conv) => {
+          onSuccess: (conv: any) => {
             if (!(activeChat as any).serverId) {
               setChats((prev) =>
                 prev.map((chat) =>
@@ -550,10 +777,10 @@ export const StudyGuruChat = () => {
       prev.map((c) =>
         c.id === id
           ? {
-            ...c,
-            title: trimmedTitle,
-            userRenamed: true,
-          }
+              ...c,
+              title: trimmedTitle,
+              userRenamed: true,
+            }
           : c
       )
     );
@@ -666,21 +893,57 @@ export const StudyGuruChat = () => {
 
     setChats((prev) =>
       prev.map((chat) =>
-        chat.id === activeChatId ? { ...chat, messages: truncatedMessages } : chat
-      )
+        chat.id === activeChatId ? { ...chat, messages: truncatedMessages } : chat,
+      ),
     );
     setRegeneratePopover(null);
     setIsGenerating(true);
 
     try {
+      const mentionForThisMessage = userMessage.mention ?? null;
+
+      const baseContext = {
+        mode: "study_guru",
+        model,
+        chatHistory: baseMessages,
+      } as const;
+
+      let finalMessage = userMessage.content;
+
+      if (mentionForThisMessage) {
+        try {
+          if (mentionForThisMessage.kind === "formulaCollection") {
+            const collection = await utils.formulas.getCollection.fetch({
+              id: mentionForThisMessage.id,
+            });
+            const summary = buildFormulaCollectionContextSummary(collection);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${userMessage.content}`;
+            }
+          } else if (mentionForThisMessage.kind === "mistake") {
+            const mistake = await utils.mistakes.getMistake.fetch({
+              id: mentionForThisMessage.id,
+            });
+            const summary = buildMistakeContextSummary(mistake);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${userMessage.content}`;
+            }
+          } else if (mentionForThisMessage.kind === "quiz") {
+            const quiz = await utils.quiz.getQuiz.fetch({ id: mentionForThisMessage.id });
+            const summary = buildQuizContextSummary(quiz);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${userMessage.content}`;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to build mention context for regenerate", e);
+        }
+      }
+
       const response = await studyAssistantMutation.mutateAsync({
         section: "study",
-        context: {
-          mode: "study_guru",
-          model,
-          chatHistory: baseMessages,
-        },
-        message: userMessage.content,
+        context: baseContext,
+        message: finalMessage,
         images: imagesPayload,
       });
 
@@ -695,7 +958,7 @@ export const StudyGuruChat = () => {
                 { role: "assistant", content: response.reply },
               ],
             };
-          })
+          }),
         );
       }
     } catch (error) {
@@ -712,7 +975,7 @@ export const StudyGuruChat = () => {
                 { role: "assistant", content: fallbackMessage },
               ],
             };
-          })
+          }),
         );
       }
     } finally {
@@ -783,20 +1046,20 @@ export const StudyGuruChat = () => {
         prevChats.map((chat) =>
           chat.id === activeChatId
             ? {
-              ...chat,
-              title: nextTitle,
-              messages: [
-                ...chat.messages,
-                { role: "user", content: trimmed },
-                {
-                  role: "assistant",
-                  content:
-                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
-                },
-              ],
-            }
-            : chat
-        )
+                ...chat,
+                title: nextTitle,
+                messages: [
+                  ...chat.messages,
+                  { role: "user", content: trimmed },
+                  {
+                    role: "assistant",
+                    content:
+                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                  },
+                ],
+              }
+            : chat,
+        ),
       );
       setMessage("");
       setIsQuizPanelOpen(true);
@@ -813,17 +1076,19 @@ export const StudyGuruChat = () => {
       try {
         const processed = await Promise.all(attachedFiles.map(fileToBase64));
         imagesPayload = processed;
-        // Reconstruct data URLs for local display
-        imagesDataUrls = processed.map(p => `data:${p.mimeType};base64,${p.data}`);
+        imagesDataUrls = processed.map((p) => `data:${p.mimeType};base64,${p.data}`);
       } catch (e) {
         console.error("Failed to process images", e);
       }
     }
 
+    const mentionForThisMessage = activeMention;
+
     const userMessage: ChatMessage = {
       role: "user",
       content: trimmed,
       images: imagesDataUrls.length > 0 ? imagesDataUrls : undefined,
+      mention: mentionForThisMessage ?? undefined,
     };
     const nextMessages: ChatMessage[] = [...baseMessages, userMessage];
 
@@ -831,30 +1096,63 @@ export const StudyGuruChat = () => {
       prevChats.map((chat) =>
         chat.id === activeChatId
           ? {
-            ...chat,
-            title: nextTitle,
-            messages: nextMessages,
-          }
-          : chat
-      )
+              ...chat,
+              title: nextTitle,
+              messages: nextMessages,
+            }
+          : chat,
+      ),
     );
 
     setMessage("");
-    setAttachedFiles([]); // Clear images immediately
+    setAttachedFiles([]);
     setEditingIndex(null);
+    setActiveMention(null);
     setIsGenerating(true);
 
     try {
+      const baseContext = {
+        mode: "study_guru",
+        model: selectedModel,
+        chatHistory: baseMessages,
+      } as const;
+
+      let finalMessage = trimmed;
+
+      if (mentionForThisMessage) {
+        try {
+          if (mentionForThisMessage.kind === "formulaCollection") {
+            const collection = await utils.formulas.getCollection.fetch({
+              id: mentionForThisMessage.id,
+            });
+            const summary = buildFormulaCollectionContextSummary(collection);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${trimmed}`;
+            }
+          } else if (mentionForThisMessage.kind === "mistake") {
+            const mistake = await utils.mistakes.getMistake.fetch({
+              id: mentionForThisMessage.id,
+            });
+            const summary = buildMistakeContextSummary(mistake);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${trimmed}`;
+            }
+          } else if (mentionForThisMessage.kind === "quiz") {
+            const quiz = await utils.quiz.getQuiz.fetch({ id: mentionForThisMessage.id });
+            const summary = buildQuizContextSummary(quiz);
+            if (summary) {
+              finalMessage = `${summary}\n\nStudent question: ${trimmed}`;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to build mention context", e);
+        }
+      }
+
       const response = await studyAssistantMutation.mutateAsync({
         section: "study",
-        context: {
-          mode: "study_guru",
-          model: selectedModel,
-          // Only send messages before the current one as history; the
-          // current message goes separately in `message`.
-          chatHistory: baseMessages,
-        },
-        message: trimmed,
+        context: baseContext,
+        message: finalMessage,
         images: imagesPayload,
       });
 
@@ -870,7 +1168,7 @@ export const StudyGuruChat = () => {
               ...chat,
               messages: updatedMessages,
             };
-          })
+          }),
         );
       }
     } catch (error) {
@@ -888,7 +1186,7 @@ export const StudyGuruChat = () => {
               ...chat,
               messages: updatedMessages,
             };
-          })
+          }),
         );
       }
     } finally {
@@ -973,6 +1271,155 @@ export const StudyGuruChat = () => {
     inputRef.current?.focus();
   };
 
+  const mentionSuggestions: MentionSuggestion[] = useMemo(() => {
+    if (!isMentionOpen) return [];
+
+    const q = mentionQuery.trim().toLowerCase();
+    const items: MentionSuggestion[] = [];
+
+    if (Array.isArray(formulaCollections)) {
+      formulaCollections.forEach((c: any) => {
+        const subtitleParts: string[] = [];
+        if (c.subject?.name) subtitleParts.push(c.subject.name);
+        if (c.chapter?.title) subtitleParts.push(c.chapter.title);
+        if (typeof c._count?.formulas === "number") {
+          subtitleParts.push(`${c._count.formulas} formulas`);
+        }
+
+        items.push({
+          kind: "formulaCollection",
+          id: c.id as string,
+          title: c.title as string,
+          subtitle: subtitleParts.join(" • "),
+          typeLabel: "Formula collection",
+        });
+      });
+    }
+
+    if (Array.isArray(mistakes)) {
+      mistakes.forEach((m: any) => {
+        const subtitleParts: string[] = [];
+        if (m.subject?.name) subtitleParts.push(m.subject.name);
+        if (m.chapter?.title) subtitleParts.push(m.chapter.title);
+        if (m.difficulty) subtitleParts.push(m.difficulty);
+        if (m.errorType) subtitleParts.push(m.errorType);
+
+        items.push({
+          kind: "mistake",
+          id: m.id as string,
+          title: m.title as string,
+          subtitle: subtitleParts.join(" • "),
+          typeLabel: "Mistake log",
+        });
+      });
+    }
+
+    if (Array.isArray(quizzes)) {
+      quizzes.forEach((qz: any) => {
+        const subtitleParts: string[] = [];
+        if (qz.examType) {
+          subtitleParts.push(qz.examType === "mains" ? "JEE Mains" : "JEE Advanced");
+        }
+        if (typeof qz._count?.questions === "number") {
+          subtitleParts.push(`${qz._count.questions} questions`);
+        }
+        if (typeof qz.score === "number") {
+          subtitleParts.push(`${qz.score.toFixed(1)}%`);
+        }
+
+        items.push({
+          kind: "quiz",
+          id: qz.id as string,
+          title: qz.title as string,
+          subtitle: subtitleParts.join(" • "),
+          typeLabel: "Quiz result",
+        });
+      });
+    }
+
+    let filtered = items;
+    if (q) {
+      filtered = items.filter((item) => {
+        const inTitle = item.title.toLowerCase().includes(q);
+        const inSubtitle = item.subtitle
+          ? item.subtitle.toLowerCase().includes(q)
+          : false;
+        return inTitle || inSubtitle;
+      });
+    }
+
+    const kindOrder: Record<MentionKind, number> = {
+      formulaCollection: 0,
+      mistake: 1,
+      quiz: 2,
+    };
+
+    filtered.sort((a, b) => {
+      if (a.kind !== b.kind) {
+        return kindOrder[a.kind] - kindOrder[b.kind];
+      }
+      return a.title.localeCompare(b.title);
+    });
+
+    // Show up to 6 in the popup; list is scrollable if more exist later.
+    return filtered.slice(0, 6);
+  }, [isMentionOpen, mentionQuery, formulaCollections, mistakes, quizzes]);
+
+  const handleSelectMention = (suggestion: MentionSuggestion) => {
+    const input = inputRef.current;
+    const current = message;
+    const cursor = input?.selectionStart ?? current.length;
+    const info = findActiveMentionInText(current, cursor);
+
+    const label = getMentionDisplayLabel(suggestion.kind, suggestion.title);
+    const replacement = `@${label}`;
+
+    if (info) {
+      const before = current.slice(0, info.start);
+      const after = current.slice(info.end);
+      setMessage(`${before}${replacement} ${after}`);
+    } else {
+      const beforeSpace = current && !/\s$/.test(current) ? " " : "";
+      setMessage(`${current}${beforeSpace}${replacement} `);
+    }
+
+    setActiveMention({
+      kind: suggestion.kind,
+      id: suggestion.id,
+      title: suggestion.title,
+      subtitle: suggestion.subtitle,
+    });
+
+    setIsMentionOpen(false);
+    setMentionQuery("");
+    setMentionHighlightIndex(0);
+
+    if (input) {
+      const nextCursor = input.value.length;
+      requestAnimationFrame(() => {
+        input.focus();
+        input.setSelectionRange(nextCursor, nextCursor);
+      });
+    }
+  };
+
+  const handleClearMention = () => {
+    if (!activeMention) return;
+
+    const label = getMentionDisplayLabel(activeMention.kind, activeMention.title);
+    const token = `@${label}`;
+    const idx = message.indexOf(token);
+
+    if (idx !== -1) {
+      const before = message.slice(0, idx);
+      let after = message.slice(idx + token.length);
+      after = after.replace(/^\s+/, "");
+      setMessage(before + after);
+    }
+
+    setActiveMention(null);
+  };
+
   const modelOptions: ModelId[] = [
     "gemini-2.5-flash",
     "gemini-2.5-pro",
@@ -981,6 +1428,59 @@ export const StudyGuruChat = () => {
     "deepseek/deepseek-r1-0528:free",
     "openrouter/sherlock-think-alpha",
   ];
+
+  const handleToggleAssistantBookmark = async (assistantIndex: number) => {
+    if (!activeChat) return;
+    const msg = activeChat.messages[assistantIndex];
+    if (!msg || msg.role !== "assistant") return;
+
+    const conversationId = await ensureServerConversationId();
+    if (!conversationId) return;
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'study_guru_message',
+        entityId: conversationId,
+        messageIndex: assistantIndex,
+        metadata: {
+          title: activeChat.title || 'Study Guru chat',
+          messagePreview: msg.content.slice(0, 160),
+        },
+      });
+
+      await Promise.all([
+        studyBookmarksQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'ai' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
+
+  const ensureServerConversationId = async (): Promise<string | undefined> => {
+    if (!activeChat) return undefined;
+    const existingId = (activeChat as any).serverId as string | undefined;
+    if (existingId) return existingId;
+
+    try {
+      const created = await saveConversationMutation.mutateAsync({
+        id: undefined,
+        title: activeChat.title || 'Study Guru chat',
+        messages: activeChat.messages,
+        model: selectedModel,
+      });
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat.id ? ({ ...chat, serverId: created.id } as any) : chat,
+        ),
+      );
+
+      return created.id;
+    } catch {
+      return undefined;
+    }
+  };
 
   return (
     <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
@@ -1004,7 +1504,7 @@ export const StudyGuruChat = () => {
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+              className="p-2 hover:bg-slate-800 rounded-lg transition mr-4"
             >
               <Menu className="w-6 h-6" />
             </button>
@@ -1018,7 +1518,7 @@ export const StudyGuruChat = () => {
                   return next;
                 })
               }
-              className="p-2 hover:bg-slate-800/80 rounded-lg transition"
+              className="p-2 hover:bg-slate-800 rounded-lg transition"
             >
               <Search className="w-6 h-6" />
             </button>
@@ -1057,9 +1557,9 @@ export const StudyGuruChat = () => {
         </div>
 
         {/* Chat History - Scrollable */}
-        < div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" >
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {/* Recent Section */}
-          < div className="p-4" >
+          <div className="p-4">
             <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
             <div className="space-y-1">
               {[...chats]
@@ -1096,6 +1596,7 @@ export const StudyGuruChat = () => {
                           current === chat.id ? null : chat.id
                         );
                       }}
+                      data-history-menu-trigger="true"
                       className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
                       aria-label="Chat options"
                     >
@@ -1103,7 +1604,10 @@ export const StudyGuruChat = () => {
                     </button>
 
                     {openMenuChatId === chat.id && (
-                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                      <div
+                        data-history-menu="true"
+                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20"
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1157,10 +1661,10 @@ export const StudyGuruChat = () => {
                   </div>
                 ))}
             </div>
-          </div >
+          </div>
 
           {/* Other Chats */}
-          < div className="p-4" >
+          <div className="p-4">
             <div className="space-y-1">
               {chats
                 .filter((chat) => !chat.recent)
@@ -1195,6 +1699,7 @@ export const StudyGuruChat = () => {
                           current === chat.id ? null : chat.id
                         );
                       }}
+                      data-history-menu-trigger="true"
                       className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
                       aria-label="Chat options"
                     >
@@ -1202,7 +1707,10 @@ export const StudyGuruChat = () => {
                     </button>
 
                     {openMenuChatId === chat.id && (
-                      <div className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20">
+                      <div
+                        data-history-menu="true"
+                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20"
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1256,8 +1764,8 @@ export const StudyGuruChat = () => {
                   </div>
                 ))}
             </div>
-          </div >
-        </div >
+          </div>
+        </div>
 
         <div className="px-4 pt-1 pb-0 flex-shrink-0">
           <div className="space-y-2">
@@ -1298,12 +1806,12 @@ export const StudyGuruChat = () => {
             <span className="font-medium truncate">{displayName}</span>
           </button>
         </div>
-      </div >
+      </div>
 
       {/* Main Chat Area */}
-      < div className="flex-1 flex flex-col relative" >
+      <div className="flex-1 flex flex-col relative">
         {/* Top Header */}
-        < div className="h-16 flex items-center px-4" >
+        <div className="h-16 flex items-center px-4">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -1315,10 +1823,10 @@ export const StudyGuruChat = () => {
           <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
           </div>
-        </div >
+        </div>
 
         {/* Scrollable Chat Section */}
-        < div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar" >
+        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 custom-scrollbar">
           <div className="max-w-3xl md:max-w-4xl lg:max-w-5xl mx-auto space-y-6">
             {activeChat && activeChat.messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -1399,6 +1907,39 @@ export const StudyGuruChat = () => {
                     onTouchMove={handleLongPressEnd}
                   >
                     <div className="flex flex-col items-end w-full max-w-lg md:max-w-none">
+                      {msg.mention && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (msg.mention?.kind === "formulaCollection") {
+                              navigate(`/formulas/collections/${msg.mention.id}`);
+                            } else if (msg.mention?.kind === "mistake") {
+                              navigate(`/mistakes/${msg.mention.id}`);
+                            } else if (msg.mention?.kind === "quiz") {
+                              navigate(`/quiz/${msg.mention.id}/results`);
+                            }
+                          }}
+                          className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1 text-[11px] text-slate-100 hover:border-primary hover:bg-slate-800 transition"
+                        >
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-semibold border ${
+                              msg.mention.kind === "formulaCollection"
+                                ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                                : msg.mention.kind === "mistake"
+                                ? "text-red-300 bg-red-500/10 border-red-500/40"
+                                : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                            }`}
+                          >
+                            {msg.mention.kind === "formulaCollection"
+                              ? "Formula"
+                              : msg.mention.kind === "mistake"
+                              ? "Mistake"
+                              : "Quiz"}
+                          </span>
+                          <span className="max-w-[220px] truncate">{msg.mention.title}</span>
+                        </button>
+                      )}
+
                       {msg.images && msg.images.length > 0 && (
                         <div className="mb-2 flex flex-wrap justify-end gap-2">
                           {msg.images.map((imgSrc, idx) => (
@@ -1438,12 +1979,20 @@ export const StudyGuruChat = () => {
                 ) : (
                   <div
                     key={index}
-                    className="flex justify-start group"
+                    className={`flex justify-start group ${
+                      highlightedMessageIndex === index ? 'animate-pulse' : ''
+                    }`}
                     onTouchStart={(e) => handleLongPressStart(index, "assistant", e)}
                     onTouchEnd={handleLongPressEnd}
                     onTouchMove={handleLongPressEnd}
                   >
-                    <div className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60">
+                    <div
+                      className={`w-full bg-slate-900/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60 border ${
+                        highlightedMessageIndex === index
+                          ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
+                          : "border-slate-700/80"
+                      }`}
+                    >
                       <div className="flex items-start gap-3">
                         <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
                         <div>
@@ -1468,18 +2017,20 @@ export const StudyGuruChat = () => {
                                 <ol className="list-decimal list-inside space-y-1 my-2" {...props} />
                               ),
                               li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
-                              code: ({ node, inline, ...props }) =>
-                                inline ? (
+                              code: (props: any) => {
+                                const { inline, ...rest } = props || {};
+                                return inline ? (
                                   <code
                                     className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono"
-                                    {...props}
+                                    {...rest}
                                   />
                                 ) : (
                                   <code
                                     className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto"
-                                    {...props}
+                                    {...rest}
                                   />
-                                ),
+                                );
+                              },
                               p: ({ node, ...props }) => (
                                 <p className="text-slate-200 my-2" {...props} />
                               ),
@@ -1535,6 +2086,24 @@ export const StudyGuruChat = () => {
                               title="Regenerate"
                             >
                               <RefreshCw className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleAssistantBookmark(index)}
+                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full border text-slate-300 hover:text-slate-100 transition ${
+                                bookmarkedAssistantIndexes.has(index)
+                                  ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                                  : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700'
+                              }`}
+                              title={bookmarkedAssistantIndexes.has(index) ? 'Remove bookmark' : 'Bookmark reply'}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                                />
+                              </svg>
                             </button>
                           </div>
                         </div>
@@ -1605,6 +2174,81 @@ export const StudyGuruChat = () => {
                 ))}
               </div>
             )}
+            {activeMention && (
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleClearMention}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1.5 text-xs text-slate-100 hover:border-primary hover:bg-slate-800 transition"
+                >
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      activeMention.kind === "formulaCollection"
+                        ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                        : activeMention.kind === "mistake"
+                        ? "text-red-300 bg-red-500/10 border-red-500/40"
+                        : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                    }`}
+                  >
+                    {activeMention.kind === "formulaCollection"
+                      ? "Formula"
+                      : activeMention.kind === "mistake"
+                      ? "Mistake"
+                      : "Quiz"}
+                  </span>
+                  <span className="text-xs font-medium truncate max-w-[220px]">
+                    {activeMention.title}
+                  </span>
+                  {activeMention.subtitle && (
+                    <span className="hidden sm:inline text-[11px] text-slate-400 truncate max-w-[200px]">
+                      {activeMention.subtitle}
+                    </span>
+                  )}
+                  <span className="ml-1 text-slate-400 hover:text-slate-100 text-sm">
+                    ×
+                  </span>
+                </button>
+              </div>
+            )}
+            {isMentionOpen && mentionSuggestions.length > 0 && (
+              <div className="mb-2 max-h-64 overflow-y-auto rounded-2xl border border-primary/40 bg-slate-950/95 shadow-xl shadow-primary/20 text-sm">
+                {mentionSuggestions.map((item, index) => {
+                  const isActive = index === mentionHighlightIndex;
+                  const kindColor =
+                    item.kind === "formulaCollection"
+                      ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                      : item.kind === "mistake"
+                      ? "text-red-300 bg-red-500/10 border-red-500/40"
+                      : "text-purple-300 bg-purple-500/10 border-purple-500/40";
+                  return (
+                    <button
+                      key={`${item.kind}-${item.id}`}
+                      type="button"
+                      onClick={() => handleSelectMention(item)}
+                      className={`w-full px-3 py-2 flex items-start gap-2 text-left transition-colors ${
+                        isActive ? "bg-slate-800/80" : "hover:bg-slate-900/80"
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${kindColor}`}
+                      >
+                        {item.typeLabel}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-slate-100 truncate">
+                          {item.title}
+                        </div>
+                        {item.subtitle && (
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {item.subtitle}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3">
                 {/* Plus (attachments) */}
@@ -1626,8 +2270,62 @@ export const StudyGuruChat = () => {
                   ref={inputRef}
                   type="text"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setMessage(value);
+
+                    const info = findActiveMentionInText(value, e.target.selectionStart);
+
+                    if (info) {
+                      setIsMentionOpen(true);
+                      setMentionQuery(info.query);
+                      setMentionHighlightIndex(0);
+                    } else {
+                      setIsMentionOpen(false);
+                      setMentionQuery("");
+                      setMentionHighlightIndex(0);
+                    }
+
+                    if (activeMention) {
+                      const label = getMentionDisplayLabel(
+                        activeMention.kind,
+                        activeMention.title,
+                      );
+                      const token = `@${label}`;
+                      if (!value.includes(token)) {
+                        setActiveMention(null);
+                      }
+                    }
+                  }}
                   onKeyDown={(e) => {
+                    if (isMentionOpen && mentionSuggestions.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMentionHighlightIndex((prev) =>
+                          (prev + 1) % mentionSuggestions.length,
+                        );
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMentionHighlightIndex((prev) =>
+                          (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+                        );
+                        return;
+                      }
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSelectMention(mentionSuggestions[mentionHighlightIndex]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setIsMentionOpen(false);
+                        setMentionQuery("");
+                        return;
+                      }
+                    }
+
                     if (e.key === "Enter") {
                       e.preventDefault();
                       handleSend();

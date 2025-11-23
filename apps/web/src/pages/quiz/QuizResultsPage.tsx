@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -6,6 +6,9 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { trpc } from '../../lib/trpc';
 import { JeeDiagram } from '../../features/quiz/components/JeeDiagram';
+
+const ReactMarkdownAny: any = ReactMarkdown;
+const trpcAny: any = trpc as any;
 
 const normalizeQuizMath = (text: string, opts?: { treatAsPureMath?: boolean }) => {
   if (!text) return text;
@@ -87,8 +90,13 @@ export const QuizResultsPage = () => {
   const navigate = useNavigate();
   const attemptId = searchParams.get('attemptId');
   const { setAiContext, setAiSection } = useOutletContext<ShellOutletContext>();
+  const utils = trpcAny.useUtils();
 
-  const { data: quiz, isLoading } = trpc.quiz.getQuiz.useQuery(
+  const highlightQuiz = searchParams.get('highlight') === '1';
+  const highlightQuestionId = searchParams.get('highlightQuestionId');
+  const [highlightHeader, setHighlightHeader] = useState(false);
+
+  const { data: quiz, isLoading } = trpcAny.quiz.getQuiz.useQuery(
     { id: id! },
     { 
       enabled: !!id,
@@ -118,10 +126,45 @@ export const QuizResultsPage = () => {
     ? ((quiz as any).userAnswers as Record<string, number[]> | undefined)
     : undefined;
 
+  const quizBookmarkStatusQuery = trpcAny.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'practice_quiz',
+      targets: quiz ? [{ entityId: quiz.id }] : [],
+    },
+    {
+      enabled: !!quiz,
+    },
+  );
+
+  const questionBookmarkStatusQuery = trpcAny.bookmarks.getStatusForEntities.useQuery(
+    {
+      entityType: 'practice_question',
+      targets: quiz ? quiz.questions.map((q: any) => ({ entityId: q.id })) : [],
+    },
+    {
+      enabled: !!quiz && quiz.questions.length > 0,
+    },
+  );
+
+  const toggleBookmarkMutation = trpcAny.bookmarks.toggle.useMutation();
+
+  const isQuizBookmarked = !!(quizBookmarkStatusQuery.data?.items ?? []).some(
+    (item: any) => item && item.entityId === (quiz?.id ?? ''),
+  );
+
+  const bookmarkedQuestionIds = useMemo(() => {
+    const set = new Set<string>();
+    (questionBookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
+      if (!item) return;
+      set.add(item.entityId);
+    });
+    return set;
+  }, [questionBookmarkStatusQuery.data]);
+
   const questionInsights = useMemo<QuestionInsight[]>(() => {
     if (!quiz) return [];
 
-    return quiz.questions.map((question, index) => {
+    return quiz.questions.map((question: any, index: number) => {
       const userAnswers = userAnswersMap?.[question.id] || [];
       const correctAnswers = (question.correctAnswers as number[]) || [];
       const isUnanswered = userAnswers.length === 0;
@@ -175,6 +218,66 @@ export const QuizResultsPage = () => {
     };
   }, [attemptId, questionInsights, quiz, score, setAiContext, setAiSection, timeSpent]);
 
+  useEffect(() => {
+    if (!highlightQuiz) return;
+    setHighlightHeader(true);
+    const timeout = window.setTimeout(() => setHighlightHeader(false), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [highlightQuiz]);
+
+  const handleToggleQuizBookmark = async () => {
+    if (!quiz) return;
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'practice_quiz',
+        entityId: quiz.id,
+        metadata: {
+          title: quiz.title,
+          examType: quiz.examType,
+          questionCount: quiz.questions.length,
+          score,
+          accuracy,
+        },
+      });
+
+      await Promise.all([
+        quizBookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'quizzes' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
+
+  const handleToggleQuestionBookmark = async (questionId: string, index: number) => {
+    if (!quiz) return;
+
+    const question = quiz.questions.find((q: any) => q.id === questionId);
+    if (!question) return;
+
+    try {
+      await toggleBookmarkMutation.mutateAsync({
+        entityType: 'practice_question',
+        entityId: question.id,
+        metadata: {
+          quizId: quiz.id,
+          quizTitle: quiz.title,
+          questionIndex: index + 1,
+          difficulty: question.difficulty,
+          topic: question.topic,
+        },
+      });
+
+      await Promise.all([
+        questionBookmarkStatusQuery.refetch(),
+        utils.bookmarks.listByCategory.invalidate({ category: 'quizzes' }).catch(() => undefined),
+      ]);
+    } catch {
+      // ignore for now
+    }
+  };
+
   // Keep hooks above, and branch on loading / missing data after hooks
   if (isLoading) {
     return (
@@ -227,15 +330,41 @@ export const QuizResultsPage = () => {
   return (
     <div className="max-w-5xl mx-auto py-6">
         {/* Score Card */}
-        <div className="glass-card rounded-2xl p-8 border border-primary/20 mb-6 relative overflow-hidden">
+        <div
+          className={
+            "glass-card rounded-2xl p-8 border mb-6 relative overflow-hidden " +
+            (highlightHeader
+              ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)] animate-pulse"
+              : "border-primary/20")
+          }
+        >
           {/* Background decoration */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-600/10"></div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl"></div>
           
           <div className="relative">
             <div className="text-center mb-8">
-              <div className="inline-block px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-semibold mb-4">
-                Quiz Completed!
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-semibold mb-4">
+                <span>Quiz Completed!</span>
+                <button
+                  type="button"
+                  onClick={handleToggleQuizBookmark}
+                  className={`p-1.5 rounded-full border text-emerald-100 transition-colors ${
+                    isQuizBookmarked
+                      ? 'bg-amber-500/30 border-amber-300 text-amber-50'
+                      : 'bg-slate-900/60 border-emerald-400/40 hover:bg-slate-800/80'
+                  }`}
+                  title={isQuizBookmarked ? 'Remove bookmark' : 'Bookmark quiz'}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                    />
+                  </svg>
+                </button>
               </div>
               <h1 className="text-3xl font-bold text-white mb-2">{quiz.title}</h1>
               <p className="text-slate-400">
@@ -302,7 +431,7 @@ export const QuizResultsPage = () => {
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-white mb-4">Question Analysis</h2>
             
-            {quiz.questions.map((question, index) => {
+            {quiz.questions.map((question: any, index: number) => {
             const insight = questionInsights[index];
             const userAnswers = insight.userAnswers;
             const correctAnswers = insight.correctAnswers;
@@ -310,10 +439,18 @@ export const QuizResultsPage = () => {
             const isCorrect = insight.isCorrect;
             const hasPartial = insight.hasPartial;
 
+            const isQuestionHighlighted = highlightQuestionId === question.id;
+            const isQuestionBookmarked = bookmarkedQuestionIds.has(question.id);
+
             return (
               <div
                 key={question.id}
-                className="glass-card rounded-xl p-6 border border-slate-800/50"
+                className={
+                  "glass-card rounded-xl p-6 border transition-shadow " +
+                  (isQuestionHighlighted
+                    ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)] animate-pulse"
+                    : "border-slate-800/50")
+                }
               >
                 {/* Question Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -348,19 +485,40 @@ export const QuizResultsPage = () => {
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">
-                    {question.topic}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleQuestionBookmark(question.id, index)}
+                      className={`p-1.5 rounded-full border text-slate-200 transition-colors ${
+                        isQuestionBookmarked
+                          ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
+                          : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                      }`}
+                      title={isQuestionBookmarked ? 'Remove bookmark' : 'Bookmark question'}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                        />
+                      </svg>
+                    </button>
+                    <span className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">
+                      {question.topic}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Question Text */}
                 <div className="prose prose-invert prose-sm max-w-none mb-4">
-                  <ReactMarkdown
+                  <ReactMarkdownAny
                     remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                     rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                   >
                     {normalizeQuizMath(question.questionText)}
-                  </ReactMarkdown>
+                  </ReactMarkdownAny>
                 </div>
 
                 {question.diagram && (
@@ -411,12 +569,12 @@ export const QuizResultsPage = () => {
                             )}
                           </div>
                           <div className="flex-1 prose prose-invert prose-xs max-w-none">
-                            <ReactMarkdown
+                            <ReactMarkdownAny
                               remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                               rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                             >
                               {normalizeQuizMath(option, { treatAsPureMath: true })}
-                            </ReactMarkdown>
+                            </ReactMarkdownAny>
                           </div>
                         </div>
                       </div>
@@ -434,12 +592,12 @@ export const QuizResultsPage = () => {
                       Explanation
                     </p>
                     <div className="prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown
+                      <ReactMarkdownAny
                         remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                         rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
                       >
                         {normalizeQuizMath(question.explanation)}
-                      </ReactMarkdown>
+                      </ReactMarkdownAny>
                     </div>
                   </div>
                 )}

@@ -74,7 +74,7 @@ export const quizRouter = router({
           // Process results
           for (const res of results) {
             if (res.status === 'fulfilled') {
-              const chunkQuestions = parseQuizQuestions((res as any).value.text, { ...input, questionCount: (res as any).count });
+              const chunkQuestions = parseQuizQuestions((res as any).value.text);
               questions = [...questions, ...chunkQuestions];
             } else {
               console.error('Chunk generation failed:', (res as any).reason);
@@ -93,7 +93,7 @@ export const quizRouter = router({
                   usePremiumOnly: true
                   // No forceKeyIndex, let it find a working key
                 });
-                const retryQuestions = parseQuizQuestions(retryResult.text, retryInput);
+                const retryQuestions = parseQuizQuestions(retryResult.text);
                 questions = [...questions, ...retryQuestions];
               } catch (retryError) {
                 console.error('Retry also failed:', retryError);
@@ -112,7 +112,7 @@ export const quizRouter = router({
           });
           console.log('Gemini response received, length:', result.text.length, 'model:', result.model);
 
-          questions = parseQuizQuestions(result.text, input);
+          questions = parseQuizQuestions(result.text);
         }
         if (questions.length === 0) {
           throw new Error("Failed to generate any questions.");
@@ -539,7 +539,7 @@ Generate EXACTLY ${input.questionCount} questions. Output ONLY the JSON array, n
 }
 
 // Helper function to parse quiz questions from AI response
-function parseQuizQuestions(response: string, input: z.infer<typeof quizConfigSchema>) {
+function parseQuizQuestions(response: string) {
   try {
     // Log the response for debugging
     console.log('=== PARSING AI RESPONSE ===');

@@ -235,8 +235,8 @@ const getMentionDisplayLabel = (kind: MentionKind, _title: string): string => {
     kind === "formulaCollection"
       ? "Formula"
       : kind === "mistake"
-      ? "Mistake"
-      : "Quiz";
+        ? "Mistake"
+        : "Quiz";
   return typeLabel;
 };
 
@@ -277,8 +277,7 @@ const buildMistakeContextSummary = (mistake: any): string => {
     subject || chapter
       ? `Subject: ${subject || "?"}, Chapter: ${chapter || "?"}.`
       : "",
-    `Difficulty: ${mistake.difficulty ?? "?"}, Error type: ${
-      mistake.errorType ?? "?"
+    `Difficulty: ${mistake.difficulty ?? "?"}, Error type: ${mistake.errorType ?? "?"
     }, Status: ${mistake.status ?? "?"}.`,
     imageCount ? `Attached images: ${imageCount}.` : "",
     description ? `Description: ${description}` : "",
@@ -302,8 +301,7 @@ const buildQuizContextSummary = (quiz: any): string => {
 
   const headerLines = [
     "Context: The student is referring to a practice quiz result.",
-    `Quiz: ${quiz.title ?? "(untitled)"} ${
-      quiz.examType === "mains" ? "(JEE Mains)" : "(JEE Advanced)"
+    `Quiz: ${quiz.title ?? "(untitled)"} ${quiz.examType === "mains" ? "(JEE Mains)" : "(JEE Advanced)"
     }.`,
     `Questions: ${totalQuestions}. Score: ${score.toFixed(
       1,
@@ -411,6 +409,14 @@ export const StudyGuruChat = () => {
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const [highlightedMessageIndex, setHighlightedMessageIndex] = useState<number | null>(null);
+  const [pendingBookmarkToggles, setPendingBookmarkToggles] = useState<Map<number, boolean>>(new Map());
+
+  const isMessageBookmarked = (index: number) => {
+    if (pendingBookmarkToggles.has(index)) {
+      return pendingBookmarkToggles.get(index)!;
+    }
+    return bookmarkedAssistantIndexes.has(index);
+  };
 
   const resizeInput = () => {
     const el = inputRef.current;
@@ -536,14 +542,14 @@ export const StudyGuruChat = () => {
   const studyBookmarksQuery = trpc.bookmarks.getStatusForEntities.useQuery(
     activeServerConversationId
       ? {
-          entityType: 'study_guru_message',
-          targets: [{ entityId: activeServerConversationId }],
-        }
+        entityType: 'study_guru_message',
+        targets: [{ entityId: activeServerConversationId }],
+      }
       : {
-          // Placeholder input; query will be disabled when no conversation id
-          entityType: 'study_guru_message',
-          targets: [{ entityId: '', messageIndex: 0 }] as any,
-        },
+        // Placeholder input; query will be disabled when no conversation id
+        entityType: 'study_guru_message',
+        targets: [{ entityId: '', messageIndex: 0 }] as any,
+      },
     {
       enabled: !!activeServerConversationId,
     }
@@ -792,10 +798,10 @@ export const StudyGuruChat = () => {
       prev.map((c) =>
         c.id === id
           ? {
-              ...c,
-              title: trimmedTitle,
-              userRenamed: true,
-            }
+            ...c,
+            title: trimmedTitle,
+            userRenamed: true,
+          }
           : c
       )
     );
@@ -1061,18 +1067,18 @@ export const StudyGuruChat = () => {
         prevChats.map((chat) =>
           chat.id === activeChatId
             ? {
-                ...chat,
-                title: nextTitle,
-                messages: [
-                  ...chat.messages,
-                  { role: "user", content: trimmed },
-                  {
-                    role: "assistant",
-                    content:
-                      "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
-                  },
-                ],
-              }
+              ...chat,
+              title: nextTitle,
+              messages: [
+                ...chat.messages,
+                { role: "user", content: trimmed },
+                {
+                  role: "assistant",
+                  content:
+                    "Great! Let's set up a practice quiz for you. Please configure your preferences below:",
+                },
+              ],
+            }
             : chat,
         ),
       );
@@ -1111,10 +1117,10 @@ export const StudyGuruChat = () => {
       prevChats.map((chat) =>
         chat.id === activeChatId
           ? {
-              ...chat,
-              title: nextTitle,
-              messages: nextMessages,
-            }
+            ...chat,
+            title: nextTitle,
+            messages: nextMessages,
+          }
           : chat,
       ),
     );
@@ -1439,10 +1445,20 @@ export const StudyGuruChat = () => {
     const msg = activeChat.messages[assistantIndex];
     if (!msg || msg.role !== "assistant") return;
 
-    const conversationId = await ensureServerConversationId();
-    if (!conversationId) return;
+    const currentlyBookmarked = isMessageBookmarked(assistantIndex);
+    const nextState = !currentlyBookmarked;
+
+    // Optimistic update
+    setPendingBookmarkToggles((prev) => {
+      const next = new Map(prev);
+      next.set(assistantIndex, nextState);
+      return next;
+    });
 
     try {
+      const conversationId = await ensureServerConversationId();
+      if (!conversationId) throw new Error("Failed to ensure conversation ID");
+
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'study_guru_message',
         entityId: conversationId,
@@ -1457,8 +1473,21 @@ export const StudyGuruChat = () => {
         studyBookmarksQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'ai' }).catch(() => undefined),
       ]);
-    } catch {
-      // ignore for now
+    } catch (error) {
+      console.error("Failed to toggle bookmark", error);
+      // Revert optimistic update on error
+      setPendingBookmarkToggles((prev) => {
+        const next = new Map(prev);
+        next.set(assistantIndex, !nextState);
+        return next;
+      });
+    } finally {
+      // Clear pending state after sync
+      setPendingBookmarkToggles((prev) => {
+        const next = new Map(prev);
+        next.delete(assistantIndex);
+        return next;
+      });
     }
   };
 
@@ -1578,11 +1607,10 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${
-                      activeChatId === chat.id
+                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
                         ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
                         : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
-                    }`}
+                      }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
@@ -1681,11 +1709,10 @@ export const StudyGuruChat = () => {
                 .map((chat) => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${
-                      activeChatId === chat.id
+                    className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
                         ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
                         : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
-                    }`}
+                      }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
@@ -1927,19 +1954,18 @@ export const StudyGuruChat = () => {
                           className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1 text-[11px] text-slate-100 hover:border-primary hover:bg-slate-800 transition"
                         >
                           <span
-                            className={`px-2 py-0.5 rounded-full font-semibold border ${
-                              msg.mention.kind === "formulaCollection"
+                            className={`px-2 py-0.5 rounded-full font-semibold border ${msg.mention.kind === "formulaCollection"
                                 ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                                 : msg.mention.kind === "mistake"
-                                ? "text-red-300 bg-red-500/10 border-red-500/40"
-                                : "text-purple-300 bg-purple-500/10 border-purple-500/40"
-                            }`}
+                                  ? "text-red-300 bg-red-500/10 border-red-500/40"
+                                  : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                              }`}
                           >
                             {msg.mention.kind === "formulaCollection"
                               ? "Formula"
                               : msg.mention.kind === "mistake"
-                              ? "Mistake"
-                              : "Quiz"}
+                                ? "Mistake"
+                                : "Quiz"}
                           </span>
                           <span className="max-w-[220px] truncate">{msg.mention.title}</span>
                         </button>
@@ -1984,19 +2010,17 @@ export const StudyGuruChat = () => {
                 ) : (
                   <div
                     key={index}
-                    className={`flex justify-start group ${
-                      highlightedMessageIndex === index ? 'animate-pulse' : ''
-                    }`}
+                    className={`flex justify-start group ${highlightedMessageIndex === index ? 'animate-pulse' : ''
+                      }`}
                     onTouchStart={(e) => handleLongPressStart(index, "assistant", e)}
                     onTouchEnd={handleLongPressEnd}
                     onTouchMove={handleLongPressEnd}
                   >
                     <div
-                      className={`w-full bg-slate-900/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60 border ${
-                        highlightedMessageIndex === index
+                      className={`w-full bg-slate-900/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60 border ${highlightedMessageIndex === index
                           ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
                           : "border-slate-700/80"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
@@ -2094,19 +2118,23 @@ export const StudyGuruChat = () => {
                             </button>
                             <button
                               onClick={() => handleToggleAssistantBookmark(index)}
-                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full border text-slate-300 hover:text-slate-100 transition ${
-                                bookmarkedAssistantIndexes.has(index)
-                                  ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                                  : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700'
-                              }`}
-                              title={bookmarkedAssistantIndexes.has(index) ? 'Remove bookmark' : 'Bookmark reply'}
+                              className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${isMessageBookmarked(index)
+                                  ? 'bg-amber-500 text-slate-950 border-amber-500 scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                                  : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                                }`}
+                              title={isMessageBookmarked(index) ? 'Remove bookmark' : 'Bookmark reply'}
                             >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg
+                                className={`w-4 h-4 transition-transform duration-300 ${isMessageBookmarked(index) ? 'scale-100' : 'scale-90'}`}
+                                fill={isMessageBookmarked(index) ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth={isMessageBookmarked(index) ? 0 : 2}
+                                viewBox="0 0 24 24"
+                              >
                                 <path
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                                 />
                               </svg>
                             </button>
@@ -2187,19 +2215,18 @@ export const StudyGuruChat = () => {
                   className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1.5 text-xs text-slate-100 hover:border-primary hover:bg-slate-800 transition"
                 >
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                      activeMention.kind === "formulaCollection"
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
                         ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                         : activeMention.kind === "mistake"
-                        ? "text-red-300 bg-red-500/10 border-red-500/40"
-                        : "text-purple-300 bg-purple-500/10 border-purple-500/40"
-                    }`}
+                          ? "text-red-300 bg-red-500/10 border-red-500/40"
+                          : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                      }`}
                   >
                     {activeMention.kind === "formulaCollection"
                       ? "Formula"
                       : activeMention.kind === "mistake"
-                      ? "Mistake"
-                      : "Quiz"}
+                        ? "Mistake"
+                        : "Quiz"}
                   </span>
                   <span className="text-xs font-medium truncate max-w-[220px]">
                     {activeMention.title}
@@ -2223,16 +2250,15 @@ export const StudyGuruChat = () => {
                     item.kind === "formulaCollection"
                       ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                       : item.kind === "mistake"
-                      ? "text-red-300 bg-red-500/10 border-red-500/40"
-                      : "text-purple-300 bg-purple-500/10 border-purple-500/40";
+                        ? "text-red-300 bg-red-500/10 border-red-500/40"
+                        : "text-purple-300 bg-purple-500/10 border-purple-500/40";
                   return (
                     <button
                       key={`${item.kind}-${item.id}`}
                       type="button"
                       onClick={() => handleSelectMention(item)}
-                      className={`w-full px-3 py-2 flex items-start gap-2 text-left transition-colors ${
-                        isActive ? "bg-slate-800/80" : "hover:bg-slate-900/80"
-                      }`}
+                      className={`w-full px-3 py-2 flex items-start gap-2 text-left transition-colors ${isActive ? "bg-slate-800/80" : "hover:bg-slate-900/80"
+                        }`}
                     >
                       <span
                         className={`mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${kindColor}`}
@@ -2274,13 +2300,12 @@ export const StudyGuruChat = () => {
                 <div className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-3 py-1.5 flex items-center gap-2">
                   {activeMention && (
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                        activeMention.kind === "formulaCollection"
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
                           ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                           : activeMention.kind === "mistake"
-                          ? "text-red-300 bg-red-500/10 border-red-500/40"
-                          : "text-purple-300 bg-purple-500/10 border-purple-500/40"
-                      }`}
+                            ? "text-red-300 bg-red-500/10 border-red-500/40"
+                            : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                        }`}
                     >
                       @{getMentionDisplayLabel(activeMention.kind, activeMention.title)}
                     </span>

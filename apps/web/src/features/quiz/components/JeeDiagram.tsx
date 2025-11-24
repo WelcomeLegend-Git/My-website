@@ -241,7 +241,17 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
 
             {/* Polygons */}
             {(cfg.polygons || []).map((poly, i) => {
-              const pts = poly.vertices.map(idx => getPt(idx)).map(p => `${p.x},${p.y}`).join(' ');
+              const vertices = Array.isArray((poly as any)?.vertices)
+                ? (poly as any).vertices as any[]
+                : [];
+
+              if (vertices.length === 0) return null;
+
+              const pts = vertices
+                .map((idx) => getPt(idx))
+                .map((p) => `${p.x},${p.y}`)
+                .join(' ');
+
               return (
                 <polygon
                   key={`poly-${i}`}

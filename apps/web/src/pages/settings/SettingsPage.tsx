@@ -101,6 +101,7 @@ export const SettingsPage = () => {
       const message =
         err instanceof Error ? err.message : "Failed to restore backup from Google Drive";
       setError(message);
+      await statusQuery.refetch();
     }
   };
 
@@ -150,6 +151,7 @@ export const SettingsPage = () => {
       const message =
         err instanceof Error ? err.message : "Failed to upload backup to Google Drive";
       setError(message);
+      await statusQuery.refetch();
     }
   };
 

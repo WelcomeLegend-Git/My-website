@@ -132,6 +132,10 @@ export const ShellLayout = () => {
         await backupStatusQuery.refetch();
       } catch (error) {
         console.error("Auto backup to Google Drive failed", error);
+        try {
+          await backupStatusQuery.refetch();
+        } catch {
+        }
       }
     };
 

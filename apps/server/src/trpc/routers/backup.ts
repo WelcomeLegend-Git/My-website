@@ -92,6 +92,47 @@ const buildBackupPayload = async (prisma: PrismaClient, userId: string) => {
 const isGoogleConfigured = () =>
   Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_OAUTH_REDIRECT_URL);
 
+const isGoogleAuthError = (error: unknown) => {
+  const anyError = error as {
+    code?: number | string;
+    message?: string;
+    response?: { status?: number; data?: { error?: { message?: string; status?: string } } };
+  } | null;
+
+  if (!anyError) return false;
+
+  const statusCode =
+    typeof anyError.code === "number"
+      ? anyError.code
+      : typeof anyError.response?.status === "number"
+      ? anyError.response.status
+      : undefined;
+
+  if (statusCode === 401 || statusCode === 403) {
+    return true;
+  }
+
+  const message =
+    anyError.response?.data?.error?.message ||
+    anyError.response?.data?.error?.status ||
+    anyError.message ||
+    "";
+
+  if (typeof message !== "string") return false;
+
+  const lower = message.toLowerCase();
+
+  return (
+    lower.includes("invalid_grant") ||
+    lower.includes("unauthorized_client") ||
+    lower.includes("invalid credentials") ||
+    lower.includes("invalid_credentials") ||
+    lower.includes("insufficientpermissions") ||
+    lower.includes("insufficient permissions") ||
+    lower.includes("does not have permission")
+  );
+};
+
 export const backupRouter = router({
   exportMyData: procedure
     .use(requireUser)
@@ -167,6 +208,17 @@ export const backupRouter = router({
           lastBackupAt: result.backedUpAt,
         };
       } catch (error) {
+        if (isGoogleAuthError(error)) {
+          await ctx.prisma.googleDriveConnection.deleteMany({ where: { userId } });
+
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message:
+              "Your Google Drive connection has expired or been revoked. Please connect again and then retry the backup.",
+            cause: error,
+          });
+        }
+
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to upload backup to Google Drive",
@@ -209,6 +261,17 @@ export const backupRouter = router({
         const result = await restoreLatestBackupForUser(userId);
         return result;
       } catch (error) {
+        if (isGoogleAuthError(error)) {
+          await ctx.prisma.googleDriveConnection.deleteMany({ where: { userId } });
+
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message:
+              "Your Google Drive connection has expired or been revoked. Please connect again and then try restoring from Drive.",
+            cause: error,
+          });
+        }
+
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to restore backup from Google Drive",

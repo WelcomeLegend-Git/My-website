@@ -14,7 +14,6 @@ const baseMistakeInput = z.object({
   errorType: z.enum(["conceptual", "calculation", "careless", "unknown"]).default("unknown"),
   aiSummary: z.string().optional().nullable(),
   aiMindMap: z.any().optional().nullable(),
-  aiDiagram: z.any().optional().nullable(),
   attachments: z
     .array(
       z.object({
@@ -62,7 +61,6 @@ export const mistakesRouter = router({
       return mistakes.map((mistake) => ({
         ...mistake,
         aiMindMap: mistake.aiMindMap as unknown,
-        aiDiagram: mistake.aiDiagram as unknown,
       }));
     }),
 
@@ -86,7 +84,6 @@ export const mistakesRouter = router({
       return {
         ...mistake,
         aiMindMap: mistake.aiMindMap as unknown,
-        aiDiagram: mistake.aiDiagram as unknown,
       };
     }),
 
@@ -111,7 +108,6 @@ export const mistakesRouter = router({
         errorType: input.errorType,
         aiSummary: input.aiSummary,
         aiMindMap: input.aiMindMap ?? undefined,
-        aiDiagram: input.aiDiagram ?? undefined,
         assets: {
           create: input.attachments.map((attachment) => ({
             url: attachment.url,
@@ -154,7 +150,6 @@ export const mistakesRouter = router({
           errorType: input.errorType,
           aiSummary: input.aiSummary,
           aiMindMap: input.aiMindMap ?? undefined,
-          aiDiagram: input.aiDiagram ?? undefined,
           assets: {
             create: input.attachments.map((attachment) => ({
               url: attachment.url,
@@ -269,47 +264,8 @@ Return ONLY valid JSON with this exact structure:
       { "label": "Branch 1", "children": [] },
       { "label": "Branch 2", "children": [] }
     ]
-  },
-  "aiDiagram": null | {
-    "type": "jsxgraph",
-    "title": "Optional JEE-style diagram illustrating the mistake or correct concept",
-    "description": "Short description of what the diagram shows (free-body diagram, circuit, field, graph, etc.)",
-    "config": {
-      "boundingBox": [-6, 4, 6, -4],
-      "axes": false,
-      "points": [...],
-      "segments": [...],
-      "polylines": [...],
-      "polygons": [...],
-      "circles": [...],
-      "arcs": [...],
-      "fieldRegions": [...],
-      "springs": [...],
-      "labels": [],
-      "arrows": [],
-      "angles": []
-    }
   }
 }
-
-DIAGRAM RULES FOR "aiDiagram" (when it genuinely helps understanding):
-- Only include a diagram when it clearly clarifies forces, geometry, graphs, fields, or circuits. Otherwise set "aiDiagram": null.
-- Use the same high-quality JSXGraph-style JSON as used for JEE quiz diagrams:
-  - All coordinates must be plain NUMBERS (no expressions like 270-22, 3/5*pi, sin(30), etc.).
-  - Keep all coordinates roughly within [-5, 5] for both x and y so the entire figure is visible.
-  - "points": list of key points with optional "name".
-  - "segments": straight line segments using point indices.
-  - "polylines": rails, tracks, or light constructions (sequence of point indices).
-  - "polygons": solid blocks/tables/plates (usually filled).
-  - "circles": circular loops or pulleys ("center" as point index or coordinate, "radius" as number).
-  - "arcs": small angle markings or circular sectors (use point references for center and endpoints).
-  - "fieldRegions": rectangles filled with "cross", "dot", or "hatch" patterns to show B/E fields.
-  - "springs": zig-zag springs connecting two points.
-  - "arrows": all forces, velocity vectors, fields, rays (use arrowheads).
-  - "angles": angle markers with optional LaTeX label.
-- Label rules:
-  - Use short LaTeX-style strings like "mg", "N", "\\\\theta" for labels.
-  - Inside the diagram config do NOT wrap labels in $...$ or \\( \\); just provide the LaTeX body (we will format on the frontend).
 
 GENERAL RULES:
 - "bestImageIndex" should be the index (0-${input.images.length - 1}) of the image that best shows the error.

@@ -54,6 +54,7 @@ export const AIMistakeDialog = ({
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedChapterId, setSelectedChapterId] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const analyzeWithImagesMutation = trpc.mistakes.analyzeWithImages.useMutation();
   const createMistakeMutation = trpc.mistakes.create.useMutation();
@@ -142,9 +143,10 @@ export const AIMistakeDialog = ({
   };
 
   const handleSave = async () => {
-    if (!aiResult || !selectedSubjectId) return;
+    if (!aiResult || !selectedSubjectId || isSaving || createMistakeMutation.isPending) return;
 
     try {
+      setIsSaving(true);
       // Find or create chapter
       let chapterId = selectedChapterId;
       
@@ -202,6 +204,8 @@ export const AIMistakeDialog = ({
     } catch (error) {
       console.error('Failed to save mistake:', error);
       alert('Failed to save mistake. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -471,10 +475,10 @@ export const AIMistakeDialog = ({
                   </button>
                   <button
                     onClick={handleSave}
-                    disabled={!selectedSubjectId || createMistakeMutation.isPending}
+                    disabled={!selectedSubjectId || createMistakeMutation.isPending || isSaving}
                     className="rounded-xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {createMistakeMutation.isPending ? 'Saving...' : 'Save Mistake'}
+                    {createMistakeMutation.isPending || isSaving ? 'Saving...' : 'Save Mistake'}
                   </button>
                 </div>
               </div>

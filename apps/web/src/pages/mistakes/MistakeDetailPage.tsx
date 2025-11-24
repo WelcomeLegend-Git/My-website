@@ -91,7 +91,7 @@ export const MistakeDetailPage = () => {
     setImageViewerState({ open: false, initialIndex: 0 });
   };
 
-  const imageAssets = mistake?.assets.filter((a: any) => a.kind === 'image') || [];
+  const imageAssets = (mistake?.assets ?? []).filter((a: any) => a.kind === 'image');
 
   const handleConfirmDelete = async () => {
     if (!mistake) return;

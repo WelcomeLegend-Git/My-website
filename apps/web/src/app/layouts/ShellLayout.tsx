@@ -36,11 +36,6 @@ const navItems = [
     label: "Quiz History",
     description: "Track and analyze",
   },
-  {
-    to: "/bookmarks",
-    label: "Bookmarks",
-    description: "Saved gems",
-  },
 ];
 
 const resolveSection = (pathname: string): AiSection => {

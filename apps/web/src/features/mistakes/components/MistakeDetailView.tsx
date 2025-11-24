@@ -159,29 +159,31 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
               <button onClick={collapseAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-700 transition-colors">
                 Collapse All
               </button>
-              {onToggleBookmark && (
-                <button
-                  type="button"
-                  onClick={onToggleBookmark}
-                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border text-xs sm:text-sm font-medium flex items-center justify-center gap-1 transition-colors ${
-                    isBookmarked
-                      ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                      : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
-                  }`}
-                  title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
-                    />
-                  </svg>
-                </button>
-              )}
             </div>
           </div>
+          {onToggleBookmark && (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={onToggleBookmark}
+                className={`inline-flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium transition-all ${
+                  isBookmarked
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                    : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                }`}
+                title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Image Gallery */}

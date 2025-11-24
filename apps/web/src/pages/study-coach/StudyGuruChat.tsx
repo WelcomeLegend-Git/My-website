@@ -1382,21 +1382,21 @@ export const StudyGuruChat = () => {
 
   const handleSelectMention = (suggestion: MentionSuggestion) => {
     const input = inputRef.current;
-    const current = message;
+    const current = input?.value ?? message;
     const cursor = input?.selectionStart ?? current.length;
     const info = findActiveMentionInText(current, cursor);
 
-    const label = getMentionDisplayLabel(suggestion.kind, suggestion.title);
-    const replacement = `@${label}`;
+    let nextMessage = current;
 
+    // Remove the raw "@query" text the user typed, but do NOT insert the label text
+    // into the message. The mention will instead be represented only by the chip.
     if (info) {
       const before = current.slice(0, info.start);
       const after = current.slice(info.end);
-      setMessage(`${before}${replacement} ${after}`);
-    } else {
-      const beforeSpace = current && !/\s$/.test(current) ? " " : "";
-      setMessage(`${current}${beforeSpace}${replacement} `);
+      nextMessage = `${before}${after}`;
     }
+
+    setMessage(nextMessage);
 
     setActiveMention({
       kind: suggestion.kind,
@@ -1410,7 +1410,7 @@ export const StudyGuruChat = () => {
     setMentionHighlightIndex(0);
 
     if (input) {
-      const nextCursor = input.value.length;
+      const nextCursor = nextMessage.length;
       requestAnimationFrame(() => {
         input.focus();
         input.setSelectionRange(nextCursor, nextCursor);
@@ -1421,17 +1421,7 @@ export const StudyGuruChat = () => {
   const handleClearMention = () => {
     if (!activeMention) return;
 
-    const label = getMentionDisplayLabel(activeMention.kind, activeMention.title);
-    const token = `@${label}`;
-    const idx = message.indexOf(token);
-
-    if (idx !== -1) {
-      const before = message.slice(0, idx);
-      let after = message.slice(idx + token.length);
-      after = after.replace(/^\s+/, "");
-      setMessage(before + after);
-    }
-
+    // Mention chip only; do not modify the current message text.
     setActiveMention(null);
   };
 
@@ -2314,17 +2304,6 @@ export const StudyGuruChat = () => {
                         setMentionQuery("");
                         setMentionHighlightIndex(0);
                       }
-
-                      if (activeMention) {
-                        const label = getMentionDisplayLabel(
-                          activeMention.kind,
-                          activeMention.title,
-                        );
-                        const token = `@${label}`;
-                        if (!value.includes(token)) {
-                          setActiveMention(null);
-                        }
-                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key !== "Backspace") {
@@ -2335,31 +2314,20 @@ export const StudyGuruChat = () => {
                         const inputEl = e.currentTarget;
                         const value = inputEl.value;
                         const cursorPos = inputEl.selectionStart ?? value.length;
-                        const label = getMentionDisplayLabel(
-                          activeMention.kind,
-                          activeMention.title,
-                        );
-                        const token = `@${label}`;
-                        const idx = value.lastIndexOf(token);
+                        const isEmpty = value.trim().length === 0;
+                        const atEnd = cursorPos === value.length;
 
-                        if (cursorPos === value.length && idx !== -1) {
-                          const trailing = value.slice(idx).trimEnd();
-                          if (trailing === token) {
-                            if (backspaceOnMentionEndRef.current) {
-                              e.preventDefault();
-                              const before = value.slice(0, idx).replace(/\s+$/, "");
-                              setMessage(before);
-                              setActiveMention(null);
-                              backspaceOnMentionEndRef.current = false;
-                              return;
-                            } else {
-                              backspaceOnMentionEndRef.current = true;
-                            }
-                          } else {
+                        // When nothing else is typed and the cursor is at the end,
+                        // require two backspaces to clear the mention chip.
+                        if (atEnd && isEmpty) {
+                          e.preventDefault();
+                          if (backspaceOnMentionEndRef.current) {
+                            setActiveMention(null);
                             backspaceOnMentionEndRef.current = false;
+                          } else {
+                            backspaceOnMentionEndRef.current = true;
                           }
-                        } else {
-                          backspaceOnMentionEndRef.current = false;
+                          return;
                         }
                       }
 

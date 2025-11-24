@@ -55,7 +55,7 @@ export const FormulaCollectionsListPage = () => {
 
   const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
 
-  const bookmarkedCollectionIds = useMemo(() => {
+  const serverBookmarkedCollectionIds = useMemo(() => {
     const set = new Set<string>();
     (bookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
       if (!item) return;
@@ -63,6 +63,10 @@ export const FormulaCollectionsListPage = () => {
     });
     return set;
   }, [bookmarkStatusQuery.data]);
+
+  const [localBookmarkedCollectionIds, setLocalBookmarkedCollectionIds] = useState<Set<string> | null>(null);
+
+  const bookmarkedCollectionIds = localBookmarkedCollectionIds ?? serverBookmarkedCollectionIds;
 
   // Filter by subject and chapter
   const filteredCollections = useMemo(() => {
@@ -145,6 +149,18 @@ export const FormulaCollectionsListPage = () => {
   const handleToggleCollectionBookmark = async (event: MouseEvent<HTMLButtonElement>, collection: (typeof sortedCollections)[number]) => {
     event.stopPropagation();
 
+    const isCurrentlyBookmarked = bookmarkedCollectionIds.has(collection.id);
+
+    setLocalBookmarkedCollectionIds((prev) => {
+      const base = new Set(prev ?? serverBookmarkedCollectionIds);
+      if (isCurrentlyBookmarked) {
+        base.delete(collection.id);
+      } else {
+        base.add(collection.id);
+      }
+      return base;
+    });
+
     try {
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'formula_collection',
@@ -161,8 +177,10 @@ export const FormulaCollectionsListPage = () => {
         bookmarkStatusQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'formulas' }).catch(() => undefined),
       ]);
+
+      setLocalBookmarkedCollectionIds(null);
     } catch {
-      // ignore for now
+      setLocalBookmarkedCollectionIds(null);
     }
   };
 
@@ -355,10 +373,10 @@ export const FormulaCollectionsListPage = () => {
                     <button
                       type="button"
                       onClick={(e) => handleToggleCollectionBookmark(e, collection)}
-                      className={`p-2 rounded-lg border text-slate-200 transition-colors ${
+                      className={`p-2 rounded-lg border text-xs transition-all ${
                         isBookmarked
-                          ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                          : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                          : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
                       }`}
                       title={isBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
                     >

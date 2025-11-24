@@ -152,7 +152,7 @@ export const MistakeLogPage = () => {
 
   const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
 
-  const bookmarkedMistakeIds = useMemo(() => {
+  const serverBookmarkedMistakeIds = useMemo(() => {
     const set = new Set<string>();
     (bookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
       if (!item) return;
@@ -160,6 +160,10 @@ export const MistakeLogPage = () => {
     });
     return set;
   }, [bookmarkStatusQuery.data]);
+
+  const [localBookmarkedMistakeIds, setLocalBookmarkedMistakeIds] = useState<Set<string> | null>(null);
+
+  const bookmarkedMistakeIds = localBookmarkedMistakeIds ?? serverBookmarkedMistakeIds;
 
   useEffect(() => {
     const currentFilters = {
@@ -378,6 +382,18 @@ export const MistakeLogPage = () => {
   const handleToggleMistakeBookmark = async (event: any, mistake: Mistake) => {
     event.stopPropagation();
 
+    const isCurrentlyBookmarked = bookmarkedMistakeIds.has(mistake.id);
+
+    setLocalBookmarkedMistakeIds((prev) => {
+      const base = new Set(prev ?? serverBookmarkedMistakeIds);
+      if (isCurrentlyBookmarked) {
+        base.delete(mistake.id);
+      } else {
+        base.add(mistake.id);
+      }
+      return base;
+    });
+
     try {
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'mistake',
@@ -395,8 +411,10 @@ export const MistakeLogPage = () => {
         bookmarkStatusQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'mistakes' }).catch(() => undefined),
       ]);
+
+      setLocalBookmarkedMistakeIds(null);
     } catch {
-      // ignore for now
+      setLocalBookmarkedMistakeIds(null);
     }
   };
 
@@ -545,10 +563,10 @@ export const MistakeLogPage = () => {
                   <button
                     type="button"
                     onClick={(e) => handleToggleMistakeBookmark(e, mistake)}
-                    className={`p-2 rounded-lg border text-slate-200 transition-colors ${
+                    className={`p-2 rounded-lg border text-xs transition-all ${
                       isBookmarked
-                        ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                        : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                        : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
                     }`}
                     title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
                   >

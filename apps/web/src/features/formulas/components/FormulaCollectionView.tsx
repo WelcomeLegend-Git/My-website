@@ -88,7 +88,7 @@ type Props = {
   highlightFormulaId?: string;
 };
 
-export const FormulaCollectionView = ({ collection, highlightCollection, highlightFormulaId }: Props) => {
+ export const FormulaCollectionView = ({ collection, highlightCollection, highlightFormulaId }: Props) => {
   const [expandedFormulas, setExpandedFormulas] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     if (collection.formulas[0]?.id) {
@@ -101,6 +101,8 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
   });
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
   const [collectionHighlighted, setCollectionHighlighted] = useState<boolean>(Boolean(highlightCollection));
+  const [localCollectionBookmarked, setLocalCollectionBookmarked] = useState<boolean | null>(null);
+  const [localBookmarkedFormulaIds, setLocalBookmarkedFormulaIds] = useState<Set<string> | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -122,11 +124,11 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
 
   const toggleBookmarkMutation = trpc.bookmarks.toggle.useMutation();
 
-  const isCollectionBookmarked = !!(collectionBookmarkStatusQuery.data?.items ?? []).some(
+  const serverCollectionBookmarked = !!(collectionBookmarkStatusQuery.data?.items ?? []).some(
     (item: any) => item && item.entityId === collection.id,
   );
 
-  const bookmarkedFormulaIds = useMemo(() => {
+  const serverBookmarkedFormulaIds = useMemo(() => {
     const set = new Set<string>();
     (formulaBookmarkStatusQuery.data?.items ?? []).forEach((item: any) => {
       if (!item) return;
@@ -134,6 +136,9 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
     });
     return set;
   }, [formulaBookmarkStatusQuery.data]);
+
+  const isCollectionBookmarked = localCollectionBookmarked ?? serverCollectionBookmarked;
+  const bookmarkedFormulaIds = localBookmarkedFormulaIds ?? serverBookmarkedFormulaIds;
 
   useEffect(() => {
     if (highlightCollection) {
@@ -212,6 +217,10 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
   };
 
   const handleToggleCollectionBookmark = async () => {
+    const currentlyBookmarked = isCollectionBookmarked;
+
+    setLocalCollectionBookmarked(!currentlyBookmarked);
+
     try {
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'formula_collection',
@@ -228,12 +237,26 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
         collectionBookmarkStatusQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'formulas' }).catch(() => undefined),
       ]);
+
+      setLocalCollectionBookmarked(null);
     } catch {
-      // ignore
+      setLocalCollectionBookmarked(null);
     }
   };
 
   const handleToggleFormulaBookmark = async (formula: Formula) => {
+    const formulaId = formula.id;
+
+    setLocalBookmarkedFormulaIds((prev) => {
+      const base = new Set(prev ?? serverBookmarkedFormulaIds);
+      if (base.has(formulaId)) {
+        base.delete(formulaId);
+      } else {
+        base.add(formulaId);
+      }
+      return base;
+    });
+
     try {
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'formula',
@@ -250,8 +273,10 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
         formulaBookmarkStatusQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'formulas' }).catch(() => undefined),
       ]);
+
+      setLocalBookmarkedFormulaIds(null);
     } catch {
-      // ignore
+      setLocalBookmarkedFormulaIds(null);
     }
   };
 
@@ -320,34 +345,34 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
               >
                 Collapse All
               </button>
-              <button
-                type="button"
-                onClick={handleToggleCollectionBookmark}
-                className={`px-3 sm:px-3 py-2 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium flex items-center gap-1 transition-colors ${
-                  isCollectionBookmarked
-                    ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                    : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
-                }`}
-                title={isCollectionBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
-                  />
-                </svg>
-              </button>
             </div>
           </div>
           {collection.description && (
             <p className="text-slate-400 text-sm sm:text-base ml-0 sm:ml-14">{collection.description}</p>
           )}
-          <div className="mt-3 sm:mt-4 ml-0 sm:ml-14">
+          <div className="mt-3 sm:mt-4 ml-0 sm:ml-14 flex items-center justify-between gap-2">
             <span className="text-xs sm:text-sm font-medium text-slate-500">
               {collection.formulas.length} formula{collection.formulas.length !== 1 ? 's' : ''} extracted
             </span>
+            <button
+              type="button"
+              onClick={handleToggleCollectionBookmark}
+              className={`px-3 sm:px-3 py-1.5 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium flex items-center gap-1 transition-all ${
+                isCollectionBookmarked
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                  : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+              }`}
+              title={isCollectionBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -367,34 +392,18 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
                     : "border-slate-800")
                 }
               >
-                <div className="absolute top-3 right-3 z-10">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleToggleFormulaBookmark(formula);
-                    }}
-                    className={`p-2 rounded-lg border text-xs transition-colors ${
-                      bookmarkedFormulaIds.has(formula.id)
-                        ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                        : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
-                    }`}
-                    title={bookmarkedFormulaIds.has(formula.id) ? 'Remove bookmark' : 'Bookmark formula'}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
-                      />
-                    </svg>
-                  </button>
-                </div>
                 {/* Formula Header */}
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleFormula(formula.id)}
-                  className="w-full px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleFormula(formula.id);
+                    }
+                  }}
+                  className="w-full px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                     <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg bg-gradient-to-br flex-shrink-0 ${
@@ -427,15 +436,39 @@ export const FormulaCollectionView = ({ collection, highlightCollection, highlig
                       </div>
                     </div>
                   </div>
-                  <svg
-                    className={`w-6 h-6 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                  <div className="flex items-center gap-2 ml-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleToggleFormulaBookmark(formula);
+                      }}
+                      className={`p-2 rounded-lg border text-xs transition-all ${
+                        bookmarkedFormulaIds.has(formula.id)
+                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                          : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                      }`}
+                      title={bookmarkedFormulaIds.has(formula.id) ? 'Remove bookmark' : 'Bookmark formula'}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                        />
+                      </svg>
+                    </button>
+                    <svg
+                      className={`w-6 h-6 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
 
                 {/* Formula Content */}
                 {isExpanded && (

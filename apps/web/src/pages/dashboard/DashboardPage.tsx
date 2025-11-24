@@ -210,7 +210,7 @@ export const DashboardPage = () => {
               </svg>
             </div>
             <p className="font-semibold text-slate-200 text-sm">Study Coach</p>
-            <p className="text-xs text-slate-400 mt-1">Open Study Guru</p>
+            <p className="text-xs text-slate-400 mt-1">Chat with Study Guru</p>
           </button>
           <button
             type="button"
@@ -222,7 +222,7 @@ export const DashboardPage = () => {
               </svg>
             </div>
             <p className="font-semibold text-slate-200 text-sm">Bookmarks</p>
-            <p className="text-xs text-slate-400 mt-1">Open saved items</p>
+            <p className="text-xs text-slate-400 mt-1">Review saved insights</p>
           </button>
         </div>
       </div>

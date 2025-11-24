@@ -369,7 +369,7 @@ const dataUrlToFile = (dataUrl: string, filename: string): File => {
 
 export const StudyGuruChat = () => {
   const [message, setMessage] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number>(0);
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
@@ -410,6 +410,16 @@ export const StudyGuruChat = () => {
   const longPressTimerRef = useRef<number | null>(null);
   const [highlightedMessageIndex, setHighlightedMessageIndex] = useState<number | null>(null);
   const [pendingBookmarkToggles, setPendingBookmarkToggles] = useState<Map<number, boolean>>(new Map());
+
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      if (isDesktop) {
+        setSidebarOpen(true);
+      }
+    } catch { }
+  }, []);
 
   const isMessageBookmarked = (index: number) => {
     if (pendingBookmarkToggles.has(index)) {

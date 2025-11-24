@@ -9,7 +9,7 @@ import { prisma } from "../prisma";
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"];
 
-type BackupPayloadV1 = {
+export type BackupPayloadV1 = {
   version: 1;
   exportedAt: string | Date;
   user: {
@@ -236,9 +236,7 @@ export const downloadLatestBackupFromDrive = async (userId: string): Promise<Bac
 
   return parsed;
 };
-
-export const restoreLatestBackupForUser = async (userId: string) => {
-  const backup = await downloadLatestBackupFromDrive(userId);
+const restoreBackupPayloadForUser = async (userId: string, backup: BackupPayloadV1) => {
 
   if (backup.user.id !== userId) {
     throw new Error("This backup was created for a different account and cannot be restored here.");
@@ -369,6 +367,22 @@ export const restoreLatestBackupForUser = async (userId: string) => {
     restoredAt: new Date(),
     backupExportedAt: backup.exportedAt,
   };
+};
+
+export const restoreLatestBackupForUser = async (userId: string) => {
+
+  const backup = await downloadLatestBackupFromDrive(userId);
+
+  return restoreBackupPayloadForUser(userId, backup);
+};
+
+export const restoreBackupFromPayloadForUser = async (userId: string, backup: BackupPayloadV1) => {
+
+  if (backup.version !== 1) {
+    throw new Error("Unsupported backup version. Please update the app before restoring.");
+  }
+
+  return restoreBackupPayloadForUser(userId, backup);
 };
 
 export const handleGoogleDriveOAuthCallback: RequestHandler = async (req, res) => {

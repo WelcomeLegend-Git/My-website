@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import axios from "axios";
 import { trpc } from '../../../lib/trpc';
 import { MultiImageUpload } from './MultiImageUpload';
 import type { RouterOutputs } from '../../../types/trpc';
+import { getApiBaseUrl } from "../../../lib/env";
 
 type Subject = RouterOutputs['subjects']['list'][number];
 
@@ -161,13 +163,24 @@ export const AIMistakeDialog = ({
         }
       }
 
-      // Upload images (placeholder URLs for now - you should implement actual upload)
-      const uploadedUrls = images.map((img, idx) => ({
-        id: `temp-${idx}`,
-        url: img.preview, // Replace with actual uploaded URL
-        kind: 'image' as const,
-        caption: img.caption || `Image ${idx + 1}`,
-      }));
+      // Upload images to backend so we get persistent URLs for the Mistake Log
+      const uploadedAttachments = await Promise.all(
+        images.map(async (img, idx) => {
+          const formData = new FormData();
+          formData.append("file", img.file);
+
+          const response = await axios.post(`${getApiBaseUrl()}/api/uploads`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          return {
+            id: response.data.id,
+            url: response.data.url,
+            kind: 'image' as const,
+            caption: img.caption || `Image ${idx + 1}`,
+          };
+        })
+      );
 
       // Create mistake
       const mistake = await createMistakeMutation.mutateAsync({
@@ -181,7 +194,7 @@ export const AIMistakeDialog = ({
         aiSummary: aiResult.aiSummary,
         aiMindMap: aiResult.aiMindMap,
         aiDiagram: aiResult.aiDiagram,
-        attachments: uploadedUrls,
+        attachments: uploadedAttachments,
       });
 
       onSuccess(mistake.id);

@@ -130,7 +130,9 @@ export const ShellLayout = () => {
       try {
         await autoBackupMutation.mutateAsync();
         await backupStatusQuery.refetch();
-      } catch { }
+      } catch (error) {
+        console.error("Auto backup to Google Drive failed", error);
+      }
     };
 
     const intervalId = window.setInterval(() => {

@@ -241,13 +241,13 @@ ${input.steps ? `Workings: ${input.steps}` : ""}`,
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const prompt = `You are an expert JEE (Joint Entrance Examination) tutor analyzing a student's mistake from their work.
+      const prompt = `You are an expert JEE (Joint Entrance Examination) tutor analyzing a student's mistake from their written work.
 
-Carefully examine the uploaded images and provide a comprehensive analysis.
+Carefully examine the uploaded images and provide a comprehensive, exam-focused analysis.
 
 ${input.userContext ? `Additional Context: ${input.userContext}\n` : ""}
 
-Analyze and return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON with this exact structure:
 {
   "title": "Brief, descriptive title of the mistake (max 100 chars)",
   "errorType": "conceptual" | "calculation" | "careless" | "unknown",
@@ -266,11 +266,11 @@ Analyze and return ONLY valid JSON with this exact structure:
   "aiMindMap": {
     "root": "Main Concept",
     "branches": [
-      {"label": "Branch 1", "children": []},
-      {"label": "Branch 2", "children": []}
+      { "label": "Branch 1", "children": [] },
+      { "label": "Branch 2", "children": [] }
     ]
   },
-  "aiDiagram": {
+  "aiDiagram": null | {
     "type": "jsxgraph",
     "title": "Optional JEE-style diagram illustrating the mistake or correct concept",
     "description": "Short description of what the diagram shows (free-body diagram, circuit, field, graph, etc.)",
@@ -285,22 +285,38 @@ Analyze and return ONLY valid JSON with this exact structure:
       "arcs": [...],
       "fieldRegions": [...],
       "springs": [...],
-      "labels": [...]
+      "labels": [],
+      "arrows": [],
+      "angles": []
     }
   }
 }
 
-Important:
-- "bestImageIndex" should be the index (0-${input.images.length - 1}) of the image that best shows the error
-- Provide actionable, encouraging feedback
-- Focus on learning, not just correction
-- Return ONLY the JSON object, no markdown formatting
-- For "aiDiagram", create a high-quality, professional diagram suitable for a JEE Advanced exam paper.
-- Use "arrows" for vectors, forces, and rays.
-- Use "labels" with LaTeX math (e.g., "\\( F_{net} \\)") for clear annotation.
-- Use "polygons" with light fills for bodies/blocks.
-- Ensure the diagram is not too simple; it should look like a real textbook or exam figure.
-- Use a standard coordinate system (usually -5 to 5).`;
+DIAGRAM RULES FOR "aiDiagram" (when it genuinely helps understanding):
+- Only include a diagram when it clearly clarifies forces, geometry, graphs, fields, or circuits. Otherwise set "aiDiagram": null.
+- Use the same high-quality JSXGraph-style JSON as used for JEE quiz diagrams:
+  - All coordinates must be plain NUMBERS (no expressions like 270-22, 3/5*pi, sin(30), etc.).
+  - Keep all coordinates roughly within [-5, 5] for both x and y so the entire figure is visible.
+  - "points": list of key points with optional "name".
+  - "segments": straight line segments using point indices.
+  - "polylines": rails, tracks, or light constructions (sequence of point indices).
+  - "polygons": solid blocks/tables/plates (usually filled).
+  - "circles": circular loops or pulleys ("center" as point index or coordinate, "radius" as number).
+  - "arcs": small angle markings or circular sectors (use point references for center and endpoints).
+  - "fieldRegions": rectangles filled with "cross", "dot", or "hatch" patterns to show B/E fields.
+  - "springs": zig-zag springs connecting two points.
+  - "arrows": all forces, velocity vectors, fields, rays (use arrowheads).
+  - "angles": angle markers with optional LaTeX label.
+- Label rules:
+  - Use short LaTeX-style strings like "mg", "N", "\\\\theta" for labels.
+  - Inside the diagram config do NOT wrap labels in $...$ or \\( \\); just provide the LaTeX body (we will format on the frontend).
+
+GENERAL RULES:
+- "bestImageIndex" should be the index (0-${input.images.length - 1}) of the image that best shows the error.
+- Provide actionable, encouraging feedback.
+- Focus on learning and exam intuition, not just stating the correct answer.
+- Respond with ONLY the JSON object, no markdown/code fences.
+- Ensure the JSON is valid and can be parsed with JSON.parse (escape backslashes in LaTeX as \\\\).`;
 
       // Use upgraded geminiClient with multi-image support and 4-API fallback
       const result = await ctx.gemini.generate({

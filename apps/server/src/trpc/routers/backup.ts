@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
 import { env } from "../../env";
-import { uploadBackupToDrive, buildGoogleAuthUrl, restoreLatestBackupForUser } from "../../services/google-drive";
+import { uploadBackupToDrive, buildGoogleAuthUrl, restoreLatestBackupForUser, restoreBackupFromPayloadForUser, type BackupPayloadV1 } from "../../services/google-drive";
 import { requireUser } from "../middleware/auth";
 import { procedure, router } from "../trpc";
 
@@ -170,6 +170,27 @@ export const backupRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to upload backup to Google Drive",
+          cause: error,
+        });
+      }
+    }),
+
+  restoreFromLocal: procedure
+    .use(requireUser)
+    .input(z.any())
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+
+      try {
+        const result = await restoreBackupFromPayloadForUser(userId, input as BackupPayloadV1);
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to restore backup from local file",
           cause: error,
         });
       }

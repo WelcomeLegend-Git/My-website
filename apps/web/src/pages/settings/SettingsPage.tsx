@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { trpc } from "../../lib/trpc";
 
@@ -16,6 +16,7 @@ export const SettingsPage = () => {
   const backupDriveMutation = trpc.backupApi.backupToDrive.useMutation();
   const restoreDriveMutation = trpc.backupApi.restoreFromDrive.useMutation();
   const autoBackupMutation = trpc.backupApi.setAutoBackupEnabled.useMutation();
+  const restoreLocalMutation = trpc.backupApi.restoreFromLocal.useMutation();
 
   const cloudStatusLabel = (() => {
     if (statusQuery.isLoading) return "Checking...";
@@ -24,6 +25,14 @@ export const SettingsPage = () => {
     if (!data.isConnected) return "Not connected";
     if (data.hasCloudBackup) return "Connected, backup available";
     return "Connected to Drive";
+  })();
+
+  const lastBackupLabel = (() => {
+    const last = statusQuery.data?.lastBackupAt;
+    if (!last) return "No cloud backups created yet.";
+    const value = typeof last === "string" || typeof last === "number" ? new Date(last) : last;
+    if (Number.isNaN(value.getTime())) return "No cloud backups created yet.";
+    return `Last cloud backup: ${value.toLocaleString()}`;
   })();
 
   const connectDisabled =
@@ -144,6 +153,50 @@ export const SettingsPage = () => {
     }
   };
 
+  const handleRestoreFromLocalFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setMessage(null);
+    setError(null);
+
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setError("Please select a valid JSON backup file (.json).");
+      event.target.value = "";
+      return;
+    }
+
+    let parsed: unknown;
+    try {
+      const text = await file.text();
+      parsed = JSON.parse(text);
+    } catch {
+      setError("Invalid or corrupted backup file. Please check the file and try again.");
+      event.target.value = "";
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "This will replace your current formulas, mistakes, quizzes, Study Guru chats, bookmarks and subjects with the data from this backup file. Continue?",
+    );
+    if (!confirmed) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      await restoreLocalMutation.mutateAsync(parsed);
+      await statusQuery.refetch();
+      setMessage("Data restored from your local backup file.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to restore backup from local file";
+      setError(message);
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -230,6 +283,10 @@ export const SettingsPage = () => {
               </button>
             </div>
 
+            <p className="text-[11px] text-slate-500">
+              {lastBackupLabel}
+            </p>
+
             <div className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3">
               <div>
                 <p className="font-medium text-slate-100 text-sm">Auto backup</p>
@@ -281,6 +338,25 @@ export const SettingsPage = () => {
                 >
                   {exportMutation.isPending ? "Preparing..." : "Download backup"}
                 </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-slate-100 text-sm">Restore from local backup</p>
+                  <p className="text-xs text-slate-400">
+                    Upload a JSON backup file you previously downloaded to restore your data.
+                  </p>
+                </div>
+                <label className="inline-flex items-center rounded-lg border border-slate-700/70 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-100 shadow-sm hover:border-primary/60 hover:text-primary cursor-pointer">
+                  <input
+                    type="file"
+                    accept="application/json"
+                    className="hidden"
+                    onChange={handleRestoreFromLocalFile}
+                    disabled={restoreLocalMutation.isPending}
+                  />
+                  {restoreLocalMutation.isPending ? "Restoring..." : "Restore from file"}
+                </label>
               </div>
 
               {(message || error) && (

@@ -516,9 +516,14 @@ export const StudyGuruChat = () => {
     }
   );
   const saveConversationMutation = (trpc as any).studyApi.saveStudyGuruConversation.useMutation();
-  const deleteConversationMutation = (trpc as any).studyApi.deleteStudyGuruConversation.useMutation();
 
   const utils = trpc.useUtils() as any;
+
+  const deleteConversationMutation = (trpc as any).studyApi.deleteStudyGuruConversation.useMutation({
+    onSuccess: () => {
+      utils.studyApi.listStudyGuruConversations.invalidate();
+    },
+  });
 
   const { data: formulaCollections } = trpc.formulas.listCollections.useQuery(undefined, {
     staleTime: 30000,

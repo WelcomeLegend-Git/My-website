@@ -648,50 +648,55 @@ Respond ONLY with a valid JSON array:
         console.log(`Created collection: ${collection.title} (ID: ${collection.id})`);
 
         // Create all formulas in database and link to collection
-        const createdFormulas = await Promise.all(
-          parsedArray.map(async (formulaData, index) => {
-            try {
-              console.log(`Creating formula ${index + 1}/${parsedArray.length}: ${formulaData.title}`);
+        const createdFormulas = [];
 
-              const formula = await ctx.prisma.formula.create({
-                data: {
-                  title: formulaData.title || "Untitled Formula",
-                  expression: formulaData.expression || "",
-                  explanation: formulaData.explanation || null,
-                  difficulty: formulaData.difficulty || "medium",
-                  derivationSteps: formulaData.derivationSteps || [],
-                  tags: formulaData.tags || [],
-                  applications: formulaData.applications || null,
-                  examples: formulaData.examples || [],
-                  prerequisites: formulaData.prerequisites || [],
-                  relatedFormulas: formulaData.relatedFormulas || [],
-                  commonMistakes: formulaData.commonMistakes || [],
-                  diagram: formulaData.diagram || null,
-                  subjectId: input.subjectId,
-                  chapterId: input.chapterId,
-                  ownerId: ctx.user.id,
-                  collectionId: collection.id, // Link to collection
-                },
-                include: { assets: true, subject: true, chapter: true },
-              });
+        for (let index = 0; index < parsedArray.length; index++) {
+          const formulaData = parsedArray[index];
+          try {
+            console.log(`Creating formula ${index + 1}/${parsedArray.length}: ${formulaData.title}`);
 
-              console.log(`✓ Created formula ${index + 1}: ${formula.title}`);
+            const formula = await ctx.prisma.formula.create({
+              data: {
+                title: formulaData.title || "Untitled Formula",
+                expression: formulaData.expression || "",
+                explanation: formulaData.explanation || null,
+                difficulty: formulaData.difficulty || "medium",
+                derivationSteps: formulaData.derivationSteps || [],
+                tags: formulaData.tags || [],
+                applications: formulaData.applications || null,
+                examples: formulaData.examples || [],
+                prerequisites: formulaData.prerequisites || [],
+                relatedFormulas: formulaData.relatedFormulas || [],
+                commonMistakes: formulaData.commonMistakes || [],
+                diagram: formulaData.diagram || null,
+                subjectId: input.subjectId,
+                chapterId: input.chapterId,
+                ownerId: ctx.user.id,
+                collectionId: collection.id, // Link to collection
+              },
+              include: { assets: true, subject: true, chapter: true },
+            });
 
-              return {
-                ...formula,
-                derivationSteps: formula.derivationSteps as string[],
-                tags: (formula.tags as string[]) ?? [],
-                examples: formula.examples as unknown[],
-                prerequisites: formula.prerequisites as string[],
-                relatedFormulas: formula.relatedFormulas as string[],
-                commonMistakes: formula.commonMistakes as unknown[],
-              };
-            } catch (dbError) {
-              console.error(`Failed to create formula ${index + 1}:`, formulaData.title, dbError);
-              throw new Error(`Failed to create formula "${formulaData.title}": ${dbError instanceof Error ? dbError.message : 'Unknown error'}`);
-            }
-          })
-        );
+            console.log(`✓ Created formula ${index + 1}: ${formula.title}`);
+
+            createdFormulas.push({
+              ...formula,
+              derivationSteps: formula.derivationSteps as string[],
+              tags: (formula.tags as string[]) ?? [],
+              examples: formula.examples as unknown[],
+              prerequisites: formula.prerequisites as string[],
+              relatedFormulas: formula.relatedFormulas as string[],
+              commonMistakes: formula.commonMistakes as unknown[],
+            });
+          } catch (dbError) {
+            console.error(`Failed to create formula ${index + 1}:`, formulaData.title, dbError);
+            throw new Error(
+              `Failed to create formula "${formulaData.title}": ${
+                dbError instanceof Error ? dbError.message : "Unknown error"
+              }`,
+            );
+          }
+        }
 
         return {
           formulas: createdFormulas,

@@ -80,7 +80,7 @@ export const SettingsPage = () => {
     }
 
     const confirmed = window.confirm(
-      "This will replace your current formulas, mistakes, quizzes and subjects with the data from your latest backup in Google Drive. Continue?",
+      "This will replace your current formulas, mistakes, quizzes, Study Guru chats, bookmarks and subjects with the data from your latest backup in Google Drive. Continue?",
     );
     if (!confirmed) return;
 
@@ -174,7 +174,7 @@ export const SettingsPage = () => {
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Backup &amp; Sync</h2>
               <p className="text-xs text-slate-400">
-                Connect Google Drive to store backups of your formulas, mistakes and quiz history.
+                Connect Google Drive to store backups of your formulas, mistakes, quiz history, Study Guru chats, and bookmarks.
                 You&apos;ll be able to restore everything even if you switch accounts or devices.
               </p>
             </div>
@@ -196,11 +196,10 @@ export const SettingsPage = () => {
                 type="button"
                 onClick={handleConnectDrive}
                 disabled={connectDisabled}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-700/70 transition-colors ${
-                  connectDisabled
-                    ? "bg-slate-800/80 text-slate-500 cursor-not-allowed"
-                    : "bg-emerald-500/90 text-slate-950 hover:bg-emerald-400"
-                }`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-700/70 transition-colors ${connectDisabled
+                  ? "bg-slate-800/80 text-slate-500 cursor-not-allowed"
+                  : "bg-emerald-500/90 text-slate-950 hover:bg-emerald-400"
+                  }`}
               >
                 {googleAuthUrlQuery.isFetching ? "Connecting..." : "Connect"}
               </button>
@@ -247,23 +246,20 @@ export const SettingsPage = () => {
                   statusQuery.isLoading ||
                   autoBackupMutation.isPending
                 }
-                className={`relative inline-flex h-7 w-12 items-center rounded-full border border-slate-700/70 px-1 transition-colors ${
-                  statusQuery.data?.autoBackupEnabled
-                    ? "bg-emerald-500/80"
-                    : "bg-slate-900/80"
-                } ${
-                  !statusQuery.data?.isConfigured ||
-                  !statusQuery.data?.isConnected ||
-                  statusQuery.isLoading ||
-                  autoBackupMutation.isPending
+                className={`relative inline-flex h-7 w-12 items-center rounded-full border border-slate-700/70 px-1 transition-colors ${statusQuery.data?.autoBackupEnabled
+                  ? "bg-emerald-500/80"
+                  : "bg-slate-900/80"
+                  } ${!statusQuery.data?.isConfigured ||
+                    !statusQuery.data?.isConnected ||
+                    statusQuery.isLoading ||
+                    autoBackupMutation.isPending
                     ? "cursor-not-allowed opacity-70"
                     : "cursor-pointer"
-                }`}
+                  }`}
               >
                 <span
-                  className={`inline-block h-5 w-5 rounded-full bg-slate-600 shadow-sm transition-transform ${
-                    statusQuery.data?.autoBackupEnabled ? "translate-x-5 bg-slate-950" : ""
-                  }`}
+                  className={`inline-block h-5 w-5 rounded-full bg-slate-600 shadow-sm transition-transform ${statusQuery.data?.autoBackupEnabled ? "translate-x-5 bg-slate-950" : ""
+                    }`}
                 />
               </button>
             </div>

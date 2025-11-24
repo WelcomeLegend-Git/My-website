@@ -31,6 +31,8 @@ type BackupPayloadV1 = {
     practiceQuestions: any[];
     practiceAttempts: any[];
     formulaCollections: any[];
+    studyGuruConversations: any[];
+    bookmarks: any[];
   };
 };
 
@@ -243,6 +245,12 @@ export const restoreLatestBackupForUser = async (userId: string) => {
   }
 
   await prisma.$transaction(async (tx) => {
+    // Delete bookmarks first (they reference other entities)
+    await tx.bookmark.deleteMany({ where: { ownerId: userId } });
+
+    // Delete Study Guru conversations
+    await tx.studyGuruConversation.deleteMany({ where: { ownerId: userId } });
+
     await tx.quizQuestion.deleteMany({
       where: {
         session: {
@@ -307,6 +315,8 @@ export const restoreLatestBackupForUser = async (userId: string) => {
       practiceQuestions,
       practiceAttempts,
       formulaCollections,
+      studyGuruConversations,
+      bookmarks,
     } = backup.data;
 
     if (subjects.length) {
@@ -344,6 +354,14 @@ export const restoreLatestBackupForUser = async (userId: string) => {
     }
     if (practiceAttempts.length) {
       await tx.practiceAttempt.createMany({ data: practiceAttempts });
+    }
+    // Restore Study Guru conversations
+    if (studyGuruConversations && studyGuruConversations.length) {
+      await tx.studyGuruConversation.createMany({ data: studyGuruConversations });
+    }
+    // Restore bookmarks last (they reference other entities)
+    if (bookmarks && bookmarks.length) {
+      await tx.bookmark.createMany({ data: bookmarks });
     }
   });
 

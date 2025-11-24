@@ -357,19 +357,31 @@ type Props = {
             <button
               type="button"
               onClick={handleToggleCollectionBookmark}
-              className={`px-3 sm:px-3 py-1.5 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium flex items-center gap-1 transition-all ${
+              className={`inline-flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium transition-all duration-300 ${
                 isCollectionBookmarked
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                  ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
                   : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
               }`}
               title={isCollectionBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className={`w-4 h-4 transition-transform duration-300 ${isCollectionBookmarked ? 'scale-110' : 'scale-90'}`}
+                fill={isCollectionBookmarked ? 'url(#diamond-gradient-collection)' : 'none'}
+                stroke={isCollectionBookmarked ? 'none' : 'currentColor'}
+                strokeWidth={isCollectionBookmarked ? 0 : 2}
+                viewBox="0 0 24 24"
+              >
+                <defs>
+                  <linearGradient id="diamond-gradient-collection" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#22d3ee" />
+                    <stop offset="50%" stopColor="#e879f9" />
+                    <stop offset="100%" stopColor="#818cf8" />
+                  </linearGradient>
+                </defs>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                 />
               </svg>
             </button>
@@ -443,19 +455,33 @@ type Props = {
                         event.stopPropagation();
                         handleToggleFormulaBookmark(formula);
                       }}
-                      className={`p-2 rounded-lg border text-xs transition-all ${
+                      className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border text-xs transition-all duration-300 ${
                         bookmarkedFormulaIds.has(formula.id)
-                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.35)]'
+                          ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
                           : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
                       }`}
                       title={bookmarkedFormulaIds.has(formula.id) ? 'Remove bookmark' : 'Bookmark formula'}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-300 ${
+                          bookmarkedFormulaIds.has(formula.id) ? 'scale-110' : 'scale-90'
+                        }`}
+                        fill={bookmarkedFormulaIds.has(formula.id) ? 'url(#diamond-gradient-formula)' : 'none'}
+                        stroke={bookmarkedFormulaIds.has(formula.id) ? 'none' : 'currentColor'}
+                        strokeWidth={bookmarkedFormulaIds.has(formula.id) ? 0 : 2}
+                        viewBox="0 0 24 24"
+                      >
+                        <defs>
+                          <linearGradient id="diamond-gradient-formula" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#22d3ee" />
+                            <stop offset="50%" stopColor="#e879f9" />
+                            <stop offset="100%" stopColor="#818cf8" />
+                          </linearGradient>
+                        </defs>
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
+                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                         />
                       </svg>
                     </button>

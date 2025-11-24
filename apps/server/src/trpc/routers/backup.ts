@@ -13,7 +13,7 @@ const buildBackupPayload = async (prisma: PrismaClient, userId: string) => {
     throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
   }
 
-  const [subjects, chapters, formulas, formulaAssets, mistakes, mistakeAssets, quizSessions, quizQuestions, practiceQuizzes, practiceQuestions, practiceAttempts, formulaCollections] =
+  const [subjects, chapters, formulas, formulaAssets, mistakes, mistakeAssets, quizSessions, quizQuestions, practiceQuizzes, practiceQuestions, practiceAttempts, formulaCollections, studyGuruConversations, bookmarks] =
     await Promise.all([
       prisma.subject.findMany({ where: { ownerId: userId } }),
       prisma.chapter.findMany({
@@ -57,6 +57,8 @@ const buildBackupPayload = async (prisma: PrismaClient, userId: string) => {
       }),
       prisma.practiceAttempt.findMany({ where: { userId } }),
       prisma.formulaCollection.findMany({ where: { ownerId: userId } }),
+      prisma.studyGuruConversation.findMany({ where: { ownerId: userId } }),
+      prisma.bookmark.findMany({ where: { ownerId: userId } }),
     ]);
 
   return {
@@ -81,6 +83,8 @@ const buildBackupPayload = async (prisma: PrismaClient, userId: string) => {
       practiceQuestions,
       practiceAttempts,
       formulaCollections,
+      studyGuruConversations,
+      bookmarks,
     },
   } as const;
 };

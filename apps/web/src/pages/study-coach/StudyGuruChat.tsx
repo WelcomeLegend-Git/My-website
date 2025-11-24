@@ -1608,8 +1608,8 @@ export const StudyGuruChat = () => {
                   <div
                     key={chat.id}
                     className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
-                        ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
-                        : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                      ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
+                      : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
                       }`}
                   >
                     <button
@@ -1710,8 +1710,8 @@ export const StudyGuruChat = () => {
                   <div
                     key={chat.id}
                     className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
-                        ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
-                        : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                      ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
+                      : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
                       }`}
                   >
                     <button
@@ -1955,10 +1955,10 @@ export const StudyGuruChat = () => {
                         >
                           <span
                             className={`px-2 py-0.5 rounded-full font-semibold border ${msg.mention.kind === "formulaCollection"
-                                ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
-                                : msg.mention.kind === "mistake"
-                                  ? "text-red-300 bg-red-500/10 border-red-500/40"
-                                  : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                              ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                              : msg.mention.kind === "mistake"
+                                ? "text-red-300 bg-red-500/10 border-red-500/40"
+                                : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                               }`}
                           >
                             {msg.mention.kind === "formulaCollection"
@@ -2018,8 +2018,8 @@ export const StudyGuruChat = () => {
                   >
                     <div
                       className={`w-full bg-slate-900/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60 border ${highlightedMessageIndex === index
-                          ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
-                          : "border-slate-700/80"
+                        ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
+                        : "border-slate-700/80"
                         }`}
                     >
                       <div className="flex items-start gap-3">
@@ -2119,18 +2119,25 @@ export const StudyGuruChat = () => {
                             <button
                               onClick={() => handleToggleAssistantBookmark(index)}
                               className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${isMessageBookmarked(index)
-                                  ? 'bg-amber-500 text-slate-950 border-amber-500 scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                                  ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
                                   : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
                                 }`}
                               title={isMessageBookmarked(index) ? 'Remove bookmark' : 'Bookmark reply'}
                             >
                               <svg
-                                className={`w-4 h-4 transition-transform duration-300 ${isMessageBookmarked(index) ? 'scale-100' : 'scale-90'}`}
-                                fill={isMessageBookmarked(index) ? "currentColor" : "none"}
-                                stroke="currentColor"
+                                className={`w-4 h-4 transition-transform duration-300 ${isMessageBookmarked(index) ? 'scale-110' : 'scale-90'}`}
+                                fill={isMessageBookmarked(index) ? "url(#diamond-gradient-chat)" : "none"}
+                                stroke={isMessageBookmarked(index) ? "none" : "currentColor"}
                                 strokeWidth={isMessageBookmarked(index) ? 0 : 2}
                                 viewBox="0 0 24 24"
                               >
+                                <defs>
+                                  <linearGradient id="diamond-gradient-chat" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#22d3ee" />
+                                    <stop offset="50%" stopColor="#e879f9" />
+                                    <stop offset="100%" stopColor="#818cf8" />
+                                  </linearGradient>
+                                </defs>
                                 <path
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
@@ -2216,10 +2223,10 @@ export const StudyGuruChat = () => {
                 >
                   <span
                     className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
-                        ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
-                        : activeMention.kind === "mistake"
-                          ? "text-red-300 bg-red-500/10 border-red-500/40"
-                          : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                      ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                      : activeMention.kind === "mistake"
+                        ? "text-red-300 bg-red-500/10 border-red-500/40"
+                        : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                       }`}
                   >
                     {activeMention.kind === "formulaCollection"
@@ -2301,10 +2308,10 @@ export const StudyGuruChat = () => {
                   {activeMention && (
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
-                          ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
-                          : activeMention.kind === "mistake"
-                            ? "text-red-300 bg-red-500/10 border-red-500/40"
-                            : "text-purple-300 bg-purple-500/10 border-purple-500/40"
+                        ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
+                        : activeMention.kind === "mistake"
+                          ? "text-red-300 bg-red-500/10 border-red-500/40"
+                          : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                         }`}
                     >
                       @{getMentionDisplayLabel(activeMention.kind, activeMention.title)}
@@ -2445,121 +2452,127 @@ export const StudyGuruChat = () => {
       </div >
 
       {/* Regenerate model chooser */}
-      {regeneratePopover && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setRegeneratePopover(null)}
-          />
-          <div
-            className="fixed z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[180px]"
-            style={{
-              top: Math.min(
-                regeneratePopover.anchor.getBoundingClientRect().bottom + 8,
-                window.innerHeight - 200,
-              ),
-              left: Math.min(
-                regeneratePopover.anchor.getBoundingClientRect().left,
-                window.innerWidth - 220,
-              ),
-            }}
-          >
-            <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              Regenerate with
+      {
+        regeneratePopover && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setRegeneratePopover(null)}
+            />
+            <div
+              className="fixed z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[180px]"
+              style={{
+                top: Math.min(
+                  regeneratePopover.anchor.getBoundingClientRect().bottom + 8,
+                  window.innerHeight - 200,
+                ),
+                left: Math.min(
+                  regeneratePopover.anchor.getBoundingClientRect().left,
+                  window.innerWidth - 220,
+                ),
+              }}
+            >
+              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Regenerate with
+              </div>
+              <div className="space-y-1">
+                {modelOptions.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => handleRegenerateWithModel(regeneratePopover.userIndex, id)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-slate-100 hover:bg-slate-800 transition"
+                  >
+                    <span>{MODEL_CONFIGS[id].label}</span>
+                    {id === selectedModel && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1">
-              {modelOptions.map((id) => (
-                <button
-                  key={id}
-                  onClick={() => handleRegenerateWithModel(regeneratePopover.userIndex, id)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-slate-100 hover:bg-slate-800 transition"
-                >
-                  <span>{MODEL_CONFIGS[id].label}</span>
-                  {id === selectedModel && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* Mobile / desktop long-press context menu */}
-      {contextMenu && activeChat && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
-          onClick={() => setContextMenu(null)}
-        >
+      {
+        contextMenu && activeChat && (
           <div
-            className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: window.innerWidth >= 640 ? "absolute" : "relative",
-              left: window.innerWidth >= 640 ? contextMenu.x : undefined,
-              top: window.innerWidth >= 640 ? contextMenu.y : undefined,
-            }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
+            onClick={() => setContextMenu(null)}
           >
-            <div className="p-2 space-y-1">
-              <button
-                onClick={() => {
-                  const msg = activeChat.messages[contextMenu.messageIndex];
-                  if (msg) handleCopyText(msg.content);
-                  setContextMenu(null);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
-              >
-                <Copy className="w-5 h-5 text-slate-400" />
-                <span className="font-medium">Copy</span>
-              </button>
-              {contextMenu.role === "user" && (
-                <button
-                  onClick={() => handleEditMessage(contextMenu.messageIndex)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
-                >
-                  <Pencil className="w-5 h-5 text-slate-400" />
-                  <span className="font-medium">Edit message</span>
-                </button>
-              )}
-              {contextMenu.role === "assistant" && (
+            <div
+              className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: window.innerWidth >= 640 ? "absolute" : "relative",
+                left: window.innerWidth >= 640 ? contextMenu.x : undefined,
+                top: window.innerWidth >= 640 ? contextMenu.y : undefined,
+              }}
+            >
+              <div className="p-2 space-y-1">
                 <button
                   onClick={() => {
                     const msg = activeChat.messages[contextMenu.messageIndex];
-                    if (msg) handleSpeak(msg.content);
+                    if (msg) handleCopyText(msg.content);
                     setContextMenu(null);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
                 >
-                  <Volume2 className="w-5 h-5 text-slate-400" />
-                  <span className="font-medium">Read aloud</span>
+                  <Copy className="w-5 h-5 text-slate-400" />
+                  <span className="font-medium">Copy</span>
                 </button>
-              )}
+                {contextMenu.role === "user" && (
+                  <button
+                    onClick={() => handleEditMessage(contextMenu.messageIndex)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                  >
+                    <Pencil className="w-5 h-5 text-slate-400" />
+                    <span className="font-medium">Edit message</span>
+                  </button>
+                )}
+                {contextMenu.role === "assistant" && (
+                  <button
+                    onClick={() => {
+                      const msg = activeChat.messages[contextMenu.messageIndex];
+                      if (msg) handleSpeak(msg.content);
+                      setContextMenu(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                  >
+                    <Volume2 className="w-5 h-5 text-slate-400" />
+                    <span className="font-medium">Read aloud</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Image Viewer Modal */}
-      {viewingImage && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setViewingImage(null)}
-        >
-          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
-            <img
-              src={viewingImage}
-              alt="Full view"
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-            />
-            <button
-              onClick={() => setViewingImage(null)}
-              className="absolute top-4 right-4 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition backdrop-blur-md"
-            >
-              ×
-            </button>
+      {
+        viewingImage && (
+          <div
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={() => setViewingImage(null)}
+          >
+            <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+              <img
+                src={viewingImage}
+                alt="Full view"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              />
+              <button
+                onClick={() => setViewingImage(null)}
+                className="absolute top-4 right-4 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition backdrop-blur-md"
+              >
+                ×
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };

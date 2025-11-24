@@ -43,6 +43,15 @@ export const QuizHistoryPage = () => {
     return set;
   }, [bookmarkStatusQuery.data]);
 
+  const [pendingBookmarkToggles, setPendingBookmarkToggles] = useState<Map<string, boolean>>(new Map());
+
+  const isQuizBookmarked = (quizId: string) => {
+    if (pendingBookmarkToggles.has(quizId)) {
+      return pendingBookmarkToggles.get(quizId)!;
+    }
+    return bookmarkedQuizIds.has(quizId);
+  };
+
   // Define GlowSelect options
   const examTypeOptions: GlowSelectOption[] = [
     { value: 'all', label: 'All Types' },
@@ -173,6 +182,16 @@ export const QuizHistoryPage = () => {
   ) => {
     event.stopPropagation();
 
+    const currentlyBookmarked = isQuizBookmarked(quiz.id);
+    const nextState = !currentlyBookmarked;
+
+    // Optimistic update
+    setPendingBookmarkToggles((prev) => {
+      const next = new Map(prev);
+      next.set(quiz.id, nextState);
+      return next;
+    });
+
     try {
       await toggleBookmarkMutation.mutateAsync({
         entityType: 'practice_quiz',
@@ -190,8 +209,21 @@ export const QuizHistoryPage = () => {
         bookmarkStatusQuery.refetch(),
         utils.bookmarks.listByCategory.invalidate({ category: 'quizzes' }).catch(() => undefined),
       ]);
-    } catch {
-      // ignore for now
+    } catch (error) {
+      console.error("Failed to toggle bookmark", error);
+      // Revert optimistic update on error
+      setPendingBookmarkToggles((prev) => {
+        const next = new Map(prev);
+        next.set(quiz.id, !nextState);
+        return next;
+      });
+    } finally {
+      // Clear pending state after sync
+      setPendingBookmarkToggles((prev) => {
+        const next = new Map(prev);
+        next.delete(quiz.id);
+        return next;
+      });
     }
   };
 
@@ -317,84 +349,95 @@ export const QuizHistoryPage = () => {
             const isBookmarked = bookmarkedQuizIds.has(quiz.id);
 
             return (
-            <div
-              key={quiz.id}
-              onClick={() => navigate(`/quiz/${quiz.id}/results`)}
-              className="glass-card rounded-xl p-6 border border-slate-800/50 hover:border-primary/30 transition-all cursor-pointer hover-lift"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
-                    <span className={`px-2 py-1 rounded-lg text-xs font-medium ${quiz.examType === 'mains'
+              <div
+                key={quiz.id}
+                onClick={() => navigate(`/quiz/${quiz.id}/results`)}
+                className="glass-card rounded-xl p-6 border border-slate-800/50 hover:border-primary/30 transition-all cursor-pointer hover-lift"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${quiz.examType === 'mains'
                         ? 'bg-blue-500/20 text-blue-400'
                         : 'bg-purple-500/20 text-purple-400'
-                      }`}>
-                      {quiz.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'}
-                    </span>
-                    {quiz.completedAt && (
-                      <span className="px-2 py-1 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400">
-                        Completed
+                        }`}>
+                        {quiz.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'}
                       </span>
-                    )}
+                      {quiz.completedAt && (
+                        <span className="px-2 py-1 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                          Completed
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {quiz._count.questions} questions • {quiz.answerType === 'single' ? 'Single' : 'Multiple'} correct • Created {formatDate(quiz.createdAt)}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-400">
-                    {quiz._count.questions} questions • {quiz.answerType === 'single' ? 'Single' : 'Multiple'} correct • Created {formatDate(quiz.createdAt)}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleQuizBookmark(e, quiz)}
-                    className={`p-2 rounded-lg border text-slate-200 transition-colors ${
-                      isBookmarked
-                        ? 'bg-amber-500/20 border-amber-400/70 text-amber-50'
-                        : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800/80'
-                    }`}
-                    title={isBookmarked ? 'Remove bookmark' : 'Bookmark quiz'}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 4a2 2 0 012-2h10a2 2 0 012 2v16.382a1 1 0 01-1.447.894L12 17.118l-5.553 4.158A1 1 0 015 20.382V4z"
-                      />
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleQuizBookmark(e, quiz)}
+                      className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${isQuizBookmarked(quiz.id)
+                          ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
+                          : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                        }`}
+                      title={isQuizBookmarked(quiz.id) ? 'Remove bookmark' : 'Bookmark quiz'}
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-300 ${isQuizBookmarked(quiz.id) ? 'scale-110' : 'scale-90'}`}
+                        fill={isQuizBookmarked(quiz.id) ? "url(#diamond-gradient-quiz)" : "none"}
+                        stroke={isQuizBookmarked(quiz.id) ? "none" : "currentColor"}
+                        strokeWidth={isQuizBookmarked(quiz.id) ? 0 : 2}
+                        viewBox="0 0 24 24"
+                      >
+                        <defs>
+                          <linearGradient id="diamond-gradient-quiz" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#22d3ee" />
+                            <stop offset="50%" stopColor="#e879f9" />
+                            <stop offset="100%" stopColor="#818cf8" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                        />
+                      </svg>
+                    </button>
+                    {quiz.score !== null && quiz.score !== undefined && (
+                      <div className="text-right">
+                        <p className="text-sm text-slate-400 mb-1">Score</p>
+                        <p className={`text-2xl font-bold ${getScoreColor(quiz.score)}`}>
+                          {quiz.score.toFixed(1)}%
+                        </p>
+                      </div>
+                    )}
+                    {quiz.timeSpent && (
+                      <div className="text-right">
+                        <p className="text-sm text-slate-400 mb-1">Time</p>
+                        <p className="text-lg font-semibold text-purple-400">
+                          {formatTime(quiz.timeSpent)}
+                        </p>
+                      </div>
+                    )}
+                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </button>
-                  {quiz.score !== null && quiz.score !== undefined && (
-                    <div className="text-right">
-                      <p className="text-sm text-slate-400 mb-1">Score</p>
-                      <p className={`text-2xl font-bold ${getScoreColor(quiz.score)}`}>
-                        {quiz.score.toFixed(1)}%
-                      </p>
-                    </div>
-                  )}
-                  {quiz.timeSpent && (
-                    <div className="text-right">
-                      <p className="text-sm text-slate-400 mb-1">Time</p>
-                      <p className="text-lg font-semibold text-purple-400">
-                        {formatTime(quiz.timeSpent)}
-                      </p>
-                    </div>
-                  )}
-                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  </div>
                 </div>
-              </div>
 
-              {quiz.accuracy !== null && quiz.accuracy !== undefined && (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{quiz.accuracy} correct out of {quiz._count.questions}</span>
-                </div>
-              )}
-            </div>
-          );
+                {quiz.accuracy !== null && quiz.accuracy !== undefined && (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{quiz.accuracy} correct out of {quiz._count.questions}</span>
+                  </div>
+                )}
+              </div>
+            );
           })}
         </div>
       )}

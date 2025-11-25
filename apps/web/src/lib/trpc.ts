@@ -48,14 +48,14 @@ const performTokenRefresh = async () => {
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      id: 1,
-      method: "mutation",
-      params: {
+    body: JSON.stringify([
+      {
+        id: 1,
+        json: { input: { refreshToken } },
+        method: "mutation",
         path: "authApi.refresh",
-        input: { refreshToken },
       },
-    }),
+    ]),
   });
 
   if (!response.ok) {

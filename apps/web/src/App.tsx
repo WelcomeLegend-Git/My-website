@@ -19,6 +19,8 @@ import { QuizPage } from "./pages/quiz/QuizPage";
 import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { BookmarksPage } from "./pages/bookmarks/BookmarksPage";
+import { DeepDivePage } from "./pages/DeepDivePage";
+import { JourneyPage } from "./pages/JourneyPage";
 
 const App = () => {
   useRegisterPwa();
@@ -36,6 +38,8 @@ const App = () => {
           <Route index element={<DashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="bookmarks" element={<BookmarksPage />} />
+          <Route path="deep-dive" element={<DeepDivePage />} />
+          <Route path="journey" element={<JourneyPage />} />
           <Route path="formulas" element={<FormulaCollectionsListPage />} />
           <Route path="formulas/collections/:id" element={<FormulaCollectionPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />

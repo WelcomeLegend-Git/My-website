@@ -224,6 +224,36 @@ export const SettingsPage = () => {
           </div>
         </section>
 
+        <section className="glass-card rounded-2xl border border-slate-800/60 p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-slate-100">Developer Journey</h2>
+          <p className="text-xs text-slate-400">
+            Read about the story behind this project, the technical challenges, and the 17-day sprint to build it.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <a
+              href="/blog/my-journey"
+              className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
+            >
+              <div className="relative z-10">
+                <h3 className="text-sm font-semibold text-emerald-400 mb-1 group-hover:text-emerald-300">The Journey</h3>
+                <p className="text-[11px] text-slate-400">My personal story, schedule, and struggles.</p>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+
+            <a
+              href="/blog/my-tech"
+              className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
+            >
+              <div className="relative z-10">
+                <h3 className="text-sm font-semibold text-blue-400 mb-1 group-hover:text-blue-300">Tech Deep Dive</h3>
+                <p className="text-[11px] text-slate-400">Architecture, stack, and deployment wars.</p>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+          </div>
+        </section>
+
         <section className="glass-card rounded-2xl border border-slate-800/60 p-6 space-y-5">
           <div className="flex items-center justify-between gap-4">
             <div>

@@ -4,6 +4,8 @@ import { ShellLayout } from "./app/layouts/ShellLayout";
 import { ProtectedRoute } from "./app/routes/ProtectedRoute";
 import { PublicRoute } from "./app/routes/PublicRoute";
 import { useRegisterPwa } from "./hooks/useRegisterPwa";
+import { MyJourneyPage } from "./pages/blog/MyJourneyPage";
+import { MyTechDeepDivePage } from "./pages/blog/MyTechDeepDivePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
@@ -48,6 +50,11 @@ const App = () => {
           <Route path="mistakes/:id" element={<MistakeDetailPage />} />
           <Route path="quiz-history" element={<QuizHistoryPage />} />
           <Route path="study-coach" element={<StudyCoachPage />} />
+
+          {/* New Blog Routes */}
+          <Route path="blog/my-journey" element={<MyJourneyPage />} />
+          <Route path="blog/my-tech" element={<MyTechDeepDivePage />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

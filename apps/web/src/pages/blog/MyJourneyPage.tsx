@@ -1,9 +1,27 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock, Code2, Cpu, Heart, Music, Rocket, User, Zap } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Code2, Cpu, Heart, Music, Rocket, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useShellContext } from "../../app/layouts/useShellContext";
 
 export const MyJourneyPage = () => {
     const navigate = useNavigate();
+    const { setAiSection, setAiContext, setShowMentor } = useShellContext();
+
+    useEffect(() => {
+        setAiSection("study");
+        setShowMentor(false);
+        setAiContext({
+            type: "vlog",
+            page: "journey",
+            title: "Developer Journey",
+        });
+
+        return () => {
+            setShowMentor(true);
+            setAiContext(undefined);
+        };
+    }, [setAiContext, setAiSection, setShowMentor]);
 
     const container = {
         hidden: { opacity: 0 },
@@ -55,8 +73,8 @@ export const MyJourneyPage = () => {
                             Building the JEE Companion
                         </h1>
                         <p className="max-w-2xl mx-auto text-lg text-slate-400 leading-relaxed">
-                            A 17-day sprint fueled by passion, caffeine, and the drive to create something meaningful.
-                            This is the story behind the code.
+                            A 17-day sprint balancing JEE prep, a low-end PC, late-night VS Code sessions, deployment
+                            failures, and a careful use of AI helpers. This is the story behind the code.
                         </p>
                     </motion.header>
 
@@ -76,7 +94,8 @@ export const MyJourneyPage = () => {
                                 </div>
                                 <p className="text-slate-400 leading-relaxed">
                                     I'm currently preparing for the JEE exam, balancing intense study sessions with my passion for coding.
-                                    I take classes on Unacademy (2-3 daily) and built this website to solve my own study management problems.
+                                    I take classes on Unacademy (usually 2-3 daily) and built this companion to match the way I actually
+                                    study, revise, and track mistakes.
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     <span className="px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700 text-xs text-slate-300">JEE Aspirant</span>
@@ -153,10 +172,10 @@ export const MyJourneyPage = () => {
                                         <h3 className="text-xl font-bold text-slate-200">Vision & Setup</h3>
                                     </div>
                                     <p className="text-slate-400 leading-relaxed max-w-3xl">
-                                        It started with a need. I needed a better way to track my JEE preparation.
-                                        The first few days were a blur—I don't even remember when the days started or ended.
-                                        I worked through the night, sleeping at 7-8 AM and waking up at 1-2 PM to continue.
-                                        My focus was so intense that sometimes I'd stop the music playing on my Tribit speaker just to concentrate harder.
+                                        It started with a need: I wanted a better way to track my JEE preparation and see my mistakes in one
+                                        place. The first few days were a blur—I don't even remember when the days started or ended. I worked
+                                        through the night, sleeping at 7–8 AM and waking up at 1–2 PM to continue. My focus was so intense that
+                                        sometimes I'd stop the music playing on my Tribit speaker just to concentrate harder.
                                     </p>
                                 </div>
                             </div>
@@ -170,10 +189,10 @@ export const MyJourneyPage = () => {
                                         <h3 className="text-xl font-bold text-slate-200">Deployment Wars</h3>
                                     </div>
                                     <p className="text-slate-400 leading-relaxed max-w-3xl">
-                                        Deployment was a nightmare. I spent a full day just trying to get Vercel to connect to the database.
-                                        Then another day testing on localhost, only for it to fail again in production.
-                                        I was frustrated, working from 2 PM until 4 AM the next morning.
-                                        That's when I decided to switch to Render.
+                                        Deployment was a nightmare. I spent a full day just trying to get Vercel to connect to the database and
+                                        run the backend reliably. Then another day testing on localhost, only for it to fail again in
+                                        production. I was frustrated, working from around 2 PM until 3–4 AM the next morning. That long night
+                                        ended with a decision to switch the backend to Render.
                                     </p>
                                     <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/60 text-sm text-slate-400 italic">
                                         "I challenge, happy after long try when it happened... the feeling of finally seeing it live is indescribable."
@@ -190,9 +209,9 @@ export const MyJourneyPage = () => {
                                         <h3 className="text-xl font-bold text-slate-200">Family & Mentors</h3>
                                     </div>
                                     <p className="text-slate-400 leading-relaxed max-w-3xl">
-                                        I wasn't alone. When things got tough, I reached out to my brother, Abhay Bhaiya (a Software Engineer in Bengaluru),
-                                        and my uncle, Khem Raj (also a Software Engineer). Their guidance helped me push through the technical blockers
-                                        when Vercel was failing.
+                                        I wasn't alone. When things got tough, I reached out to my brother, Abhay (a software engineer in
+                                        Bengaluru on a strong package), and my uncle, Khem Raj (also a software engineer). Their guidance helped
+                                        me push through the technical blockers when Vercel was failing.
                                     </p>
                                 </div>
                             </div>
@@ -206,9 +225,9 @@ export const MyJourneyPage = () => {
                                         <h3 className="text-xl font-bold text-slate-200">A Complete Companion</h3>
                                     </div>
                                     <p className="text-slate-400 leading-relaxed max-w-3xl">
-                                        Now, the project is complete. A fully functional website with Mistake Logs, Formula Collections, and AI support.
-                                        I even skipped a few live classes because I was so engrossed in building this.
-                                        It's not just code; it's a tool that will help me (and hopefully others) crack JEE.
+                                        Now, the project is complete. A fully functional website with Mistake Logs, Formula Collections, quizzes,
+                                        and an AI Study Guru. I even skipped a few live classes because I was so engrossed in building this. It's
+                                        not just code; it's a tool that will help me (and hopefully others) crack JEE.
                                     </p>
                                 </div>
                             </div>
@@ -220,7 +239,9 @@ export const MyJourneyPage = () => {
                         <div className="inline-block p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/60 shadow-2xl">
                             <Heart className="w-8 h-8 text-rose-500 mx-auto mb-4 fill-rose-500/20" />
                             <p className="text-lg font-medium text-slate-300 italic max-w-xl mx-auto">
-                                "I only remember that I wake up, fresh up, eat, and start working till my class, and later continue till the morning."
+                                "I only remember that I wake up, fresh up, eat, and start working till my class, and later continue till the
+                                morning. Somewhere in between I used ChatGPT, Gemini 3, and a few rare Sonnet 4.5 messages—but every final
+                                decision still went through my own VS Code window."
                             </p>
                             <p className="mt-4 text-sm text-slate-500 font-mono">- Suraj</p>
                         </div>

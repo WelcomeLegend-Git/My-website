@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { trpc } from "../../lib/trpc";
 
@@ -230,8 +231,8 @@ export const SettingsPage = () => {
             Read about the story behind this project, the technical challenges, and the 17-day sprint to build it.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <a
-              href="/blog/my-journey"
+            <Link
+              to="/journey"
               className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
             >
               <div className="relative z-10">
@@ -239,10 +240,10 @@ export const SettingsPage = () => {
                 <p className="text-[11px] text-slate-400">My personal story, schedule, and struggles.</p>
               </div>
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
 
-            <a
-              href="/blog/my-tech"
+            <Link
+              to="/deep-dive"
               className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
             >
               <div className="relative z-10">
@@ -250,7 +251,7 @@ export const SettingsPage = () => {
                 <p className="text-[11px] text-slate-400">Architecture, stack, and deployment wars.</p>
               </div>
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
           </div>
         </section>
 

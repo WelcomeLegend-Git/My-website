@@ -305,36 +305,6 @@ export const ShellLayout = () => {
 
                     <div className="p-2 space-y-1 text-sm">
                       <Link
-                        to="/deep-dive"
-                        onClick={() => {
-                          setProfileOpen(false);
-                          setShowLogoutConfirm(false);
-                        }}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-900/80 hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <span className="material-icons text-base text-slate-300">architecture</span>
-                        <div className="flex flex-col">
-                          <span className="font-medium">Deep Dive: Tech &amp; Architecture</span>
-                          <span className="text-[11px] text-slate-500">Stack, infra, and AI design</span>
-                        </div>
-                      </Link>
-
-                      <Link
-                        to="/journey"
-                        onClick={() => {
-                          setProfileOpen(false);
-                          setShowLogoutConfirm(false);
-                        }}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-900/80 hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <span className="material-icons text-base text-slate-300">auto_stories</span>
-                        <div className="flex flex-col">
-                          <span className="font-medium">Journey: 17-Day Build</span>
-                          <span className="text-[11px] text-slate-500">Story behind JEE Companion</span>
-                        </div>
-                      </Link>
-
-                      <Link
                         to="/settings"
                         onClick={() => {
                           setProfileOpen(false);

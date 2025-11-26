@@ -1,9 +1,27 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Bot, Box, Cloud, Code, Database, Layers, Server, Shield, Terminal, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useShellContext } from "../../app/layouts/useShellContext";
 
 export const MyTechDeepDivePage = () => {
     const navigate = useNavigate();
+    const { setAiSection, setAiContext, setShowMentor } = useShellContext();
+
+    useEffect(() => {
+        setAiSection("study");
+        setShowMentor(false);
+        setAiContext({
+            type: "vlog",
+            page: "technical-deep-dive",
+            title: "Tech Deep Dive",
+        });
+
+        return () => {
+            setShowMentor(true);
+            setAiContext(undefined);
+        };
+    }, [setAiContext, setAiSection, setShowMentor]);
 
     const container = {
         hidden: { opacity: 0 },
@@ -67,9 +85,9 @@ export const MyTechDeepDivePage = () => {
                             </div>
                             <h3 className="text-lg font-bold text-slate-100 mb-2">Monorepo Structure</h3>
                             <p className="text-sm text-slate-400 leading-relaxed">
-                                Built using Turborepo with a clear separation of concerns:
-                                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-xs">apps/web</code> for the frontend and
-                                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-xs">apps/server</code> for the backend API.
+                                The project follows a monorepo layout with clear separation:
+                                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-xs">apps/web</code> for the React + Vite frontend and
+                                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-xs">apps/server</code> for the Express + tRPC backend API.
                             </p>
                         </div>
 
@@ -90,8 +108,9 @@ export const MyTechDeepDivePage = () => {
                             </div>
                             <h3 className="text-lg font-bold text-slate-100 mb-2">Data Layer</h3>
                             <p className="text-sm text-slate-400 leading-relaxed">
-                                Powered by <span className="text-emerald-300">Prisma ORM</span> and Supabase (PostgreSQL).
-                                Complex relations between Subjects, Chapters, Mistakes, and Quizzes are handled effortlessly.
+                                Powered by <span className="text-emerald-300">Prisma ORM</span> and Supabase (PostgreSQL). Core entities like
+                                formulas, mistakes, quiz sessions, and questions are modelled with relations that make it easy to add
+                                new features without rewriting the database.
                             </p>
                         </div>
                     </motion.section>
@@ -110,7 +129,7 @@ export const MyTechDeepDivePage = () => {
                             </div>
                             <p className="text-slate-300 text-lg mb-8 leading-relaxed">
                                 The core of the companion is its intelligence. I integrated multiple AI models to handle different tasks,
-                                ensuring reliability and quality.
+                                but always with a clear rule: they help me reason and generate content; they never fully own the product.
                             </p>
 
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -120,18 +139,22 @@ export const MyTechDeepDivePage = () => {
                                         <span className="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 font-medium">Primary</span>
                                     </div>
                                     <p className="text-sm text-slate-400">
-                                        Used for complex reasoning, quiz generation, and detailed mistake analysis.
-                                        I implemented a multi-key rotation system to handle rate limits.
+                                        Used on the backend for complex reasoning, quiz generation, and detailed mistake analysis.
+                                        I implemented a multi-key rotation system (multiple API keys parsed from env) so large quizzes are
+                                        generated in parallel without constantly hitting rate limits.
                                     </p>
                                 </div>
 
                                 <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800/60">
                                     <div className="flex justify-between items-start mb-2">
-                                        <h4 className="font-semibold text-slate-200">ChatGPT & Sonnet</h4>
+                                        <h4 className="font-semibold text-slate-200">ChatGPT, Gemini 3 & Sonnet 4.5</h4>
                                         <span className="px-2 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 font-medium">Coding Assistants</span>
                                     </div>
                                     <p className="text-sm text-slate-400">
-                                        Used Sonnet 3.5 (rarely due to limits) and ChatGPT for debugging rigid errors and generating boilerplate code.
+                                        During development I used ChatGPT 5/5.1 (via ChatGPT Go, which is currently free in India) and Gemini 3 to
+                                        understand tricky errors and compare approaches. Sonnet 4.5 was used very rarely, not because it was weak,
+                                        but because the free account had a very small message limit (roughly under ten messages), so I saved it for
+                                        the most stubborn bugs.
                                     </p>
                                 </div>
                             </div>
@@ -187,13 +210,13 @@ export const MyTechDeepDivePage = () => {
                         <div className="grid gap-4">
                             {[
                                 {
-                                    title: "Mistake Log & Analysis",
-                                    desc: "Upload images of mistakes, and the AI analyzes them to identify gaps in understanding. Uses Supabase Storage for images and Gemini for vision analysis.",
+                                    title: "Mistake Log & Formula Library",
+                                    desc: "Structured tracking of mistakes and formulas so JEE revision is not just random questions but a clear history of what you got wrong and how you fixed it.",
                                     icon: Layers
                                 },
                                 {
-                                    title: "Rich Diagram Rendering",
-                                    desc: "Implemented a custom JSXGraph renderer to display physics and math diagrams generated by AI. This was crucial for realistic JEE questions.",
+                                    title: "Type-Safe Full Stack",
+                                    desc: "End-to-end TypeScript with tRPC and Prisma means the frontend and backend share types, reducing entire classes of runtime bugs.",
                                     icon: Code
                                 },
                                 {

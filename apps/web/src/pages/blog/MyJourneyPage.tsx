@@ -69,7 +69,7 @@ export const MyJourneyPage = () => {
                             <Rocket className="w-3 h-3" />
                             <span>The Developer Journey</span>
                         </div>
-                        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400">
+                        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400">
                             Building the JEE Companion
                         </h1>
                         <p className="max-w-2xl mx-auto text-lg text-slate-400 leading-relaxed">

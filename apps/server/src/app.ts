@@ -9,6 +9,7 @@ import { optionalAuth } from "./auth/middleware";
 import { logger } from "./logger";
 import { handleGoogleDriveOAuthCallback } from "./services/google-drive";
 import { persistFile, uploadMiddleware } from "./storage/supabase";
+import { setupRemoteBridgeRoutes } from "./services/remote-bridge";
 import { createContext } from "./trpc/context";
 import { appRouter } from "./trpc/root";
 
@@ -65,6 +66,9 @@ export const createApp = () => {
       }
     }
   );
+
+  // Remote Call Bridge REST API
+  setupRemoteBridgeRoutes(app);
 
   app.use(
     "/trpc",

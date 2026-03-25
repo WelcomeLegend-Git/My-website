@@ -21,6 +21,7 @@ import { QuizPage } from "./pages/quiz/QuizPage";
 import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { BookmarksPage } from "./pages/bookmarks/BookmarksPage";
+import { RemoteBridgePage } from "./pages/remote-bridge/RemoteBridgePage";
 
 const App = () => {
   useRegisterPwa();
@@ -55,6 +56,9 @@ const App = () => {
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
+
+        {/* Remote Bridge — full-screen, no shell layout (optimized for tablet) */}
+        <Route path="remote-bridge" element={<RemoteBridgePage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

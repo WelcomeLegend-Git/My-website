@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useRemoteBridge, type CallState } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
@@ -59,8 +60,8 @@ export function RemoteBridgePage() {
   const currentCall = status.currentCall;
   const callState: CallState = (currentCall?.callState as CallState) || "IDLE";
 
-  // Generate device ID on first setup
-  const handleSetup = useCallback(() => {
+  // Generate device ID on manual key entry
+  const handleManualSetup = useCallback(() => {
     if (!setupKey.trim()) return;
     const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
     const newConfig: BridgeConfig = { encryptionKey: setupKey.trim(), deviceId };
@@ -69,6 +70,15 @@ export function RemoteBridgePage() {
     setShowSetup(false);
   }, [setupKey]);
 
+  // QR pairing confirmed callback
+  const handleQrPaired = useCallback((encryptionKey: string) => {
+    const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
+    const newConfig: BridgeConfig = { encryptionKey, deviceId };
+    saveBridgeConfig(newConfig);
+    setConfig(newConfig);
+    setShowSetup(false);
+  }, []);
+
   // Request status on connect
   useEffect(() => {
     if (status.authenticated && status.phoneOnline) {
@@ -76,37 +86,17 @@ export function RemoteBridgePage() {
     }
   }, [status.authenticated, status.phoneOnline]);
 
-  // ─── Setup Screen ───
+  // ─── Setup Screen (QR + Manual) ───
 
   if (showSetup || !config) {
     return (
       <div style={styles.container}>
-        <div style={styles.setupCard}>
-          <div style={styles.setupIcon}>🔗</div>
-          <h2 style={styles.setupTitle}>Connect to AuraRing</h2>
-          <p style={styles.setupDesc}>
-            Enter the E2E encryption key shown in AuraRing → Settings → Remote Bridge on your phone.
-          </p>
-          <input
-            type="text"
-            value={setupKey}
-            onChange={(e) => setSetupKey(e.target.value)}
-            placeholder="Paste encryption key here"
-            style={styles.input}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            onClick={handleSetup}
-            disabled={!setupKey.trim()}
-            style={{
-              ...styles.primaryBtn,
-              opacity: setupKey.trim() ? 1 : 0.5,
-            }}
-          >
-            Connect
-          </button>
-        </div>
+        <SetupScreen
+          onManualSetup={handleManualSetup}
+          setupKey={setupKey}
+          onSetupKeyChange={setSetupKey}
+          onQrPaired={handleQrPaired}
+        />
       </div>
     );
   }
@@ -510,6 +500,249 @@ function SettingsPanel({
   );
 }
 
+// ─── Setup Screen (WhatsApp-style QR + Manual) ───
+
+function SetupScreen({
+  onManualSetup,
+  setupKey,
+  onSetupKeyChange,
+  onQrPaired,
+}: {
+  onManualSetup: () => void;
+  setupKey: string;
+  onSetupKeyChange: (key: string) => void;
+  onQrPaired: (encryptionKey: string) => void;
+}) {
+  const [setupTab, setSetupTab] = useState<"qr" | "manual">("qr");
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(true);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 min countdown
+  const pairingIdRef = useRef<string | null>(null);
+  const encryptionKeyRef = useRef<string | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const countdownRef = useRef<ReturnType<typeof setInterval>>();
+
+  // Create pairing session & generate QR
+  const createPairingSession = useCallback(async () => {
+    setQrLoading(true);
+    setQrError(null);
+    setTimeLeft(300);
+
+    const token = authStorage.getAccessToken();
+    const base = getApiBaseUrl();
+
+    try {
+      const res = await fetch(`${base}/api/remote-bridge/pairing/create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to create pairing session");
+
+      const data = await res.json();
+      pairingIdRef.current = data.pairingId;
+      encryptionKeyRef.current = data.encryptionKey;
+
+      // QR payload: compact JSON
+      const qrPayload = JSON.stringify({
+        s: base,                   // server URL
+        p: data.pairingId,         // pairing ID
+        t: data.pairingToken,      // one-time pairing token
+        k: data.encryptionKey,     // E2E encryption key
+      });
+
+      setQrData(qrPayload);
+      setQrLoading(false);
+
+      // Start polling for confirmation
+      startPolling(data.pairingId, data.encryptionKey);
+
+      // Start countdown
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Expired, auto-refresh
+            createPairingSession();
+            return 300;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      setQrError("Failed to generate QR code. Check your connection.");
+      setQrLoading(false);
+    }
+  }, []);
+
+  // Poll server for pairing confirmation
+  const startPolling = useCallback((pairingId: string, encryptionKey: string) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+    pollIntervalRef.current = setInterval(async () => {
+      const token = authStorage.getAccessToken();
+      const base = getApiBaseUrl();
+
+      try {
+        const res = await fetch(`${base}/api/remote-bridge/pairing/${pairingId}/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "confirmed") {
+            // Phone scanned the QR! 🎉
+            clearInterval(pollIntervalRef.current);
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            onQrPaired(encryptionKey);
+          } else if (data.status === "expired") {
+            clearInterval(pollIntervalRef.current);
+            createPairingSession(); // Auto-refresh
+          }
+        }
+      } catch {
+        // Ignore polling errors
+      }
+    }, 2000); // Poll every 2 seconds
+  }, [onQrPaired, createPairingSession]);
+
+  // Initialize on mount
+  useEffect(() => {
+    if (setupTab === "qr") {
+      createPairingSession();
+    }
+
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [setupTab]);
+
+  const formatCountdown = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div style={styles.setupCard}>
+      <div style={styles.setupIcon}>🔗</div>
+      <h2 style={styles.setupTitle}>Connect to AuraRing</h2>
+      <p style={styles.setupDesc}>
+        Pair your phone with this device to control calls remotely.
+      </p>
+
+      {/* Tab Switcher */}
+      <div style={styles.setupTabs}>
+        <button
+          onClick={() => setSetupTab("qr")}
+          style={{
+            ...styles.setupTabBtn,
+            ...(setupTab === "qr" ? styles.setupTabBtnActive : {}),
+          }}
+        >
+          📷 Scan QR Code
+        </button>
+        <button
+          onClick={() => setSetupTab("manual")}
+          style={{
+            ...styles.setupTabBtn,
+            ...(setupTab === "manual" ? styles.setupTabBtnActive : {}),
+          }}
+        >
+          ⌨️ Enter Key
+        </button>
+      </div>
+
+      {/* QR Tab */}
+      {setupTab === "qr" && (
+        <div style={styles.qrContainer}>
+          {qrLoading ? (
+            <div style={styles.qrPlaceholder}>
+              <div style={styles.qrSpinner}>⏳</div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+                Generating secure QR code...
+              </p>
+            </div>
+          ) : qrError ? (
+            <div style={styles.qrPlaceholder}>
+              <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
+              <button onClick={createPairingSession} style={styles.refreshBtn}>
+                🔄 Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={styles.qrBox}>
+                <QRCodeSVG
+                  value={qrData || ""}
+                  size={220}
+                  bgColor="#ffffff"
+                  fgColor="#0a0a1a"
+                  level="M"
+                  style={{ borderRadius: 12 }}
+                />
+              </div>
+
+              <div style={styles.qrInfo}>
+                <p style={styles.qrInstruction}>
+                  Open <strong>AuraRing</strong> → Settings → Remote Bridge → <strong>Scan QR</strong>
+                </p>
+                <div style={styles.qrTimer}>
+                  <span style={{
+                    color: timeLeft < 60 ? "#FF3B30" : "rgba(255,255,255,0.5)",
+                    fontSize: 12,
+                  }}>
+                    Expires in {formatCountdown(timeLeft)}
+                  </span>
+                  <button
+                    onClick={createPairingSession}
+                    style={styles.refreshBtn}
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Manual Tab */}
+      {setupTab === "manual" && (
+        <div style={{ marginTop: 20 }}>
+          <p style={{ ...styles.setupDesc, marginBottom: 16 }}>
+            Enter the E2E encryption key shown in AuraRing → Settings → Remote Bridge on your phone.
+          </p>
+          <input
+            type="text"
+            value={setupKey}
+            onChange={(e) => onSetupKeyChange(e.target.value)}
+            placeholder="Paste encryption key here"
+            style={styles.input}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            onClick={onManualSetup}
+            disabled={!setupKey.trim()}
+            style={{
+              ...styles.primaryBtn,
+              opacity: setupKey.trim() ? 1 : 0.5,
+            }}
+          >
+            Connect
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Helpers ───
 
 function formatDuration(seconds: number): string {
@@ -774,5 +1007,78 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.6)",
     fontSize: 13,
     cursor: "pointer",
+  },
+  // Setup tabs (QR / Manual)
+  setupTabs: {
+    display: "flex",
+    gap: 6,
+    marginBottom: 4,
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: 12,
+    padding: 4,
+  },
+  setupTabBtn: {
+    flex: 1,
+    padding: "10px 0",
+    border: "none",
+    borderRadius: 10,
+    background: "transparent",
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 13,
+    fontWeight: 500 as const,
+    cursor: "pointer",
+    transition: "all 0.2s",
+  },
+  setupTabBtnActive: {
+    background: "rgba(108,99,255,0.2)",
+    color: "#fff",
+  },
+  // QR code
+  qrContainer: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  qrPlaceholder: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    width: 260,
+    height: 260,
+  },
+  qrSpinner: { fontSize: 32, marginBottom: 12, animation: "spin 2s linear infinite" },
+  qrBox: {
+    padding: 16,
+    borderRadius: 16,
+    background: "#ffffff",
+    boxShadow: "0 0 40px rgba(108,99,255,0.15), 0 0 80px rgba(108,99,255,0.05)",
+  },
+  qrInfo: {
+    marginTop: 20,
+    textAlign: "center" as const,
+  },
+  qrInstruction: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.6)",
+    lineHeight: 1.6,
+    marginBottom: 12,
+  },
+  qrTimer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  refreshBtn: {
+    padding: "6px 14px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "transparent",
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12,
+    cursor: "pointer",
+    transition: "all 0.2s",
   },
 };

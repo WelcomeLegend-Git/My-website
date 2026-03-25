@@ -23,6 +23,19 @@ interface AuthenticatedSocket {
 
 const connectedClients = new Map<string, AuthenticatedSocket>(); // deviceId → socket
 
+// ─── Active Pairing Sessions (short-lived, in-memory) ───
+
+interface PairingSession {
+  userId: string;
+  pairingToken: string;
+  encryptionKey: string;
+  expiresAt: Date;
+  confirmed: boolean;
+  phoneDeviceId: string | null;
+}
+
+const activePairingSessions = new Map<string, PairingSession>(); // pairingId → session
+
 // ─── Rate Limiting ───
 
 const loginAttempts = new Map<string, { count: number; blockedUntil: number }>();
@@ -218,6 +231,154 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
 
     return res.json({ online });
+  });
+
+  // ─── QR Pairing Flow ───
+
+  // Step 1: Website creates a pairing session (generates QR data)
+  app.post("/api/remote-bridge/pairing/create", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+
+    // Generate a one-time pairing token and encryption key
+    const pairingId = crypto.randomUUID();
+    const pairingToken = crypto.randomBytes(32).toString("hex");
+    const encryptionKey = crypto.randomBytes(32).toString("base64");
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    // Store in the pairing sessions map (in-memory, short-lived)
+    activePairingSessions.set(pairingId, {
+      userId,
+      pairingToken,
+      encryptionKey,
+      expiresAt,
+      confirmed: false,
+      phoneDeviceId: null,
+    });
+
+    // Auto-cleanup after expiry
+    setTimeout(() => {
+      activePairingSessions.delete(pairingId);
+    }, 5 * 60 * 1000 + 5000);
+
+    await logActivity(userId, null, "pairing_created", `QR pairing session created`, ip);
+
+    return res.json({
+      pairingId,
+      pairingToken,
+      encryptionKey,
+      expiresAt: expiresAt.toISOString(),
+    });
+  });
+
+  // Step 2: Phone confirms pairing after scanning QR
+  app.post("/api/remote-bridge/pairing/confirm", async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+
+    try {
+      const schema = z.object({
+        pairingId: z.string().uuid(),
+        pairingToken: z.string().min(1),
+        deviceId: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input" });
+      }
+
+      const { pairingId, pairingToken, deviceId } = parsed.data;
+
+      const session = activePairingSessions.get(pairingId);
+      if (!session) {
+        return res.status(404).json({ message: "Pairing session not found or expired" });
+      }
+
+      // Verify expiry
+      if (new Date() > session.expiresAt) {
+        activePairingSessions.delete(pairingId);
+        return res.status(410).json({ message: "Pairing session expired" });
+      }
+
+      // Verify token (constant-time comparison)
+      if (!crypto.timingSafeEqual(
+        Buffer.from(session.pairingToken),
+        Buffer.from(pairingToken)
+      )) {
+        return res.status(403).json({ message: "Invalid pairing token" });
+      }
+
+      // Already confirmed?
+      if (session.confirmed) {
+        return res.status(409).json({ message: "Pairing already confirmed" });
+      }
+
+      // Get the user
+      const user = await prisma.user.findUnique({ where: { id: session.userId } });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Register/update the phone device
+      await prisma.remoteBridgeDevice.upsert({
+        where: { userId_deviceId: { userId: user.id, deviceId } },
+        create: {
+          userId: user.id,
+          deviceId,
+          deviceType: "phone",
+          trusted: true,
+          lastSeen: new Date(),
+          encryptionKey: session.encryptionKey,
+        },
+        update: {
+          lastSeen: new Date(),
+          trusted: true,
+          encryptionKey: session.encryptionKey,
+        },
+      });
+
+      // Mark session as confirmed
+      session.confirmed = true;
+      session.phoneDeviceId = deviceId;
+
+      // Issue JWT tokens for the phone
+      const accessToken = createAccessToken({ sub: user.id, email: user.email });
+      const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
+
+      await logActivity(user.id, deviceId, "pairing_confirmed", `QR pairing confirmed from ${ip}`, ip);
+
+      return res.json({
+        accessToken,
+        refreshToken,
+        userId: user.id,
+        encryptionKey: session.encryptionKey,
+        serverUrl: req.protocol + "://" + req.get("host"),
+      });
+    } catch (error) {
+      logger.error({ error }, "Pairing confirm error");
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Step 3: Website polls for pairing status
+  app.get("/api/remote-bridge/pairing/:id/status", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { id: pairingId } = req.params;
+
+    const session = activePairingSessions.get(pairingId);
+    if (!session || session.userId !== userId) {
+      return res.json({ status: "expired" });
+    }
+
+    if (new Date() > session.expiresAt) {
+      activePairingSessions.delete(pairingId);
+      return res.json({ status: "expired" });
+    }
+
+    return res.json({
+      status: session.confirmed ? "confirmed" : "pending",
+      phoneDeviceId: session.phoneDeviceId,
+    });
   });
 }
 

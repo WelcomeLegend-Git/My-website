@@ -29,7 +29,23 @@ const readStorage = (): AuthState => {
     return emptyState;
   }
   try {
-    // Check session storage for guest first
+    // Check local storage for regular auth FIRST (takes priority over guest)
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AuthState;
+      // If we have a real user (not guest), use it and clear any stale guest session
+      if (parsed.user && !parsed.user.isGuest) {
+        window.sessionStorage.removeItem(guestStorageKey);
+        return {
+          accessToken: parsed.accessToken ?? null,
+          refreshToken: parsed.refreshToken ?? null,
+          user: parsed.user ?? null,
+          updatedAt: parsed.updatedAt ?? Date.now(),
+        };
+      }
+    }
+
+    // Fallback to session storage for guest
     const guestRaw = window.sessionStorage.getItem(guestStorageKey);
     if (guestRaw) {
       const parsed = JSON.parse(guestRaw) as AuthState;
@@ -41,18 +57,7 @@ const readStorage = (): AuthState => {
       };
     }
     
-    // Check local storage for regular auth
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) {
-      return emptyState;
-    }
-    const parsed = JSON.parse(raw) as AuthState;
-    return {
-      accessToken: parsed.accessToken ?? null,
-      refreshToken: parsed.refreshToken ?? null,
-      user: parsed.user ?? null,
-      updatedAt: parsed.updatedAt ?? Date.now(),
-    };
+    return emptyState;
   } catch {
     return emptyState;
   }

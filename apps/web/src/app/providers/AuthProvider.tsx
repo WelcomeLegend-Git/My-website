@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { AuthUser } from "../../lib/auth-storage";
 import { authStorage } from "../../lib/auth-storage";
 import { trpc } from "../../lib/trpc";
+import { getApiBaseUrl } from "../../lib/env";
 
 type AuthPayload = {
   user: AuthUser;
@@ -31,6 +32,38 @@ const determineInitialStatus = (tokens: { accessToken: string | null; user: Auth
   return "unauthenticated";
 };
 
+// Proactively refresh tokens on app startup if we have a refresh token
+async function proactiveTokenRefresh(): Promise<boolean> {
+  const refreshToken = authStorage.getRefreshToken();
+  if (!refreshToken || refreshToken.startsWith("guest_token_")) return false;
+
+  try {
+    const apiUrl = `${getApiBaseUrl()}/trpc`;
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([{
+        id: 1,
+        json: { input: { refreshToken } },
+        method: "mutation",
+        path: "authApi.refresh",
+      }]),
+    });
+
+    if (!response.ok) return false;
+
+    const payload = await response.json();
+    const envelope = Array.isArray(payload) ? payload[0] : payload;
+    if (!envelope?.result?.data?.json) return false;
+
+    const result = envelope.result.data.json as { accessToken: string; refreshToken: string };
+    authStorage.setTokens(result);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 type Props = {
   children: React.ReactNode;
 };
@@ -39,16 +72,31 @@ export const AuthProvider = ({ children }: Props) => {
   const initialState = authStorage.getState();
   const [user, setUser] = useState<AuthUser | null>(initialState.user);
   const [status, setStatus] = useState<AuthStatus>(determineInitialStatus(initialState));
+  const [refreshDone, setRefreshDone] = useState(false);
   const queryClient = useQueryClient();
 
   const hasTokens = Boolean(authStorage.getAccessToken());
   const isGuest = user?.isGuest === true;
 
+  // Proactively refresh tokens on mount (before meQuery runs)
+  useEffect(() => {
+    if (!hasTokens || isGuest) {
+      setRefreshDone(true);
+      return;
+    }
+
+    proactiveTokenRefresh().finally(() => {
+      setRefreshDone(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const meQuery = trpc.authApi.me.useQuery(undefined, {
-    enabled: hasTokens && !isGuest,
-    retry: 1,
-    refetchOnMount: false,
+    enabled: hasTokens && !isGuest && refreshDone,
+    retry: 2,
+    retryDelay: 1000,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // Consider fresh for 5 mins
   });
 
   useEffect(() => {
@@ -64,11 +112,14 @@ export const AuthProvider = ({ children }: Props) => {
       authStorage.setUser(meQuery.data);
       setStatus("authenticated");
     } else if (meQuery.isError) {
-      authStorage.clear();
-      setUser(null);
-      setStatus("unauthenticated");
+      // Only clear if we've already tried refreshing
+      if (refreshDone) {
+        authStorage.clear();
+        setUser(null);
+        setStatus("unauthenticated");
+      }
     }
-  }, [meQuery.isSuccess, meQuery.isError, meQuery.data, isGuest]);
+  }, [meQuery.isSuccess, meQuery.isError, meQuery.data, isGuest, refreshDone]);
 
   useEffect(() => {
     const unsubscribe = authStorage.subscribe((next) => {

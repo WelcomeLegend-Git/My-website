@@ -11,6 +11,14 @@ export type CallState =
   | "HOLDING"
   | "DISCONNECTED";
 
+export interface RecentCall {
+  number: string;
+  name: string | null;
+  type: number; // 1: Incoming, 2: Outgoing, 3: Missed, etc.
+  date: number;
+  duration: number;
+}
+
 export interface CallEvent {
   eventType: string;
   callerNumber?: string;
@@ -21,6 +29,7 @@ export interface CallEvent {
   audioRoute: number;
   durationSeconds: number;
   bluetoothDeviceName?: string;
+  recentCalls?: RecentCall[];
 }
 
 export interface BridgeStatus {
@@ -28,6 +37,7 @@ export interface BridgeStatus {
   authenticated: boolean;
   phoneOnline: boolean;
   currentCall: CallEvent | null;
+  recentCalls: RecentCall[];
 }
 
 interface UseBridgeOptions {
@@ -257,6 +267,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     authenticated: false,
     phoneOnline: false,
     currentCall: null,
+    recentCalls: [],
   });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -382,17 +393,23 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                   );
                   const callEvent = JSON.parse(plaintext) as CallEvent;
 
-                  setStatus((s) => ({
-                    ...s,
-                    phoneOnline: true,
-                    currentCall: callEvent,
-                  }));
+                  if (callEvent.eventType === "RECENT_CALLS") {
+                    if (callEvent.recentCalls) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, recentCalls: callEvent.recentCalls! }));
+                    }
+                  } else {
+                    setStatus((s) => ({
+                      ...s,
+                      phoneOnline: true,
+                      currentCall: callEvent,
+                    }));
 
-                  // Show notification + play ringtone for incoming calls
-                  showCallNotification(callEvent, {
-                    accept: () => acceptCallRef.current(),
-                    reject: () => rejectCallRef.current(),
-                  });
+                    // Show notification + play ringtone for incoming calls
+                    showCallNotification(callEvent, {
+                      accept: () => acceptCallRef.current(),
+                      reject: () => rejectCallRef.current(),
+                    });
+                  }
                 } catch (err) {
                   console.error("Failed to decrypt event:", err);
                 }
@@ -429,12 +446,13 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
       ws.onclose = (ev) => {
         console.log("[RemoteBridge] WS closed, code:", ev.code, "reason:", ev.reason);
-        setStatus({
+        setStatus((s) => ({
+          ...s,
           connected: false,
           authenticated: false,
           phoneOnline: false,
           currentCall: null,
-        });
+        }));
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         stopRingtone();
 
@@ -472,5 +490,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     holdCall: () => sendCommand("HOLD_CALL"),
     unholdCall: () => sendCommand("UNHOLD_CALL"),
     requestStatus: () => sendCommand("STATUS_REQUEST"),
+    getRecentCalls: () => sendCommand("GET_RECENT_CALLS"),
   };
 }

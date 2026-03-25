@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { useRemoteBridge, type CallState } from "../../lib/use-remote-bridge";
+import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 
@@ -56,7 +56,7 @@ export function RemoteBridgePage() {
   }, [config?.encryptionKey, config?.deviceId, authToken]);
 
   const bridge = useRemoteBridge(bridgeOptions);
-  const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus } = bridge;
+  const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus, getRecentCalls, dialNumber: bridgeDialNumber } = bridge;
   const currentCall = status.currentCall;
   const callState: CallState = (currentCall?.callState as CallState) || "IDLE";
 
@@ -73,6 +73,7 @@ export function RemoteBridgePage() {
   useEffect(() => {
     if (status.authenticated && status.phoneOnline) {
       requestStatus();
+      getRecentCalls();
     }
   }, [status.authenticated, status.phoneOnline]);
 
@@ -170,6 +171,12 @@ export function RemoteBridgePage() {
             onHold={holdCall}
             onUnhold={unholdCall}
             phoneOnline={status.phoneOnline}
+            recentCalls={status.recentCalls}
+            onDialNumber={(num) => {
+              bridgeDialNumber(num);
+              setActiveTab("dial");
+              setDialNumber(num);
+            }}
           />
         )}
 
@@ -215,6 +222,8 @@ function CallPanel({
   onHold,
   onUnhold,
   phoneOnline,
+  recentCalls,
+  onDialNumber,
 }: {
   callState: CallState;
   currentCall: any;
@@ -226,6 +235,8 @@ function CallPanel({
   onHold: () => void;
   onUnhold: () => void;
   phoneOnline: boolean;
+  recentCalls: RecentCall[];
+  onDialNumber: (num: string) => void;
 }) {
   if (!phoneOnline) {
     return (
@@ -240,13 +251,52 @@ function CallPanel({
   }
 
   if (callState === "IDLE" || callState === "DISCONNECTED") {
+    if (!recentCalls || recentCalls.length === 0) {
+      return (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyIcon}>✨</div>
+          <h3 style={styles.emptyTitle}>No Active Call</h3>
+          <p style={styles.emptyDesc}>
+            Incoming calls will appear here. Use the Dial tab to make a call.
+          </p>
+        </div>
+      );
+    }
+    
     return (
-      <div style={styles.emptyState}>
-        <div style={styles.emptyIcon}>✨</div>
-        <h3 style={styles.emptyTitle}>No Active Call</h3>
-        <p style={styles.emptyDesc}>
-          Incoming calls will appear here. Use the Dial tab to make a call.
-        </p>
+      <div style={styles.recentCallsContainer}>
+        <h3 style={styles.recentCallsTitle}>Recent Calls</h3>
+        <div style={styles.recentCallsList}>
+          {recentCalls.map((call, i) => {
+            const dateStr = new Date(call.date).toLocaleString([], {
+              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+            });
+            const typeIcon = call.type === 1 ? "↙️" : call.type === 2 ? "↗️" : call.type === 3 ? "❌" : "📞";
+            const typeColor = call.type === 3 ? "#FF3B30" : "rgba(255,255,255,0.7)";
+            
+            return (
+              <div key={i} style={styles.recentCallItem}>
+                <div style={styles.recentCallAvatar}>
+                  {(call.name || call.number).charAt(0).toUpperCase()}
+                </div>
+                <div style={styles.recentCallInfo}>
+                  <div style={styles.recentCallName}>{call.name || call.number}</div>
+                  <div style={{ ...styles.recentCallMeta, color: typeColor }}>
+                    {typeIcon} {dateStr}
+                    {call.duration > 0 && ` · ${Math.floor(call.duration / 60)}m ${call.duration % 60}s`}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => onDialNumber(call.number)}
+                  style={styles.recentCallDialBtn}
+                  title={`Call ${call.name || call.number}`}
+                >
+                  📞
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -1136,6 +1186,85 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(255,149,0,0.2)",
     borderColor: "#FF9500",
     color: "#FF9500",
+  },
+  // Recent Calls
+  recentCallsContainer: {
+    display: "flex",
+    flexDirection: "column" as const,
+    height: "100%",
+    width: "100%",
+    padding: "0 16px 16px",
+    boxSizing: "border-box" as const,
+  },
+  recentCallsTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    marginBottom: 16,
+    color: "#fff",
+  },
+  recentCallsList: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+    overflowY: "auto" as const,
+    paddingBottom: 24,
+  },
+  recentCallItem: {
+    display: "flex",
+    alignItems: "center",
+    padding: "12px",
+    background: "rgba(255,255,255,0.05)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.05)",
+  },
+  recentCallAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#fff",
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  recentCallInfo: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+    overflow: "hidden" as const,
+  },
+  recentCallName: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: "#fff",
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis" as const,
+    marginBottom: 2,
+  },
+  recentCallMeta: {
+    fontSize: 13,
+  },
+  recentCallDialBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    background: "rgba(52, 199, 89, 0.15)",
+    border: "none",
+    color: "#34C759",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 18,
+    cursor: "pointer",
+    marginLeft: 12,
+    flexShrink: 0,
+    transition: "transform 0.1s, background 0.2s",
   },
   // Dial
   dialPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center" },

@@ -83,7 +83,7 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'AuraRing Remote Bridge';
-  const isCall = data.tag === 'incoming-call';
+  const isCall = data.tag === 'incoming-call' && !data.title?.includes('Ended');
 
   const options = {
     body: data.body || 'New update',
@@ -93,10 +93,10 @@ self.addEventListener('push', (event) => {
     tag: data.tag || 'default',
     renotify: true,
     requireInteraction: isCall, // Keep call notifications until user interacts
-    vibrate: isCall ? [200, 100, 200, 100, 200] : [200], // Vibration pattern for calls
+    vibrate: isCall ? [200, 100, 200, 100, 200, 100, 200] : [200],
     actions: isCall ? [
-      { action: 'open', title: '📞 Open Bridge' },
-      { action: 'dismiss', title: '✕ Dismiss' },
+      { action: 'answer', title: '✅ Answer' },
+      { action: 'decline', title: '❌ Decline' },
     ] : [],
   };
 
@@ -110,23 +110,38 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const action = event.action;
-  const data = event.notification.data || {};
-  const url = data.url || '/remote-bridge';
+  const url = '/remote-bridge';
 
-  if (action === 'dismiss') return;
+  if (action === 'decline') {
+    // Send message to all clients to reject the call
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          for (const client of clientList) {
+            client.postMessage({ type: 'CALL_ACTION', action: 'REJECT_CALL' });
+          }
+        })
+    );
+    return;
+  }
 
-  // Focus existing window or open new one
+  // For 'answer' action or default click — open/focus the bridge page
+  const actionParam = action === 'answer' ? '?action=answer' : '';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Try to find and focus existing Remote Bridge window
         for (const client of clientList) {
           if (client.url.includes('/remote-bridge') && 'focus' in client) {
+            if (action === 'answer') {
+              client.postMessage({ type: 'CALL_ACTION', action: 'ACCEPT_CALL' });
+            }
             return client.focus();
           }
         }
         // Otherwise open new window
-        return clients.openWindow(url);
+        return clients.openWindow(url + actionParam);
       })
   );
 });

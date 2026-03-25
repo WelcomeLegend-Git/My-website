@@ -76,6 +76,29 @@ export function RemoteBridgePage() {
     }
   }, [status.authenticated, status.phoneOnline]);
 
+  // Handle service worker messages (Answer/Decline from push notification)
+  useEffect(() => {
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === "CALL_ACTION") {
+        if (event.data.action === "ACCEPT_CALL") acceptCall();
+        if (event.data.action === "REJECT_CALL") rejectCall();
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", handleSWMessage);
+
+    // Handle ?action=answer from notification click opening new window
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "answer" && status.authenticated) {
+      acceptCall();
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener("message", handleSWMessage);
+    };
+  }, [status.authenticated, acceptCall, rejectCall]);
+
   // ─── Setup Screen (QR + Manual) ───
 
   if (showSetup || !config) {

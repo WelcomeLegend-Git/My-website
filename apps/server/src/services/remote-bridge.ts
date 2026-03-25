@@ -783,16 +783,31 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           case "EVENT":
             if (clientInfo.deviceType === "phone") {
               forwardToDeviceType(clientInfo.userId, clientInfo.deviceId, "tablet", message);
+            }
+            break;
 
-              // Also send push notification for incoming calls (background iPad)
-              if (message.payload?.callState === "RINGING" || message.payload?.event === "RINGING") {
-                const callerName = message.payload?.callerName || message.payload?.number || "Unknown";
+          case "CALL_SIGNAL":
+            // Unencrypted signal from phone for push notifications
+            if (clientInfo.deviceType === "phone") {
+              const callState = message.callState;
+              const callerName = message.callerName || "Unknown";
+
+              if (callState === "RINGING") {
                 sendPushNotification(clientInfo.userId, {
                   title: "📞 Incoming Call",
                   body: `${callerName} is calling...`,
                   tag: "incoming-call",
                   url: "/remote-bridge",
                   requireInteraction: true,
+                });
+                logger.info({ userId: clientInfo.userId, callerName }, "Push notification triggered for incoming call");
+              } else if (callState === "IDLE" || callState === "DISCONNECTED") {
+                // Could close the notification if needed
+                sendPushNotification(clientInfo.userId, {
+                  title: "📞 Call Ended",
+                  body: `Call with ${callerName} ended`,
+                  tag: "incoming-call", // Same tag replaces the ringing notification
+                  url: "/remote-bridge",
                 });
               }
             }

@@ -92,6 +92,163 @@ async function computeHmac(data: string, base64Key: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
+// ─── Ringtone Audio ───
+
+let ringtoneAudio: HTMLAudioElement | null = null;
+
+function createRingtone(): HTMLAudioElement {
+  if (ringtoneAudio) return ringtoneAudio;
+
+  // Create a synthetic ringtone using AudioContext
+  // We'll use a simple oscillator-based approach stored as a data URL
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const sampleRate = audioCtx.sampleRate;
+  const duration = 2; // 2 seconds per ring cycle
+  const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+  const data = buffer.getChannelData(0);
+
+  // Generate a phone-like ringtone (two-tone pattern)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sampleRate;
+    // Ring on for 0.4s, off 0.2s, ring 0.4s, off 1.0s
+    const inRing = (t < 0.4) || (t >= 0.6 && t < 1.0);
+    if (inRing) {
+      // Two-frequency phone ring (440Hz + 480Hz)
+      data[i] = 0.3 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 480 * t));
+    } else {
+      data[i] = 0;
+    }
+  }
+
+  // Convert AudioBuffer to WAV blob
+  const wav = audioBufferToWav(buffer);
+  const blob = new Blob([wav], { type: "audio/wav" });
+  const url = URL.createObjectURL(blob);
+
+  ringtoneAudio = new Audio(url);
+  ringtoneAudio.loop = true;
+  ringtoneAudio.volume = 0.7;
+  audioCtx.close();
+
+  return ringtoneAudio;
+}
+
+function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitsPerSample = 16;
+  const data = buffer.getChannelData(0);
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const wavDataBytes = data.length * numChannels * bitsPerSample / 8;
+  const headerBytes = 44;
+  const totalBytes = headerBytes + wavDataBytes;
+
+  const arrayBuffer = new ArrayBuffer(totalBytes);
+  const view = new DataView(arrayBuffer);
+
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, "RIFF");
+  view.setUint32(4, totalBytes - 8, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, "data");
+  view.setUint32(40, wavDataBytes, true);
+
+  // Write PCM data
+  let offset = 44;
+  for (let i = 0; i < data.length; i++) {
+    const sample = Math.max(-1, Math.min(1, data[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+    offset += 2;
+  }
+
+  return arrayBuffer;
+}
+
+function startRingtone() {
+  try {
+    const audio = createRingtone();
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      // Autoplay blocked — user hasn't interacted yet
+      console.warn("[RemoteBridge] Ringtone autoplay blocked by browser");
+    });
+  } catch (e) {
+    console.warn("[RemoteBridge] Could not create ringtone:", e);
+  }
+}
+
+function stopRingtone() {
+  if (ringtoneAudio) {
+    ringtoneAudio.pause();
+    ringtoneAudio.currentTime = 0;
+  }
+}
+
+// ─── Browser Notification ───
+
+let lastNotifiedCallState: string | null = null;
+
+function showCallNotification(callEvent: CallEvent, actions: { accept: () => void; reject: () => void }) {
+  const callState = callEvent.callState;
+  if (!callState) return;
+
+  // Only notify on state transitions
+  if (callState === lastNotifiedCallState) return;
+  lastNotifiedCallState = callState;
+
+  if (callState === "RINGING") {
+    const callerName = callEvent.callerName || callEvent.callerNumber || "Unknown Caller";
+
+    // Start ringtone
+    startRingtone();
+
+    // Show browser notification (works even when tab is not focused)
+    if ("Notification" in window && Notification.permission === "granted") {
+      const notification = new Notification(`📞 Incoming Call`, {
+        body: `${callerName} is calling...`,
+        icon: "/icon-192.png",
+        tag: "incoming-call",
+        requireInteraction: true,
+        silent: false, // Let the notification also make sound
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      // Auto-close when call state changes
+      const checkInterval = setInterval(() => {
+        if (lastNotifiedCallState !== "RINGING") {
+          notification.close();
+          clearInterval(checkInterval);
+        }
+      }, 500);
+    }
+  } else {
+    // Call state changed from ringing — stop ringtone
+    stopRingtone();
+  }
+
+  if (callState === "IDLE" || callState === "DISCONNECTED") {
+    lastNotifiedCallState = null;
+    stopRingtone();
+  }
+}
+
 // ─── Hook ───
 
 export function useRemoteBridge(options: UseBridgeOptions | null) {
@@ -132,12 +289,26 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     [options]
   );
 
+  // ─── Accept/Reject for notification use ───
+  const acceptCallRef = useRef(() => sendCommand("ACCEPT_CALL"));
+  const rejectCallRef = useRef(() => sendCommand("REJECT_CALL"));
+
+  useEffect(() => {
+    acceptCallRef.current = () => sendCommand("ACCEPT_CALL");
+    rejectCallRef.current = () => sendCommand("REJECT_CALL");
+  }, [sendCommand]);
+
   // ─── Connect ───
 
   useEffect(() => {
     if (!options) return;
 
     const { encryptionKey, deviceId, authToken } = options;
+
+    // Request notification permission early
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
 
     async function connect() {
       try {
@@ -210,11 +381,18 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     cryptoKeyRef.current
                   );
                   const callEvent = JSON.parse(plaintext) as CallEvent;
+
                   setStatus((s) => ({
                     ...s,
                     phoneOnline: true,
                     currentCall: callEvent,
                   }));
+
+                  // Show notification + play ringtone for incoming calls
+                  showCallNotification(callEvent, {
+                    accept: () => acceptCallRef.current(),
+                    reject: () => rejectCallRef.current(),
+                  });
                 } catch (err) {
                   console.error("Failed to decrypt event:", err);
                 }
@@ -234,6 +412,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                   phoneOnline: false,
                   currentCall: null,
                 }));
+                stopRingtone();
               }
               break;
 
@@ -257,6 +436,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           currentCall: null,
         });
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        stopRingtone();
 
         // Reconnect
         const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
@@ -276,6 +456,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       wsRef.current?.close();
+      stopRingtone();
     };
   }, [options]);
 

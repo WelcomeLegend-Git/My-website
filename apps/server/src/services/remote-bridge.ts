@@ -9,6 +9,15 @@ import { createAccessToken, createRefreshToken } from "../auth/tokens";
 import crypto from "node:crypto";
 import { z } from "zod";
 
+// ─── Constants ───
+
+const MAX_DEVICES_PER_USER = 5;
+const QR_EXPIRY_MS = 60 * 1000;        // 1 minute
+const MANUAL_CODE_EXPIRY_MS = 2 * 60 * 1000; // 2 minutes
+const MAX_PAIRINGS_PER_HOUR = 5;        // 5 QR + 5 manual per hour
+const MAX_LOGIN_ATTEMPTS = 5;
+const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 // ─── Types ───
 
 interface AuthenticatedSocket {
@@ -21,7 +30,7 @@ interface AuthenticatedSocket {
 
 // ─── Connected Clients ───
 
-const connectedClients = new Map<string, AuthenticatedSocket>(); // deviceId → socket
+const connectedClients = new Map<string, AuthenticatedSocket>();
 
 // ─── Active Pairing Sessions (short-lived, in-memory) ───
 
@@ -32,15 +41,46 @@ interface PairingSession {
   expiresAt: Date;
   confirmed: boolean;
   phoneDeviceId: string | null;
+  type: "qr" | "manual";
+  ipAddress: string;
 }
 
-const activePairingSessions = new Map<string, PairingSession>(); // pairingId → session
+const activePairingSessions = new Map<string, PairingSession>();
 
-// ─── Rate Limiting ───
+// ─── Pairing Rate Limiting (per user, per type) ───
+
+interface PairingRateLimit {
+  qrCount: number;
+  manualCount: number;
+  windowStart: number;
+}
+
+const pairingRateLimits = new Map<string, PairingRateLimit>();
+
+function checkPairingRateLimit(userId: string, type: "qr" | "manual"): boolean {
+  const now = Date.now();
+  let limit = pairingRateLimits.get(userId);
+
+  if (!limit || now - limit.windowStart > 3600_000) {
+    // Reset window every hour
+    limit = { qrCount: 0, manualCount: 0, windowStart: now };
+    pairingRateLimits.set(userId, limit);
+  }
+
+  if (type === "qr") return limit.qrCount >= MAX_PAIRINGS_PER_HOUR;
+  return limit.manualCount >= MAX_PAIRINGS_PER_HOUR;
+}
+
+function recordPairingCreation(userId: string, type: "qr" | "manual"): void {
+  const limit = pairingRateLimits.get(userId) || { qrCount: 0, manualCount: 0, windowStart: Date.now() };
+  if (type === "qr") limit.qrCount++;
+  else limit.manualCount++;
+  pairingRateLimits.set(userId, limit);
+}
+
+// ─── Login Rate Limiting ───
 
 const loginAttempts = new Map<string, { count: number; blockedUntil: number }>();
-const MAX_LOGIN_ATTEMPTS = 5;
-const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 function isRateLimited(ip: string): boolean {
   const attempts = loginAttempts.get(ip);
@@ -69,7 +109,9 @@ function recordLoginAttempt(ip: string, success: boolean): void {
 // ─── REST API Routes ───
 
 export function setupRemoteBridgeRoutes(app: Express): void {
-  // Login endpoint for phone/tablet
+
+  // ═══ Login ═══
+
   app.post("/api/remote-bridge/login", async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -90,7 +132,6 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       }
 
       const { email, password } = parsed.data;
-
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         recordLoginAttempt(ip, false);
@@ -124,16 +165,56 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
   });
 
-  // Device management
+  // ═══ Device Management ═══
+
   app.get("/api/remote-bridge/devices", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const devices = await prisma.remoteBridgeDevice.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
-    return res.json(devices);
+    // Return only safe fields
+    const mapped = devices.map((d: any) => ({
+      id: d.id,
+      deviceId: d.deviceId,
+      deviceType: d.deviceType,
+      deviceName: d.deviceName,
+      trusted: d.trusted,
+      lastSeen: d.lastSeen,
+      ipAddress: d.ipAddress,
+      pairedVia: d.pairedVia,
+      createdAt: d.createdAt,
+    }));
+    return res.json(mapped);
   });
 
+  // Update device name
+  app.patch("/api/remote-bridge/devices/:deviceId/name", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { deviceId } = req.params;
+    const { name } = req.body;
+
+    if (!name || typeof name !== "string" || name.length > 50) {
+      return res.status(400).json({ message: "Name must be 1-50 characters" });
+    }
+
+    const device = await prisma.remoteBridgeDevice.findUnique({
+      where: { userId_deviceId: { userId, deviceId } },
+    });
+
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" });
+    }
+
+    await prisma.remoteBridgeDevice.update({
+      where: { id: device.id },
+      data: { deviceName: name.trim() },
+    });
+
+    return res.json({ success: true });
+  });
+
+  // Trust device
   app.post("/api/remote-bridge/devices/:deviceId/trust", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const { deviceId } = req.params;
@@ -156,6 +237,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ success: true });
   });
 
+  // Revoke / remove device
   app.delete("/api/remote-bridge/devices/:deviceId", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const { deviceId } = req.params;
@@ -177,23 +259,21 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ success: true });
   });
 
-  // Kill switch — revoke everything
+  // ═══ Kill Switch ═══
+
   app.post("/api/remote-bridge/kill-switch", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const ip = req.ip || "unknown";
 
-    // Revoke all sessions
     await prisma.remoteBridgeSession.updateMany({
       where: { userId },
       data: { revoked: true },
     });
 
-    // Remove all devices
     await prisma.remoteBridgeDevice.deleteMany({
       where: { userId },
     });
 
-    // Disconnect all online clients
     for (const [deviceId, client] of connectedClients) {
       if (client.userId === userId) {
         client.ws.close(1000, "Kill switch activated");
@@ -205,7 +285,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ success: true, message: "All sessions revoked, all devices removed." });
   });
 
-  // Activity logs
+  // ═══ Activity Logs ═══
+
   app.get("/api/remote-bridge/activity", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
@@ -219,7 +300,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json(logs);
   });
 
-  // Status — which devices are connected right now
+  // ═══ Status ═══
+
   app.get("/api/remote-bridge/status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const online: { deviceId: string; deviceType: string }[] = [];
@@ -233,20 +315,38 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ online });
   });
 
-  // ─── QR Pairing Flow ───
+  // ═══ QR Pairing Flow (1-min expiry, 5/hr limit) ═══
 
-  // Step 1: Website creates a pairing session (generates QR data)
   app.post("/api/remote-bridge/pairing/create", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const ip = req.ip || "unknown";
+    const pairingType = (req.body?.type === "manual") ? "manual" : "qr";
 
-    // Generate a one-time pairing token and encryption key
+    // Rate limit check
+    if (checkPairingRateLimit(userId, pairingType)) {
+      await logActivity(userId, null, "pairing_rate_limited", `${pairingType} pairing rate limited`, ip);
+      return res.status(429).json({
+        message: `Too many ${pairingType} pairing attempts. Max ${MAX_PAIRINGS_PER_HOUR} per hour.`,
+      });
+    }
+
+    // Device limit check
+    const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId } });
+    if (deviceCount >= MAX_DEVICES_PER_USER) {
+      return res.status(403).json({
+        message: `Maximum ${MAX_DEVICES_PER_USER} devices allowed. Remove a device first.`,
+        currentCount: deviceCount,
+        maxAllowed: MAX_DEVICES_PER_USER,
+      });
+    }
+
+    // Generate pairing data
     const pairingId = crypto.randomUUID();
     const pairingToken = crypto.randomBytes(32).toString("hex");
     const encryptionKey = crypto.randomBytes(32).toString("base64");
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiryMs = pairingType === "qr" ? QR_EXPIRY_MS : MANUAL_CODE_EXPIRY_MS;
+    const expiresAt = new Date(Date.now() + expiryMs);
 
-    // Store in the pairing sessions map (in-memory, short-lived)
     activePairingSessions.set(pairingId, {
       userId,
       pairingToken,
@@ -254,32 +354,40 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       expiresAt,
       confirmed: false,
       phoneDeviceId: null,
+      type: pairingType,
+      ipAddress: ip,
     });
 
-    // Auto-cleanup after expiry
+    recordPairingCreation(userId, pairingType);
+
+    // Auto-cleanup after expiry + buffer
     setTimeout(() => {
       activePairingSessions.delete(pairingId);
-    }, 5 * 60 * 1000 + 5000);
+    }, expiryMs + 5000);
 
-    await logActivity(userId, null, "pairing_created", `QR pairing session created`, ip);
+    await logActivity(userId, null, "pairing_created", `${pairingType} pairing created (expires ${expiryMs / 1000}s)`, ip);
 
     return res.json({
       pairingId,
       pairingToken,
       encryptionKey,
       expiresAt: expiresAt.toISOString(),
+      type: pairingType,
+      expiresInSeconds: expiryMs / 1000,
     });
   });
 
-  // Step 2: Phone confirms pairing after scanning QR
+  // Phone confirms pairing after scanning QR
   app.post("/api/remote-bridge/pairing/confirm", async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
 
     try {
       const schema = z.object({
         pairingId: z.string().uuid(),
         pairingToken: z.string().min(1),
         deviceId: z.string().min(1),
+        deviceName: z.string().max(50).optional(),
       });
 
       const parsed = schema.safeParse(req.body);
@@ -287,7 +395,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid input" });
       }
 
-      const { pairingId, pairingToken, deviceId } = parsed.data;
+      const { pairingId, pairingToken, deviceId, deviceName } = parsed.data;
 
       const session = activePairingSessions.get(pairingId);
       if (!session) {
@@ -300,20 +408,25 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         return res.status(410).json({ message: "Pairing session expired" });
       }
 
-      // Verify token (constant-time comparison)
-      if (!crypto.timingSafeEqual(
-        Buffer.from(session.pairingToken),
-        Buffer.from(pairingToken)
-      )) {
+      // Constant-time token comparison (prevent timing attacks)
+      const tokenBuffer = Buffer.from(session.pairingToken);
+      const providedBuffer = Buffer.from(pairingToken);
+      if (tokenBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(tokenBuffer, providedBuffer)) {
+        await logActivity(session.userId, null, "pairing_failed", `Invalid pairing token from ${ip}`, ip);
         return res.status(403).json({ message: "Invalid pairing token" });
       }
 
-      // Already confirmed?
+      // Already confirmed? (prevent replay)
       if (session.confirmed) {
         return res.status(409).json({ message: "Pairing already confirmed" });
       }
 
-      // Get the user
+      // Device limit check (re-check at confirmation time)
+      const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId: session.userId } });
+      if (deviceCount >= MAX_DEVICES_PER_USER) {
+        return res.status(403).json({ message: `Maximum ${MAX_DEVICES_PER_USER} devices reached.` });
+      }
+
       const user = await prisma.user.findUnique({ where: { id: session.userId } });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -326,26 +439,36 @@ export function setupRemoteBridgeRoutes(app: Express): void {
           userId: user.id,
           deviceId,
           deviceType: "phone",
+          deviceName: deviceName || null,
           trusted: true,
           lastSeen: new Date(),
           encryptionKey: session.encryptionKey,
-        },
+          ipAddress: ip,
+          userAgent,
+          pairedVia: session.type,
+        } as any,
         update: {
           lastSeen: new Date(),
           trusted: true,
           encryptionKey: session.encryptionKey,
-        },
+          ipAddress: ip,
+          userAgent,
+          pairedVia: session.type,
+        } as any,
       });
 
-      // Mark session as confirmed
+      // Mark session as confirmed & invalidate immediately
       session.confirmed = true;
       session.phoneDeviceId = deviceId;
+
+      // Remove from active sessions (single-use)
+      setTimeout(() => activePairingSessions.delete(pairingId), 10_000);
 
       // Issue JWT tokens for the phone
       const accessToken = createAccessToken({ sub: user.id, email: user.email });
       const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
 
-      await logActivity(user.id, deviceId, "pairing_confirmed", `QR pairing confirmed from ${ip}`, ip);
+      await logActivity(user.id, deviceId, "pairing_confirmed", `${session.type} pairing confirmed from ${ip}`, ip);
 
       return res.json({
         accessToken,
@@ -360,7 +483,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
   });
 
-  // Step 3: Website polls for pairing status
+  // Website polls for pairing status
   app.get("/api/remote-bridge/pairing/:id/status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const { id: pairingId } = req.params;
@@ -380,6 +503,36 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       phoneDeviceId: session.phoneDeviceId,
     });
   });
+
+  // ═══ Linked Device Summary (for phone notification worker) ═══
+
+  app.get("/api/remote-bridge/linked-summary", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+
+    const devices = await prisma.remoteBridgeDevice.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Check which are currently online
+    const onlineDeviceIds = new Set<string>();
+    for (const [deviceId, client] of connectedClients) {
+      if (client.userId === userId) {
+        onlineDeviceIds.add(deviceId);
+      }
+    }
+
+    const enriched = devices.map(d => ({
+      ...d,
+      isOnline: onlineDeviceIds.has(d.deviceId),
+    }));
+
+    return res.json({
+      devices: enriched,
+      count: devices.length,
+      maxAllowed: MAX_DEVICES_PER_USER,
+    });
+  });
 }
 
 // ─── WebSocket Server ───
@@ -387,17 +540,14 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 export function setupRemoteBridgeWebSocket(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
-  // Handle upgrade requests
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
 
-    // Only handle /ws/phone and /ws/tablet paths
     if (url.pathname === "/ws/phone" || url.pathname === "/ws/tablet") {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request, url.pathname);
       });
     }
-    // Don't destroy socket for non-bridge paths — let other handlers deal with it
   });
 
   wss.on("connection", (ws: WebSocket, request: any, path: string) => {
@@ -417,7 +567,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
         const message = JSON.parse(data.toString());
 
         if (!authenticated) {
-          // First message must be AUTH
           if (message.type === "AUTH") {
             const result = await authenticateWebSocket(message, ip);
             if (result.success && result.userId && result.deviceId) {
@@ -429,7 +578,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 deviceType: message.deviceType || "phone",
               };
 
-              // Register client
               connectedClients.set(result.deviceId, {
                 ws,
                 userId: result.userId,
@@ -445,7 +593,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 "Remote bridge client connected"
               );
 
-              // Notify other devices of this user about new connection
               broadcastToUser(result.userId, result.deviceId, {
                 type: "DEVICE_CONNECTED",
                 deviceId: result.deviceId,
@@ -463,7 +610,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           return;
         }
 
-        // Authenticated — handle messages
         if (!clientInfo) return;
 
         switch (message.type) {
@@ -474,14 +620,12 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
             break;
 
           case "EVENT":
-            // Phone sends call events → forward to all tablets
             if (clientInfo.deviceType === "phone") {
               forwardToDeviceType(clientInfo.userId, clientInfo.deviceId, "tablet", message);
             }
             break;
 
           case "COMMAND":
-            // Tablet sends commands → forward to phone
             if (clientInfo.deviceType === "tablet") {
               forwardToDeviceType(clientInfo.userId, clientInfo.deviceId, "phone", message);
               await logActivity(
@@ -495,7 +639,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
             break;
 
           case "ACK":
-            // Forward ACKs to the other side
             forwardToDeviceType(
               clientInfo.userId,
               clientInfo.deviceId,
@@ -516,7 +659,6 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
       clearTimeout(authTimeout);
       if (clientInfo) {
         connectedClients.delete(clientInfo.deviceId);
-        // Notify other devices
         broadcastToUser(clientInfo.userId, clientInfo.deviceId, {
           type: "DEVICE_DISCONNECTED",
           deviceId: clientInfo.deviceId,
@@ -531,12 +673,11 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
     });
   });
 
-  // Ping check — close stale connections every 60 seconds
+  // Stale connection cleanup
   setInterval(() => {
     const now = Date.now();
     for (const [deviceId, client] of connectedClients) {
       if (now - client.lastPing > 90_000) {
-        // No ping for 90 seconds
         logger.info({ deviceId }, "Closing stale WebSocket connection");
         client.ws.close(1001, "Stale connection");
         connectedClients.delete(deviceId);
@@ -553,39 +694,36 @@ async function authenticateWebSocket(
 ): Promise<{ success: boolean; userId?: string; deviceId?: string; error?: string }> {
   try {
     const { token, deviceId, deviceType } = message;
-
     if (!token || !deviceId) {
       return { success: false, error: "Missing token or deviceId" };
     }
 
-    // Verify JWT
     const payload = verifyAccessToken(token);
     const userId = payload.sub;
 
-    // Check user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return { success: false, error: "User not found" };
     }
 
-    // Register/update device
     await prisma.remoteBridgeDevice.upsert({
       where: { userId_deviceId: { userId, deviceId } },
       create: {
         userId,
         deviceId,
         deviceType: deviceType || "phone",
-        trusted: true, // Auto-trust for personal use
+        trusted: true,
         lastSeen: new Date(),
-      },
+        ipAddress: ip,
+      } as any,
       update: {
         lastSeen: new Date(),
         deviceType: deviceType || "phone",
-      },
+        ipAddress: ip,
+      } as any,
     });
 
     await logActivity(userId, deviceId, "ws_connected", `WebSocket connected from ${ip}`, ip);
-
     return { success: true, userId, deviceId };
   } catch (error) {
     logger.error({ error }, "WebSocket auth error");
@@ -595,18 +733,9 @@ async function authenticateWebSocket(
 
 // ─── Message Forwarding ───
 
-function forwardToDeviceType(
-  userId: string,
-  fromDeviceId: string,
-  targetType: string,
-  message: any
-): void {
+function forwardToDeviceType(userId: string, fromDeviceId: string, targetType: string, message: any): void {
   for (const [deviceId, client] of connectedClients) {
-    if (
-      client.userId === userId &&
-      client.deviceType === targetType &&
-      deviceId !== fromDeviceId
-    ) {
+    if (client.userId === userId && client.deviceType === targetType && deviceId !== fromDeviceId) {
       try {
         client.ws.send(JSON.stringify(message));
       } catch (error) {
@@ -628,7 +757,7 @@ function broadcastToUser(userId: string, excludeDeviceId: string, message: any):
   }
 }
 
-// ─── Auth Middleware for REST ───
+// ─── Auth Middleware ───
 
 function requireAuth(req: any, res: any, next: any): void {
   if (!req.user) {
@@ -657,11 +786,7 @@ async function logActivity(
   }
 }
 
-async function logAttempt(
-  ipAddress: string,
-  email: string | null,
-  success: boolean
-): Promise<void> {
+async function logAttempt(ipAddress: string, email: string | null, success: boolean): Promise<void> {
   try {
     await prisma.remoteBridgeLoginAttempt.create({
       data: { ipAddress, email, success },

@@ -57,3 +57,8 @@ CREATE INDEX IF NOT EXISTS "RemoteBridgeActivityLog_userId_idx" ON "RemoteBridge
 CREATE INDEX IF NOT EXISTS "RemoteBridgeActivityLog_createdAt_idx" ON "RemoteBridgeActivityLog"("createdAt");
 CREATE INDEX IF NOT EXISTS "RemoteBridgeLoginAttempt_ipAddress_idx" ON "RemoteBridgeLoginAttempt"("ipAddress");
 CREATE INDEX IF NOT EXISTS "RemoteBridgeLoginAttempt_createdAt_idx" ON "RemoteBridgeLoginAttempt"("createdAt");
+
+-- v2: Add security tracking columns to RemoteBridgeDevice
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "ipAddress" TEXT;
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "userAgent" TEXT;
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "pairedVia" TEXT;

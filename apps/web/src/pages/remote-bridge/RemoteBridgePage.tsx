@@ -517,7 +517,7 @@ function SetupScreen({
   const [qrData, setQrData] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [qrError, setQrError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 min countdown
+  const [timeLeft, setTimeLeft] = useState(60); // 1 min countdown
   const pairingIdRef = useRef<string | null>(null);
   const encryptionKeyRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval>>();
@@ -527,7 +527,7 @@ function SetupScreen({
   const createPairingSession = useCallback(async () => {
     setQrLoading(true);
     setQrError(null);
-    setTimeLeft(300);
+    setTimeLeft(60);
 
     const token = authStorage.getAccessToken();
     const base = getApiBaseUrl();
@@ -568,7 +568,7 @@ function SetupScreen({
           if (prev <= 1) {
             // Expired, auto-refresh
             createPairingSession();
-            return 300;
+            return 60;
           }
           return prev - 1;
         });

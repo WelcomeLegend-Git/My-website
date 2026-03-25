@@ -31,42 +31,44 @@ if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
   logger.info("Web Push (VAPID) configured");
 }
 
-// ─── Push Subscriptions & Background Toggles (in-memory, per user) ───
-
-interface PushState {
-  subscription: webpush.PushSubscription | null;
-  tabletToggle: boolean;  // tablet wants background notifications
-  phoneToggle: boolean;   // phone allows background notifications to tablet
-}
-
-const pushStates = new Map<string, PushState>();
-
-function getPushState(userId: string): PushState {
-  let state = pushStates.get(userId);
-  if (!state) {
-    state = { subscription: null, tabletToggle: false, phoneToggle: false };
-    pushStates.set(userId, state);
-  }
-  return state;
-}
+// ─── Push Notifications (DB-backed, persistent) ───
 
 async function sendPushNotification(userId: string, payload: object): Promise<void> {
-  const state = getPushState(userId);
-  if (!state.subscription || !state.tabletToggle || !state.phoneToggle) return;
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
 
   try {
-    await webpush.sendNotification(state.subscription, JSON.stringify(payload));
-    logger.info({ userId }, "Push notification sent");
-  } catch (error: any) {
-    if (error.statusCode === 410 || error.statusCode === 404) {
-      // Subscription expired
-      state.subscription = null;
-      state.tabletToggle = false;
-      logger.info({ userId }, "Push subscription expired, cleared");
-    } else {
-      logger.error({ error }, "Push notification failed");
+    // Find all tablet devices for this user that have push enabled + allowed
+    const tablets = await prisma.remoteBridgeDevice.findMany({
+      where: {
+        userId,
+        deviceType: "tablet",
+        pushEnabled: true,
+        pushAllowed: true,
+        pushSubscription: { not: null },
+      },
+    });
+
+    for (const tablet of tablets) {
+      if (!tablet.pushSubscription) continue;
+      try {
+        const sub = JSON.parse(tablet.pushSubscription) as webpush.PushSubscription;
+        await webpush.sendNotification(sub, JSON.stringify(payload));
+        logger.info({ userId, deviceId: tablet.deviceId }, "Push notification sent");
+      } catch (error: any) {
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          // Subscription expired — clear it
+          await prisma.remoteBridgeDevice.update({
+            where: { id: tablet.id },
+            data: { pushSubscription: null, pushEnabled: false },
+          });
+          logger.info({ userId, deviceId: tablet.deviceId }, "Push subscription expired, cleared");
+        } else {
+          logger.error({ error, deviceId: tablet.deviceId }, "Push notification failed");
+        }
+      }
     }
+  } catch (error) {
+    logger.error({ error }, "sendPushNotification error");
   }
 }
 
@@ -609,6 +611,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
           auth: z.string(),
         }),
       }),
+      deviceId: z.string().optional(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -616,12 +619,30 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       return res.status(400).json({ message: "Invalid subscription" });
     }
 
-    const state = getPushState(userId);
-    state.subscription = parsed.data.subscription as webpush.PushSubscription;
-    state.tabletToggle = true;
+    const subJson = JSON.stringify(parsed.data.subscription);
+
+    // Find or update the tablet device for this user
+    const deviceId = parsed.data.deviceId;
+    if (deviceId) {
+      await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceId },
+        data: { pushSubscription: subJson, pushEnabled: true },
+      });
+    } else {
+      // Update all tablet devices for this user
+      await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceType: "tablet" },
+        data: { pushSubscription: subJson, pushEnabled: true },
+      });
+    }
+
+    // Check phone toggle status
+    const phoneDevice = await prisma.remoteBridgeDevice.findFirst({
+      where: { userId, deviceType: "phone" },
+    });
 
     await logActivity(userId, null, "push_subscribed", `Push subscription registered from ${ip}`, ip);
-    return res.json({ success: true, tabletToggle: true, phoneToggle: state.phoneToggle });
+    return res.json({ success: true, tabletToggle: true, phoneToggle: phoneDevice?.pushAllowed ?? false });
   });
 
   // Unsubscribe from push
@@ -629,9 +650,10 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const userId = (req as any).user.id;
     const ip = req.ip || "unknown";
 
-    const state = getPushState(userId);
-    state.subscription = null;
-    state.tabletToggle = false;
+    await prisma.remoteBridgeDevice.updateMany({
+      where: { userId, deviceType: "tablet" },
+      data: { pushSubscription: null, pushEnabled: false },
+    });
 
     await logActivity(userId, null, "push_unsubscribed", `Push subscription removed from ${ip}`, ip);
     return res.json({ success: true });
@@ -652,14 +674,21 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       return res.status(400).json({ message: "Invalid input" });
     }
 
-    const state = getPushState(userId);
     if (parsed.data.device === "phone") {
-      state.phoneToggle = parsed.data.enabled;
+      // Phone controls pushAllowed on all tablet devices
+      await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceType: "tablet" },
+        data: { pushAllowed: parsed.data.enabled },
+      });
     } else {
-      state.tabletToggle = parsed.data.enabled;
-      if (!parsed.data.enabled) {
-        state.subscription = null; // Also clear subscription when tablet turns off
-      }
+      // Tablet controls its own pushEnabled
+      await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceType: "tablet" },
+        data: {
+          pushEnabled: parsed.data.enabled,
+          ...(parsed.data.enabled ? {} : { pushSubscription: null }),
+        },
+      });
     }
 
     await logActivity(
@@ -668,29 +697,40 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       ip
     );
 
+    // Get current state for response
+    const tablet = await prisma.remoteBridgeDevice.findFirst({
+      where: { userId, deviceType: "tablet" },
+    });
+
+    const tabletToggle = tablet?.pushEnabled ?? false;
+    const phoneToggle = tablet?.pushAllowed ?? false;
+
     // Broadcast toggle change to all connected devices of this user
     broadcastToUser(userId, "", {
       type: "PUSH_TOGGLE_UPDATE",
-      phoneToggle: state.phoneToggle,
-      tabletToggle: state.tabletToggle,
+      phoneToggle,
+      tabletToggle,
     });
 
     return res.json({
       success: true,
-      phoneToggle: state.phoneToggle,
-      tabletToggle: state.tabletToggle,
+      phoneToggle,
+      tabletToggle,
     });
   });
 
   // Get push toggle status (live status for both devices)
-  app.get("/api/remote-bridge/push/status", requireAuth, (req, res) => {
+  app.get("/api/remote-bridge/push/status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const state = getPushState(userId);
+
+    const tablet = await prisma.remoteBridgeDevice.findFirst({
+      where: { userId, deviceType: "tablet" },
+    });
 
     return res.json({
-      phoneToggle: state.phoneToggle,
-      tabletToggle: state.tabletToggle,
-      hasSubscription: !!state.subscription,
+      phoneToggle: tablet?.pushAllowed ?? false,
+      tabletToggle: tablet?.pushEnabled ?? false,
+      hasSubscription: !!tablet?.pushSubscription,
       pushConfigured: !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
     });
   });
@@ -787,29 +827,17 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
             break;
 
           case "CALL_SIGNAL":
-            // Unencrypted signal from phone for push notifications
-            if (clientInfo.deviceType === "phone") {
-              const callState = message.callState;
+            // Unencrypted signal from phone for push notifications (RINGING only)
+            if (clientInfo.deviceType === "phone" && message.callState === "RINGING") {
               const callerName = message.callerName || "Unknown";
-
-              if (callState === "RINGING") {
-                sendPushNotification(clientInfo.userId, {
-                  title: "📞 Incoming Call",
-                  body: `${callerName} is calling...`,
-                  tag: "incoming-call",
-                  url: "/remote-bridge",
-                  requireInteraction: true,
-                });
-                logger.info({ userId: clientInfo.userId, callerName }, "Push notification triggered for incoming call");
-              } else if (callState === "IDLE" || callState === "DISCONNECTED") {
-                // Could close the notification if needed
-                sendPushNotification(clientInfo.userId, {
-                  title: "📞 Call Ended",
-                  body: `Call with ${callerName} ended`,
-                  tag: "incoming-call", // Same tag replaces the ringing notification
-                  url: "/remote-bridge",
-                });
-              }
+              sendPushNotification(clientInfo.userId, {
+                title: "📞 Incoming Call",
+                body: `${callerName} is calling...`,
+                tag: "incoming-call",
+                url: "/remote-bridge",
+                requireInteraction: true,
+              });
+              logger.info({ userId: clientInfo.userId, callerName }, "Push notification triggered for incoming call");
             }
             break;
 

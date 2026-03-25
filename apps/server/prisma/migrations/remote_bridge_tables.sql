@@ -62,3 +62,8 @@ CREATE INDEX IF NOT EXISTS "RemoteBridgeLoginAttempt_createdAt_idx" ON "RemoteBr
 ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "ipAddress" TEXT;
 ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "userAgent" TEXT;
 ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "pairedVia" TEXT;
+
+-- v3: Add push notification columns to RemoteBridgeDevice
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "pushSubscription" TEXT;
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "pushEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "RemoteBridgeDevice" ADD COLUMN IF NOT EXISTS "pushAllowed" BOOLEAN NOT NULL DEFAULT false;

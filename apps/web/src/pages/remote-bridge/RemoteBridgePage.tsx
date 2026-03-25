@@ -438,6 +438,28 @@ function SettingsPanel({
         setPhoneToggle(pushData.phoneToggle);
         setPushEnabled(pushData.tabletToggle);
         setPushConfigured(pushData.pushConfigured);
+
+        // Auto-recover: if browser has a push subscription but server doesn't, re-send it
+        if (!pushData.hasSubscription && pushData.pushConfigured && "serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            const existingSub = await registration.pushManager.getSubscription();
+            if (existingSub) {
+              const resubRes = await fetch(`${base}/api/remote-bridge/push/subscribe`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ subscription: existingSub.toJSON() }),
+              });
+              if (resubRes.ok) {
+                const resubData = await resubRes.json();
+                setPushEnabled(true);
+                setPhoneToggle(resubData.phoneToggle);
+              }
+            }
+          } catch (err) {
+            console.warn("Push auto-recovery failed:", err);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to fetch bridge data:", err);

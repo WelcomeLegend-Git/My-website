@@ -442,20 +442,23 @@ model GoogleDriveConnection {
 // ─── Remote Call Bridge ───
 
 model RemoteBridgeDevice {
-  id            String    @id @default(uuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId      String    // Client-generated device identifier
-  deviceType    String    @default("phone") // "phone" or "tablet"
-  deviceName    String?   // User-given name (e.g. "Suraj's iPad")
-  trusted       Boolean   @default(false)
-  lastSeen      DateTime?
-  encryptionKey String?   // Base64 encoded E2E key
-  ipAddress     String?   // IP address at pairing time
-  userAgent     String?   // Browser/device user agent
-  pairedVia     String?   // "qr" or "manual" or "login"
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId          String    // Client-generated device identifier
+  deviceType        String    @default("phone") // "phone" or "tablet"
+  deviceName        String?   // User-given name (e.g. "Suraj's iPad")
+  trusted           Boolean   @default(false)
+  lastSeen          DateTime?
+  encryptionKey     String?   // Base64 encoded E2E key
+  ipAddress         String?   // IP address at pairing time
+  userAgent         String?   // Browser/device user agent
+  pairedVia         String?   // "qr" or "manual" or "login"
+  pushSubscription  String?   // JSON stringified push subscription (tablet only)
+  pushEnabled       Boolean   @default(false) // tablet wants background alerts
+  pushAllowed       Boolean   @default(false) // phone allows push to this tablet
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([userId, deviceId])
   @@index([userId])

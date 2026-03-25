@@ -153,10 +153,13 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         .replace(/^http:/, "ws:");
       const wsUrl = `${wsBase}/ws/tablet`;
 
+      console.log("[RemoteBridge] Connecting to WS:", wsUrl);
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log("[RemoteBridge] WS connected, sending auth...");
         setStatus((s) => ({ ...s, connected: true }));
         reconnectAttempts.current = 0;
 
@@ -180,14 +183,15 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
           switch (message.type) {
             case "AUTH_OK":
+              console.log("[RemoteBridge] Auth OK!");
               setStatus((s) => ({ ...s, authenticated: true }));
-              // Start ping
               pingIntervalRef.current = setInterval(() => {
                 ws.send(JSON.stringify({ type: "PING", ts: Date.now() }));
               }, 25_000);
               break;
 
             case "AUTH_FAIL":
+              console.error("[RemoteBridge] Auth FAILED:", message.reason);
               setStatus((s) => ({
                 ...s,
                 authenticated: false,
@@ -244,7 +248,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.log("[RemoteBridge] WS closed, code:", ev.code, "reason:", ev.reason);
         setStatus({
           connected: false,
           authenticated: false,
@@ -259,7 +264,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         reconnectTimerRef.current = setTimeout(connect, delay);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (ev) => {
+        console.error("[RemoteBridge] WS error", ev);
         ws.close();
       };
     }

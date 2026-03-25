@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRemoteBridge, type CallState } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
@@ -50,9 +50,10 @@ export function RemoteBridgePage() {
   const auth = authStorage.getState();
   const authToken = auth.accessToken || "";
 
-  const bridgeOptions = config && authToken
-    ? { encryptionKey: config.encryptionKey, deviceId: config.deviceId, authToken }
-    : null;
+  const bridgeOptions = useMemo(() => {
+    if (!config || !authToken) return null;
+    return { encryptionKey: config.encryptionKey, deviceId: config.deviceId, authToken };
+  }, [config?.encryptionKey, config?.deviceId, authToken]);
 
   const bridge = useRemoteBridge(bridgeOptions);
   const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus } = bridge;
@@ -931,7 +932,7 @@ function SetupScreen({
 
               <div style={styles.qrTimer}>
                 <span style={{ color: timeLeft < 60 ? "#FF3B30" : "rgba(255,255,255,0.5)", fontSize: 12 }}>
-                  Expires in {formatCountdown(timeLeft)}
+                  Expires in {formatDuration(timeLeft)}
                 </span>
               </div>
             </>

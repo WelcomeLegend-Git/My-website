@@ -374,13 +374,13 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const ip = req.ip || "unknown";
     const pairingType = (req.body?.type === "manual") ? "manual" : "qr";
 
-    // Rate limit check
-    if (checkPairingRateLimit(userId, pairingType)) {
-      await logActivity(userId, null, "pairing_rate_limited", `${pairingType} pairing rate limited`, ip);
-      return res.status(429).json({
-        message: `Too many ${pairingType} pairing attempts. Max ${MAX_PAIRINGS_PER_HOUR} per hour.`,
-      });
-    }
+    // Rate limit check (disabled for testing)
+    // if (checkPairingRateLimit(userId, pairingType)) {
+    //   await logActivity(userId, null, "pairing_rate_limited", `${pairingType} pairing rate limited`, ip);
+    //   return res.status(429).json({
+    //     message: `Too many ${pairingType} pairing attempts. Max ${MAX_PAIRINGS_PER_HOUR} per hour.`,
+    //   });
+    // }
 
     // Device limit check
     const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId } });

@@ -43,7 +43,6 @@ const DIAL_PAD = [
 
 export function RemoteBridgePage() {
   const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
-  const [setupKey, setSetupKey] = useState("");
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
   const [activeTab, setActiveTab] = useState<"call" | "dial" | "settings">("call");
@@ -59,16 +58,6 @@ export function RemoteBridgePage() {
   const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus } = bridge;
   const currentCall = status.currentCall;
   const callState: CallState = (currentCall?.callState as CallState) || "IDLE";
-
-  // Generate device ID on manual key entry
-  const handleManualSetup = useCallback(() => {
-    if (!setupKey.trim()) return;
-    const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
-    const newConfig: BridgeConfig = { encryptionKey: setupKey.trim(), deviceId };
-    saveBridgeConfig(newConfig);
-    setConfig(newConfig);
-    setShowSetup(false);
-  }, [setupKey]);
 
   // QR pairing confirmed callback
   const handleQrPaired = useCallback((encryptionKey: string) => {
@@ -92,9 +81,6 @@ export function RemoteBridgePage() {
     return (
       <div style={styles.container}>
         <SetupScreen
-          onManualSetup={handleManualSetup}
-          setupKey={setupKey}
-          onSetupKeyChange={setSetupKey}
           onQrPaired={handleQrPaired}
         />
       </div>
@@ -406,7 +392,6 @@ function SettingsPanel({
   // Push notification state
   const [pushEnabled, setPushEnabled] = useState(false);
   const [phoneToggle, setPhoneToggle] = useState(false);
-  const [tabletToggle, setTabletToggle] = useState(false);
   const [pushConfigured, setPushConfigured] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
 
@@ -427,7 +412,6 @@ function SettingsPanel({
       if (pushRes.ok) {
         const pushData = await pushRes.json();
         setPhoneToggle(pushData.phoneToggle);
-        setTabletToggle(pushData.tabletToggle);
         setPushEnabled(pushData.tabletToggle);
         setPushConfigured(pushData.pushConfigured);
       }
@@ -453,7 +437,6 @@ function SettingsPanel({
         if (res.ok) {
           const data = await res.json();
           setPhoneToggle(data.phoneToggle);
-          setTabletToggle(data.tabletToggle);
           setPushConfigured(data.pushConfigured);
         }
       } catch { /* ignore */ }
@@ -491,7 +474,7 @@ function SettingsPanel({
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any,
         });
 
         // 4. Send subscription to server
@@ -504,7 +487,6 @@ function SettingsPanel({
         if (subRes.ok) {
           const data = await subRes.json();
           setPushEnabled(true);
-          setTabletToggle(true);
           setPhoneToggle(data.phoneToggle);
         }
       } else {
@@ -519,7 +501,6 @@ function SettingsPanel({
         });
 
         setPushEnabled(false);
-        setTabletToggle(false);
       }
     } catch (err) {
       console.error("Push toggle error:", err);
@@ -683,14 +664,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 // ─── Setup Screen (WhatsApp-style QR + Manual) ───
 
 function SetupScreen({
-  onManualSetup,
-  setupKey,
-  onSetupKeyChange,
   onQrPaired,
 }: {
-  onManualSetup: () => void;
-  setupKey: string;
-  onSetupKeyChange: (key: string) => void;
   onQrPaired: (encryptionKey: string) => void;
 }) {
   const [setupTab, setSetupTab] = useState<"qr" | "manual">("qr");
@@ -746,15 +721,15 @@ function SetupScreen({
       countdownRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            // Expired, auto-refresh
-            createPairingSession();
-            return 60;
+            // Expired, stop countdown, do NOT auto-refresh
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            return 0; // Stays at 0 until user manually refreshes
           }
           return prev - 1;
         });
       }, 1000);
     } catch (err) {
-      setQrError("Failed to generate QR code. Check your connection.");
+      setQrError("Failed to generate code. Check your connection.");
       setQrLoading(false);
     }
   }, []);
@@ -781,7 +756,7 @@ function SetupScreen({
             onQrPaired(encryptionKey);
           } else if (data.status === "expired") {
             clearInterval(pollIntervalRef.current);
-            createPairingSession(); // Auto-refresh
+            // Do NOT auto-refresh. Let user click 'Refresh' manually
           }
         }
       } catch {
@@ -855,6 +830,13 @@ function SetupScreen({
                 🔄 Retry
               </button>
             </div>
+          ) : timeLeft === 0 ? (
+            <div style={styles.qrPlaceholder}>
+              <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
+              <button onClick={createPairingSession} style={styles.refreshBtn}>
+                🔄 Generate New
+              </button>
+            </div>
           ) : (
             <>
               <div style={styles.qrBox}>
@@ -863,7 +845,8 @@ function SetupScreen({
                   size={220}
                   bgColor="#ffffff"
                   fgColor="#0a0a1a"
-                  level="M"
+                  level="Q"
+                  marginSize={2}
                   style={{ borderRadius: 12 }}
                 />
               </div>
@@ -896,27 +879,63 @@ function SetupScreen({
       {setupTab === "manual" && (
         <div style={{ marginTop: 20 }}>
           <p style={{ ...styles.setupDesc, marginBottom: 16 }}>
-            Enter the E2E encryption key shown in AuraRing → Settings → Remote Bridge on your phone.
+            Copy this connection code and paste it into the <strong>Manual Login</strong> section of the AuraRing app.
           </p>
-          <input
-            type="text"
-            value={setupKey}
-            onChange={(e) => onSetupKeyChange(e.target.value)}
-            placeholder="Paste encryption key here"
-            style={styles.input}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            onClick={onManualSetup}
-            disabled={!setupKey.trim()}
-            style={{
-              ...styles.primaryBtn,
-              opacity: setupKey.trim() ? 1 : 0.5,
-            }}
-          >
-            Connect
-          </button>
+          
+          {qrLoading ? (
+             <div style={styles.qrPlaceholder}>
+               <div style={styles.qrSpinner}>⏳</div>
+               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Generating code...</p>
+             </div>
+          ) : timeLeft === 0 ? (
+             <div style={styles.qrPlaceholder}>
+               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
+               <button onClick={createPairingSession} style={styles.refreshBtn}>
+                 🔄 Generate New
+               </button>
+             </div>
+          ) : qrError ? (
+             <div style={styles.qrPlaceholder}>
+               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
+               <button onClick={createPairingSession} style={styles.refreshBtn}>🔄 Retry</button>
+             </div>
+          ) : (
+            <>
+              <div 
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  padding: 16,
+                  borderRadius: 12,
+                  wordBreak: "break-all",
+                  fontSize: 13,
+                  fontFamily: "monospace",
+                  color: "#E5E5EA",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  marginBottom: 16
+                }}
+              >
+                {btoa(qrData || "")}
+              </div>
+              
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(btoa(qrData || ""));
+                    alert("Copied to clipboard!");
+                  }}
+                  style={{ ...styles.primaryBtn, flex: 1 }}
+                >
+                  📋 Copy Code
+                </button>
+              </div>
+
+              <div style={styles.qrTimer}>
+                <span style={{ color: timeLeft < 60 ? "#FF3B30" : "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                  Expires in {formatCountdown(timeLeft)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

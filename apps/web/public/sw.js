@@ -1,5 +1,5 @@
 // Service Worker for JEE Study Companion PWA
-const CACHE_NAME = 'jee-companion-v1';
+const CACHE_NAME = 'jee-companion-v2';
 const RUNTIME_CACHE = 'jee-companion-runtime';
 
 // Files to cache on install
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API requests - network only (no caching for fresh data)
+  // API requests - network only
   if (event.request.url.includes('/api/') || event.request.url.includes('/trpc/')) {
     event.respondWith(fetch(event.request));
     return;
@@ -60,41 +60,44 @@ self.addEventListener('fetch', (event) => {
     caches.open(RUNTIME_CACHE).then((cache) => {
       return fetch(event.request)
         .then((response) => {
-          // Cache successful responses
           if (response.status === 200) {
             cache.put(event.request, response.clone());
           }
           return response;
         })
         .catch(() => {
-          // Fallback to cache
           return cache.match(event.request);
         });
     })
   );
 });
 
-// Background sync for offline actions (future enhancement)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-data') {
-    event.waitUntil(syncData());
-  }
-});
+// ─── Push Notifications (Remote Call Bridge) ───
 
-async function syncData() {
-  // Placeholder for syncing data when back online
-  console.log('Background sync triggered');
-}
-
-// Push notifications (future enhancement)
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'JEE Study Companion';
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'AuraRing', body: event.data?.text() || 'New notification' };
+  }
+
+  const title = data.title || 'AuraRing Remote Bridge';
+  const isCall = data.tag === 'incoming-call';
+
   const options = {
-    body: data.body || 'New update available',
+    body: data.body || 'New update',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     data: data,
+    tag: data.tag || 'default',
+    renotify: true,
+    requireInteraction: isCall, // Keep call notifications until user interacts
+    vibrate: isCall ? [200, 100, 200, 100, 200] : [200], // Vibration pattern for calls
+    actions: isCall ? [
+      { action: 'open', title: '📞 Open Bridge' },
+      { action: 'dismiss', title: '✕ Dismiss' },
+    ] : [],
   };
 
   event.waitUntil(
@@ -105,7 +108,36 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  const action = event.action;
+  const data = event.notification.data || {};
+  const url = data.url || '/remote-bridge';
+
+  if (action === 'dismiss') return;
+
+  // Focus existing window or open new one
   event.waitUntil(
-    clients.openWindow(event.notification.data.url || '/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Try to find and focus existing Remote Bridge window
+        for (const client of clientList) {
+          if (client.url.includes('/remote-bridge') && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Otherwise open new window
+        return clients.openWindow(url);
+      })
   );
 });
+
+// Background sync
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-data') {
+    event.waitUntil(syncData());
+  }
+});
+
+async function syncData() {
+  console.log('Background sync triggered');
+}

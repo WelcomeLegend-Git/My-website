@@ -8,6 +8,8 @@ import bcrypt from "bcryptjs";
 import { createAccessToken, createRefreshToken } from "../auth/tokens";
 import crypto from "node:crypto";
 import { z } from "zod";
+import { env } from "../env";
+import webpush from "web-push";
 
 // ─── Constants ───
 
@@ -17,6 +19,56 @@ const MANUAL_CODE_EXPIRY_MS = 2 * 60 * 1000; // 2 minutes
 const MAX_PAIRINGS_PER_HOUR = 5;        // 5 QR + 5 manual per hour
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
+// ─── Web Push Setup ───
+
+if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
+  webpush.setVapidDetails(
+    `mailto:${env.VAPID_EMAIL}`,
+    env.VAPID_PUBLIC_KEY,
+    env.VAPID_PRIVATE_KEY
+  );
+  logger.info("Web Push (VAPID) configured");
+}
+
+// ─── Push Subscriptions & Background Toggles (in-memory, per user) ───
+
+interface PushState {
+  subscription: webpush.PushSubscription | null;
+  tabletToggle: boolean;  // tablet wants background notifications
+  phoneToggle: boolean;   // phone allows background notifications to tablet
+}
+
+const pushStates = new Map<string, PushState>();
+
+function getPushState(userId: string): PushState {
+  let state = pushStates.get(userId);
+  if (!state) {
+    state = { subscription: null, tabletToggle: false, phoneToggle: false };
+    pushStates.set(userId, state);
+  }
+  return state;
+}
+
+async function sendPushNotification(userId: string, payload: object): Promise<void> {
+  const state = getPushState(userId);
+  if (!state.subscription || !state.tabletToggle || !state.phoneToggle) return;
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
+
+  try {
+    await webpush.sendNotification(state.subscription, JSON.stringify(payload));
+    logger.info({ userId }, "Push notification sent");
+  } catch (error: any) {
+    if (error.statusCode === 410 || error.statusCode === 404) {
+      // Subscription expired
+      state.subscription = null;
+      state.tabletToggle = false;
+      logger.info({ userId }, "Push subscription expired, cleared");
+    } else {
+      logger.error({ error }, "Push notification failed");
+    }
+  }
+}
 
 // ─── Types ───
 
@@ -533,6 +585,115 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       maxAllowed: MAX_DEVICES_PER_USER,
     });
   });
+
+  // ═══ Push Notification Endpoints ═══
+
+  // Get VAPID public key (needed by the browser to subscribe)
+  app.get("/api/remote-bridge/push/vapid-key", requireAuth, (_req, res) => {
+    if (!env.VAPID_PUBLIC_KEY) {
+      return res.status(503).json({ message: "Push notifications not configured" });
+    }
+    return res.json({ vapidPublicKey: env.VAPID_PUBLIC_KEY });
+  });
+
+  // Subscribe to push notifications (tablet/browser sends its subscription)
+  app.post("/api/remote-bridge/push/subscribe", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+
+    const schema = z.object({
+      subscription: z.object({
+        endpoint: z.string().url(),
+        keys: z.object({
+          p256dh: z.string(),
+          auth: z.string(),
+        }),
+      }),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid subscription" });
+    }
+
+    const state = getPushState(userId);
+    state.subscription = parsed.data.subscription as webpush.PushSubscription;
+    state.tabletToggle = true;
+
+    await logActivity(userId, null, "push_subscribed", `Push subscription registered from ${ip}`, ip);
+    return res.json({ success: true, tabletToggle: true, phoneToggle: state.phoneToggle });
+  });
+
+  // Unsubscribe from push
+  app.post("/api/remote-bridge/push/unsubscribe", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+
+    const state = getPushState(userId);
+    state.subscription = null;
+    state.tabletToggle = false;
+
+    await logActivity(userId, null, "push_unsubscribed", `Push subscription removed from ${ip}`, ip);
+    return res.json({ success: true });
+  });
+
+  // Toggle background notifications (from either device)
+  app.post("/api/remote-bridge/push/toggle", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+
+    const schema = z.object({
+      device: z.enum(["phone", "tablet"]),
+      enabled: z.boolean(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+
+    const state = getPushState(userId);
+    if (parsed.data.device === "phone") {
+      state.phoneToggle = parsed.data.enabled;
+    } else {
+      state.tabletToggle = parsed.data.enabled;
+      if (!parsed.data.enabled) {
+        state.subscription = null; // Also clear subscription when tablet turns off
+      }
+    }
+
+    await logActivity(
+      userId, null, "push_toggle",
+      `${parsed.data.device} toggle set to ${parsed.data.enabled} from ${ip}`,
+      ip
+    );
+
+    // Broadcast toggle change to all connected devices of this user
+    broadcastToUser(userId, "", {
+      type: "PUSH_TOGGLE_UPDATE",
+      phoneToggle: state.phoneToggle,
+      tabletToggle: state.tabletToggle,
+    });
+
+    return res.json({
+      success: true,
+      phoneToggle: state.phoneToggle,
+      tabletToggle: state.tabletToggle,
+    });
+  });
+
+  // Get push toggle status (live status for both devices)
+  app.get("/api/remote-bridge/push/status", requireAuth, (req, res) => {
+    const userId = (req as any).user.id;
+    const state = getPushState(userId);
+
+    return res.json({
+      phoneToggle: state.phoneToggle,
+      tabletToggle: state.tabletToggle,
+      hasSubscription: !!state.subscription,
+      pushConfigured: !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+    });
+  });
 }
 
 // ─── WebSocket Server ───
@@ -622,6 +783,18 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           case "EVENT":
             if (clientInfo.deviceType === "phone") {
               forwardToDeviceType(clientInfo.userId, clientInfo.deviceId, "tablet", message);
+
+              // Also send push notification for incoming calls (background iPad)
+              if (message.payload?.callState === "RINGING" || message.payload?.event === "RINGING") {
+                const callerName = message.payload?.callerName || message.payload?.number || "Unknown";
+                sendPushNotification(clientInfo.userId, {
+                  title: "📞 Incoming Call",
+                  body: `${callerName} is calling...`,
+                  tag: "incoming-call",
+                  url: "/remote-bridge",
+                  requireInteraction: true,
+                });
+              }
             }
             break;
 

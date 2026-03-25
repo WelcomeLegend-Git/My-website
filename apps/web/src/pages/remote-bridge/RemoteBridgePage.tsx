@@ -403,6 +403,13 @@ function SettingsPanel({
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Push notification state
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [phoneToggle, setPhoneToggle] = useState(false);
+  const [tabletToggle, setTabletToggle] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const token = authStorage.getAccessToken();
@@ -410,12 +417,20 @@ function SettingsPanel({
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
     try {
-      const [devRes, logRes] = await Promise.all([
+      const [devRes, logRes, pushRes] = await Promise.all([
         fetch(`${base}/api/remote-bridge/devices`, { headers }),
         fetch(`${base}/api/remote-bridge/activity?limit=20`, { headers }),
+        fetch(`${base}/api/remote-bridge/push/status`, { headers }),
       ]);
       if (devRes.ok) setDevices(await devRes.json());
       if (logRes.ok) setActivityLogs(await logRes.json());
+      if (pushRes.ok) {
+        const pushData = await pushRes.json();
+        setPhoneToggle(pushData.phoneToggle);
+        setTabletToggle(pushData.tabletToggle);
+        setPushEnabled(pushData.tabletToggle);
+        setPushConfigured(pushData.pushConfigured);
+      }
     } catch (err) {
       console.error("Failed to fetch bridge data:", err);
     }
@@ -425,6 +440,93 @@ function SettingsPanel({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Poll push status every 5 seconds for live updates
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const token = authStorage.getAccessToken();
+        const base = getApiBaseUrl();
+        const res = await fetch(`${base}/api/remote-bridge/push/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPhoneToggle(data.phoneToggle);
+          setTabletToggle(data.tabletToggle);
+          setPushConfigured(data.pushConfigured);
+        }
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Subscribe to push notifications
+  const handlePushToggle = async (enabled: boolean) => {
+    setPushLoading(true);
+    const token = authStorage.getAccessToken();
+    const base = getApiBaseUrl();
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+    try {
+      if (enabled) {
+        // 1. Request notification permission
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          alert("Notification permission denied. Please enable it in browser settings.");
+          setPushLoading(false);
+          return;
+        }
+
+        // 2. Get VAPID key
+        const vapidRes = await fetch(`${base}/api/remote-bridge/push/vapid-key`, { headers });
+        if (!vapidRes.ok) {
+          alert("Push notifications not configured on server. Contact admin.");
+          setPushLoading(false);
+          return;
+        }
+        const { vapidPublicKey } = await vapidRes.json();
+
+        // 3. Get push subscription from service worker
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+
+        // 4. Send subscription to server
+        const subRes = await fetch(`${base}/api/remote-bridge/push/subscribe`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ subscription: subscription.toJSON() }),
+        });
+
+        if (subRes.ok) {
+          const data = await subRes.json();
+          setPushEnabled(true);
+          setTabletToggle(true);
+          setPhoneToggle(data.phoneToggle);
+        }
+      } else {
+        // Unsubscribe
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) await subscription.unsubscribe();
+
+        await fetch(`${base}/api/remote-bridge/push/unsubscribe`, {
+          method: "POST",
+          headers,
+        });
+
+        setPushEnabled(false);
+        setTabletToggle(false);
+      }
+    } catch (err) {
+      console.error("Push toggle error:", err);
+      alert("Failed to toggle push notifications.");
+    }
+    setPushLoading(false);
+  };
 
   const handleKillSwitch = async () => {
     if (!window.confirm("This will disconnect ALL devices and revoke all sessions. Continue?")) return;
@@ -439,6 +541,66 @@ function SettingsPanel({
 
   return (
     <div style={styles.settingsPanel}>
+      {/* ─── Background Notifications Toggle ─── */}
+      <div style={styles.settingSection}>
+        <h3 style={styles.settingTitle}>🔔 Background Notifications</h3>
+        <p style={{ color: "#8E8E93", fontSize: 12, margin: "0 0 12px" }}>
+          Get notified of incoming calls even when this tab is in the background or closed.
+          Both toggles must be ON for notifications to work.
+        </p>
+
+        {/* Tablet Toggle */}
+        <div style={{ ...styles.infoRow, cursor: "pointer" }} onClick={() => !pushLoading && handlePushToggle(!pushEnabled)}>
+          <span>📲 This iPad (Background Alerts)</span>
+          <div style={{
+            width: 44, height: 24, borderRadius: 12,
+            backgroundColor: pushEnabled ? "#34C759" : "#38383A",
+            display: "flex", alignItems: "center", padding: "0 2px",
+            justifyContent: pushEnabled ? "flex-end" : "flex-start",
+            transition: "all 0.2s",
+            opacity: pushLoading ? 0.5 : 1,
+          }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: 10,
+              backgroundColor: "#fff",
+            }} />
+          </div>
+        </div>
+
+        {/* Phone Toggle Status (read-only on web) */}
+        <div style={styles.infoRow}>
+          <span>📱 Phone (Allow iPad Alerts)</span>
+          <span style={{ color: phoneToggle ? "#34C759" : "#FF9500", fontSize: 13, fontWeight: 600 }}>
+            {phoneToggle ? "✓ ON" : "✕ OFF"}
+          </span>
+        </div>
+
+        {/* Live Status Indicator */}
+        <div style={{
+          marginTop: 8, padding: "8px 12px", borderRadius: 8,
+          backgroundColor: (pushEnabled && phoneToggle) ? "rgba(52,199,89,0.15)" :
+                           (!pushEnabled && !phoneToggle) ? "rgba(142,142,147,0.15)" :
+                           "rgba(255,149,0,0.15)",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>
+            {(pushEnabled && phoneToggle) ? "🟢" : (!pushEnabled && !phoneToggle) ? "⚪" : "⚠️"}
+          </span>
+          <span style={{ color: "#E5E5EA", fontSize: 12 }}>
+            {(pushEnabled && phoneToggle) ? "Background notifications active — you'll receive call alerts" :
+             (!pushEnabled && !phoneToggle) ? "Background notifications disabled on both devices" :
+             pushEnabled && !phoneToggle ? "Phone toggle is OFF — enable it from AuraRing app to receive alerts" :
+             "iPad toggle is OFF — enable it above to receive background alerts"}
+          </span>
+        </div>
+
+        {!pushConfigured && (
+          <p style={{ color: "#FF9500", fontSize: 11, marginTop: 8 }}>
+            ⚠️ VAPID keys not configured on server. Push won't work until admin sets them up.
+          </p>
+        )}
+      </div>
+
       <div style={styles.settingSection}>
         <h3 style={styles.settingTitle}>Device Info</h3>
         <div style={styles.infoRow}>
@@ -460,7 +622,12 @@ function SettingsPanel({
         ) : (
           devices.map((d: any) => (
             <div key={d.id} style={styles.deviceRow}>
-              <span>{d.deviceType === "phone" ? "📱" : "📲"} {d.deviceId}</span>
+              <div>
+                <span>{d.deviceType === "phone" ? "📱" : "📲"} {d.deviceName || d.deviceId}</span>
+                {d.ipAddress && (
+                  <span style={{ color: "#636366", fontSize: 11, marginLeft: 8 }}>IP: {d.ipAddress}</span>
+                )}
+              </div>
               <span style={{ color: d.trusted ? "#34C759" : "#FF9500", fontSize: 12 }}>
                 {d.trusted ? "Trusted" : "Pending"}
               </span>
@@ -499,6 +666,19 @@ function SettingsPanel({
     </div>
   );
 }
+
+// Convert VAPID key from base64 to Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 
 // ─── Setup Screen (WhatsApp-style QR + Manual) ───
 

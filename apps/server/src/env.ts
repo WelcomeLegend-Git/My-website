@@ -43,6 +43,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_REDIRECT_URL: z.string().url().optional(),
   WEB_APP_URL: z.string().url().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_EMAIL: z.string().email().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

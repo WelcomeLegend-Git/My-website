@@ -491,5 +491,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     unholdCall: () => sendCommand("UNHOLD_CALL"),
     requestStatus: () => sendCommand("STATUS_REQUEST"),
     getRecentCalls: () => sendCommand("GET_RECENT_CALLS"),
+    setPhoneOnline: (online: boolean) =>
+      setStatus((s) => ({ ...s, phoneOnline: online })),
   };
 }

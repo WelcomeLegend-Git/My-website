@@ -588,6 +588,47 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     });
   });
 
+  // ═══ Delete a linked device ═══
+
+  app.delete("/api/remote-bridge/devices/:deviceId", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { deviceId } = req.params;
+
+    try {
+      await prisma.remoteBridgeDevice.deleteMany({
+        where: { userId, deviceId },
+      });
+
+      // Also disconnect if currently connected
+      const client = connectedClients.get(deviceId);
+      if (client && client.userId === userId) {
+        client.ws.close(1000, "Device removed");
+        connectedClients.delete(deviceId);
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      logger.error({ error }, "Failed to delete device");
+      return res.status(500).json({ message: "Failed to delete device" });
+    }
+  });
+
+  // ═══ Phone status check (is any phone online for this user?) ═══
+
+  app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+
+    let phoneOnline = false;
+    for (const [, client] of connectedClients) {
+      if (client.userId === userId && client.deviceType === "phone") {
+        phoneOnline = true;
+        break;
+      }
+    }
+
+    return res.json({ phoneOnline });
+  });
+
   // ═══ Push Notification Endpoints ═══
 
   // Get VAPID public key (needed by the browser to subscribe)
@@ -793,6 +834,17 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 { deviceId: result.deviceId, deviceType: clientInfo.deviceType },
                 "Remote bridge client connected"
               );
+
+              // Tell the new client about all already-connected peers
+              for (const [peerId, peer] of connectedClients) {
+                if (peer.userId === result.userId && peerId !== result.deviceId) {
+                  ws.send(JSON.stringify({
+                    type: "DEVICE_CONNECTED",
+                    deviceId: peerId,
+                    deviceType: peer.deviceType,
+                  }));
+                }
+              }
 
               broadcastToUser(result.userId, result.deviceId, {
                 type: "DEVICE_CONNECTED",

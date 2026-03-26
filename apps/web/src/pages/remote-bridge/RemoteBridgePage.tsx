@@ -4,6 +4,14 @@ import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 
+// Inject spin keyframe for refresh button
+if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")) {
+  const style = document.createElement("style");
+  style.id = "rb-spin-style";
+  style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  document.head.appendChild(style);
+}
+
 // ─── Config Storage (persisted in localStorage) ───
 
 const BRIDGE_CONFIG_KEY = "aura-remote-bridge-config";
@@ -46,6 +54,7 @@ export function RemoteBridgePage() {
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
   const [activeTab, setActiveTab] = useState<"call" | "dial" | "settings">("call");
+  const [refreshing, setRefreshing] = useState(false);
 
   const auth = authStorage.getState();
   const authToken = auth.accessToken || "";
@@ -56,9 +65,30 @@ export function RemoteBridgePage() {
   }, [config?.encryptionKey, config?.deviceId, authToken]);
 
   const bridge = useRemoteBridge(bridgeOptions);
-  const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus, getRecentCalls, dialNumber: bridgeDialNumber } = bridge;
+  const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus, getRecentCalls, dialNumber: bridgeDialNumber, setPhoneOnline } = bridge;
   const currentCall = status.currentCall;
   const callState: CallState = (currentCall?.callState as CallState) || "IDLE";
+
+  // Check phone status via REST API (for refresh button & initial load)
+  const checkPhoneStatus = useCallback(async () => {
+    if (!authToken) return;
+    setRefreshing(true);
+    try {
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base}/api/remote-bridge/phone-status`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPhoneOnline(data.phoneOnline);
+        if (data.phoneOnline) {
+          requestStatus();
+          getRecentCalls();
+        }
+      }
+    } catch {}
+    setRefreshing(false);
+  }, [authToken, requestStatus, getRecentCalls, setPhoneOnline]);
 
   // QR pairing confirmed callback
   const handleQrPaired = useCallback((encryptionKey: string) => {
@@ -69,7 +99,13 @@ export function RemoteBridgePage() {
     setShowSetup(false);
   }, []);
 
-  // Request status on connect
+  // Check phone status on websocket auth + request data when phone is online
+  useEffect(() => {
+    if (status.authenticated) {
+      checkPhoneStatus();
+    }
+  }, [status.authenticated]);
+
   useEffect(() => {
     if (status.authenticated && status.phoneOnline) {
       requestStatus();
@@ -133,6 +169,19 @@ export function RemoteBridgePage() {
              !status.phoneOnline ? "Phone Offline" :
              "Connected"}
           </span>
+          {status.connected && status.authenticated && (
+            <button
+              onClick={checkPhoneStatus}
+              disabled={refreshing}
+              style={{
+                ...styles.refreshBtn,
+                ...(refreshing ? { animation: "spin 1s linear infinite" } : {}),
+              }}
+              title="Refresh connection (check if phone is online)"
+            >
+              🔄
+            </button>
+          )}
         </div>
         {currentCall?.bluetoothDeviceName && (
           <div style={styles.btBadge}>
@@ -1070,6 +1119,16 @@ const styles: Record<string, React.CSSProperties> = {
   statusLeft: { display: "flex", alignItems: "center", gap: 8 },
   statusDot: { width: 8, height: 8, borderRadius: "50%" },
   statusText: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
+  refreshBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 16,
+    padding: "2px 6px",
+    borderRadius: 8,
+    transition: "transform 0.2s",
+    opacity: 0.7,
+  },
   btBadge: {
     fontSize: 11,
     padding: "4px 10px",

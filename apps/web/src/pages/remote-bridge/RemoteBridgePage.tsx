@@ -508,7 +508,6 @@ function SettingsPanel({
   config: BridgeConfig;
   onReset: () => void;
 }) {
-  const [devices, setDevices] = useState<any[]>([]);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -525,12 +524,10 @@ function SettingsPanel({
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
     try {
-      const [devRes, logRes, pushRes] = await Promise.all([
-        fetch(`${base}/api/remote-bridge/devices`, { headers }),
+      const [logRes, pushRes] = await Promise.all([
         fetch(`${base}/api/remote-bridge/activity?limit=20`, { headers }),
         fetch(`${base}/api/remote-bridge/push/status`, { headers }),
       ]);
-      if (devRes.ok) setDevices(await devRes.json());
       if (logRes.ok) setActivityLogs(await logRes.json());
       if (pushRes.ok) {
         const pushData = await pushRes.json();
@@ -739,28 +736,7 @@ function SettingsPanel({
         </div>
       </div>
 
-      <div style={styles.settingSection}>
-        <h3 style={styles.settingTitle}>Connected Devices</h3>
-        {loading ? (
-          <p style={styles.loadingText}>Loading...</p>
-        ) : devices.length === 0 ? (
-          <p style={styles.emptyDesc}>No devices registered</p>
-        ) : (
-          devices.map((d: any) => (
-            <div key={d.id} style={styles.deviceRow}>
-              <div>
-                <span>{d.deviceType === "phone" ? "📱" : "📲"} {d.deviceName || d.deviceId}</span>
-                {d.ipAddress && (
-                  <span style={{ color: "#636366", fontSize: 11, marginLeft: 8 }}>IP: {d.ipAddress}</span>
-                )}
-              </div>
-              <span style={{ color: d.trusted ? "#34C759" : "#FF9500", fontSize: 12 }}>
-                {d.trusted ? "Trusted" : "Pending"}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
+
 
       <div style={styles.settingSection}>
         <h3 style={styles.settingTitle}>Recent Activity</h3>

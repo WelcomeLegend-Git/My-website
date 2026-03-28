@@ -581,10 +581,16 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       isOnline: onlineDeviceIds.has(d.deviceId),
     }));
 
+    // Count devices reachable via push notifications (even when WebSocket is not active)
+    const pushReachableCount = devices.filter(
+      (d: any) => d.deviceType === "tablet" && d.pushEnabled && d.pushAllowed && d.pushSubscription
+    ).length;
+
     return res.json({
       devices: enriched,
       count: devices.length,
       maxAllowed: MAX_DEVICES_PER_USER,
+      pushReachableCount,
     });
   });
 

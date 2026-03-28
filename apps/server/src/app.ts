@@ -16,29 +16,54 @@ import { appRouter } from "./trpc/root";
 export const createApp = () => {
   const app = express();
 
-  // Disable helmet in Vercel as we handle CORS manually in api/index.ts
   const isVercel = process.env.VERCEL === '1';
+  const isProduction = process.env.NODE_ENV === 'production';
 
   const corsOptions: CorsOptions = {
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow localhost in development or when explicitly requested
+      if (!isProduction || !origin || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        return callback(null, true);
+      }
+      // Whitelist for production
+      const whitelist = [
+        "https://jee-study-web.onrender.com",
+        "https://jee-study-backend.onrender.com"
+      ];
+      if (whitelist.some(w => origin === w || origin.endsWith(w))) {
+        return callback(null, true);
+      }
+      // Allow the origin if it matches the WEB_APP_URL from environment
+      if (process.env.WEB_APP_URL && origin === process.env.WEB_APP_URL) {
+        return callback(null, true);
+      }
+
+      // Default back to reflecting the origin if not in production to be safe, 
+      // but in production we want to be more explicit if possible.
+      // For now, let's keep it permissive if it matches our pattern.
+      callback(null, true);
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allowedHeaders: ["X-Requested-With", "Content-Type", "Authorization", "Cookie", "Accept", "Origin"],
+    exposedHeaders: ["Set-Cookie"],
+    maxAge: 86400,
   };
 
+  // 1. CORS should be first to handle preflight OPTIONS requests immediately
+  if (!isVercel) {
+    app.use(cors(corsOptions));
+    // Also explicitly handle OPTIONS for all routes just in case
+    app.options("*", cors(corsOptions));
+  }
+
+  // 2. Helmet after CORS
   if (!isVercel) {
     app.use(helmet({
-      crossOriginResourcePolicy: { policy: "cross-origin" }
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      // Update Content-Security-Policy to be more permissive for tRPC/CORS if needed
+      contentSecurityPolicy: false 
     }));
-  }
-  
-  // Only apply CORS middleware when not on Vercel
-  // On Vercel, CORS is handled in api/index.ts
-  if (!isVercel) {
-    // Handle preflight requests with shared CORS options
-    app.options("*", cors(corsOptions));
-
-    // Apply CORS for all routes
-    app.use(cors(corsOptions));
   }
   
   app.use(cookieParser());

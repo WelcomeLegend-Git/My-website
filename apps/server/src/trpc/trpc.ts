@@ -3,12 +3,18 @@ import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
+    const isInternalError =
+      error.code === "INTERNAL_SERVER_ERROR" &&
+      !(error.cause instanceof TRPCError);
+
     return {
       ...shape,
-      // TEMPORARY: Exposing the real error string to the client so the user can easily debug
-      message: error.message || shape.message,
+      message: isInternalError
+        ? "Service temporarily unavailable. Please try again."
+        : shape.message,
       data: {
         ...shape.data,
+        stack: process.env.NODE_ENV === "production" ? undefined : shape.data.stack,
       },
     };
   },

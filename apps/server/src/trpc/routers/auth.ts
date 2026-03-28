@@ -227,13 +227,13 @@ export const authRouter = router({
         },
         ...tokens,
       };
-    } catch (error: any) {
+    } catch (error) {
       // Re-throw TRPCErrors as-is (our own errors like "Invalid credentials")
       if (error instanceof TRPCError) throw error;
-      // TEMPORARY FOR DEBUGGING: pass the raw DB error message
+      // For database/network errors, show a friendly message
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: error.message || "Database connection error",
+        message: "Service temporarily unavailable. Please try again in a moment.",
         cause: error,
       });
     }

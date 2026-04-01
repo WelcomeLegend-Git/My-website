@@ -362,7 +362,11 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
     for (const [deviceId, client] of connectedClients) {
       if (client.userId === userId) {
-        online.push({ deviceId, deviceType: client.deviceType });
+        if (client.ws.readyState === WebSocket.OPEN) {
+          online.push({ deviceId, deviceType: client.deviceType });
+        } else {
+          connectedClients.delete(deviceId);
+        }
       }
     }
 
@@ -568,11 +572,17 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       orderBy: { createdAt: "desc" },
     });
 
-    // Check which are currently online
+    // Check which are currently online — verify WebSocket is actually OPEN
     const onlineDeviceIds = new Set<string>();
     for (const [deviceId, client] of connectedClients) {
       if (client.userId === userId) {
-        onlineDeviceIds.add(deviceId);
+        if (client.ws.readyState === WebSocket.OPEN) {
+          onlineDeviceIds.add(deviceId);
+        } else {
+          // Prune stale entry
+          connectedClients.delete(deviceId);
+          logger.info({ deviceId }, "Pruned stale client from connectedClients during linked-summary");
+        }
       }
     }
 
@@ -625,10 +635,16 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const userId = (req as any).user.id;
 
     let phoneOnline = false;
-    for (const [, client] of connectedClients) {
+    for (const [deviceId, client] of connectedClients) {
       if (client.userId === userId && client.deviceType === "phone") {
-        phoneOnline = true;
-        break;
+        if (client.ws.readyState === WebSocket.OPEN) {
+          phoneOnline = true;
+          break;
+        } else {
+          // Prune stale entry
+          connectedClients.delete(deviceId);
+          logger.info({ deviceId }, "Pruned stale phone client during phone-status check");
+        }
       }
     }
 
@@ -825,6 +841,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 deviceId: result.deviceId,
                 deviceType: message.deviceType || "phone",
               };
+              const deviceName = result.deviceName || null;
 
               connectedClients.set(result.deviceId, {
                 ws,
@@ -834,10 +851,10 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 lastPing: Date.now(),
               });
 
-              ws.send(JSON.stringify({ type: "AUTH_OK", deviceId: result.deviceId }));
+              ws.send(JSON.stringify({ type: "AUTH_OK", deviceId: result.deviceId, deviceName }));
 
               logger.info(
-                { deviceId: result.deviceId, deviceType: clientInfo.deviceType },
+                { deviceId: result.deviceId, deviceType: clientInfo.deviceType, deviceName },
                 "Remote bridge client connected"
               );
 
@@ -856,6 +873,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 type: "DEVICE_CONNECTED",
                 deviceId: result.deviceId,
                 deviceType: clientInfo.deviceType,
+                deviceName,
               });
             } else {
               ws.send(
@@ -965,9 +983,9 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
 async function authenticateWebSocket(
   message: any,
   ip: string
-): Promise<{ success: boolean; userId?: string; deviceId?: string; error?: string }> {
+): Promise<{ success: boolean; userId?: string; deviceId?: string; deviceName?: string; error?: string }> {
   try {
-    const { token, deviceId, deviceType } = message;
+    const { token, deviceId, deviceType, deviceName } = message;
     if (!token || !deviceId) {
       return { success: false, error: "Missing token or deviceId" };
     }
@@ -980,25 +998,35 @@ async function authenticateWebSocket(
       return { success: false, error: "User not found" };
     }
 
+    // Build update data — always update lastSeen and IP
+    const updateData: any = {
+      lastSeen: new Date(),
+      deviceType: deviceType || "phone",
+      ipAddress: ip,
+    };
+
+    // Only update deviceName if provided and non-empty (don't overwrite with null/"")
+    const resolvedName = (typeof deviceName === "string" && deviceName.trim()) ? deviceName.trim() : null;
+    if (resolvedName) {
+      updateData.deviceName = resolvedName;
+    }
+
     await prisma.remoteBridgeDevice.upsert({
       where: { userId_deviceId: { userId, deviceId } },
       create: {
         userId,
         deviceId,
         deviceType: deviceType || "phone",
+        deviceName: resolvedName,
         trusted: true,
         lastSeen: new Date(),
         ipAddress: ip,
       } as any,
-      update: {
-        lastSeen: new Date(),
-        deviceType: deviceType || "phone",
-        ipAddress: ip,
-      } as any,
+      update: updateData,
     });
 
     await logActivity(userId, deviceId, "ws_connected", `WebSocket connected from ${ip}`, ip);
-    return { success: true, userId, deviceId };
+    return { success: true, userId, deviceId, deviceName: resolvedName || undefined };
   } catch (error) {
     logger.error({ error }, "WebSocket auth error");
     return { success: false, error: "Invalid token" };

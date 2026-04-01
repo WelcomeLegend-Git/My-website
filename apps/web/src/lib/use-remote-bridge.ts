@@ -345,13 +345,27 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         setStatus((s) => ({ ...s, connected: true }));
         reconnectAttempts.current = 0;
 
-        // Send auth handshake
+        // Send auth handshake — include device name for display
+        const deviceNameFromUA = (() => {
+          try {
+            const ua = navigator.userAgent;
+            if (/iPad/i.test(ua)) return "iPad";
+            if (/iPhone/i.test(ua)) return "iPhone";
+            if (/Android/i.test(ua)) return "Android Tablet";
+            if (/Mac/i.test(ua)) return "Mac Browser";
+            if (/Windows/i.test(ua)) return "Windows Browser";
+            if (/Linux/i.test(ua)) return "Linux Browser";
+            return "Web Browser";
+          } catch { return "Web Browser"; }
+        })();
+
         ws.send(
           JSON.stringify({
             type: "AUTH",
             token: authToken,
             deviceId,
             deviceType: "tablet",
+            deviceName: deviceNameFromUA,
             ts: Date.now(),
           })
         );

@@ -23,9 +23,10 @@ const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 // ─── Web Push Setup ───
 
 if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
-  // web-push requires URL-safe Base64 WITHOUT '=' padding
-  const vapidPublic = env.VAPID_PUBLIC_KEY.replace(/=+$/, "");
-  const vapidPrivate = env.VAPID_PRIVATE_KEY.replace(/=+$/, "");
+  // web-push requires URL-safe Base64 (no padding, - instead of +, _ instead of /)
+  const toUrlSafeBase64 = (s: string) => s.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const vapidPublic = toUrlSafeBase64(env.VAPID_PUBLIC_KEY);
+  const vapidPrivate = toUrlSafeBase64(env.VAPID_PRIVATE_KEY);
   webpush.setVapidDetails(
     `mailto:${env.VAPID_EMAIL}`,
     vapidPublic,

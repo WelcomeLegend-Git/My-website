@@ -23,10 +23,13 @@ const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 // ─── Web Push Setup ───
 
 if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
+  // web-push requires URL-safe Base64 WITHOUT '=' padding
+  const vapidPublic = env.VAPID_PUBLIC_KEY.replace(/=+$/, "");
+  const vapidPrivate = env.VAPID_PRIVATE_KEY.replace(/=+$/, "");
   webpush.setVapidDetails(
     `mailto:${env.VAPID_EMAIL}`,
-    env.VAPID_PUBLIC_KEY,
-    env.VAPID_PRIVATE_KEY
+    vapidPublic,
+    vapidPrivate
   );
   logger.info("Web Push (VAPID) configured");
 }

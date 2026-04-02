@@ -10,7 +10,7 @@ const t = initTRPC.context<Context>().create({
     return {
       ...shape,
       message: isInternalError
-        ? "Service temporarily unavailable. Please try again."
+        ? `Server Error: ${error.message} - Cause: ${error.cause ? (error.cause as any).message : 'unknown'}`
         : shape.message,
       data: {
         ...shape.data,

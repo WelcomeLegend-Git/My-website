@@ -203,40 +203,29 @@ export const authRouter = router({
       return { success: true };
     }),
   login: procedure.input(credentialsSchema).mutation(async ({ ctx, input }) => {
-    try {
-      const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
-      }
-
-      const valid = await bcrypt.compare(input.password, user.passwordHash);
-      if (!valid) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
-      }
-
-      const tokens = {
-        accessToken: createAccessToken({ sub: user.id, email: user.email }),
-        refreshToken: createRefreshToken({ sub: user.id, email: user.email }),
-      };
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        },
-        ...tokens,
-      };
-    } catch (error) {
-      // Re-throw TRPCErrors as-is (our own errors like "Invalid credentials")
-      if (error instanceof TRPCError) throw error;
-      // For database/network errors, show a friendly message
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Service temporarily unavailable. Please try again in a moment.",
-        cause: error,
-      });
+    const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
+    if (!user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
     }
+
+    const valid = await bcrypt.compare(input.password, user.passwordHash);
+    if (!valid) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+    }
+
+    const tokens = {
+      accessToken: createAccessToken({ sub: user.id, email: user.email }),
+      refreshToken: createRefreshToken({ sub: user.id, email: user.email }),
+    };
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+      ...tokens,
+    };
   }),
   refresh: procedure
     .input(z.object({ refreshToken: z.string().min(1) }))

@@ -5,7 +5,7 @@ const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
     const isInternalError =
       error.code === "INTERNAL_SERVER_ERROR" &&
-      !(error.cause instanceof TRPCError);
+      !(error.cause instanceof TRPCError || (error.cause && (error.cause as any).name === "TRPCError"));
 
     return {
       ...shape,

@@ -1,3 +1,4 @@
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient, type Persister, type PersistedClient } from "@tanstack/react-query-persist-client";
 import localforage from "localforage";
@@ -8,6 +9,11 @@ import { AuthProvider } from "./AuthProvider";
 type Props = {
   children: React.ReactNode;
 };
+
+// Google OAuth Client ID – read from env or use the production ID
+const GOOGLE_CLIENT_ID =
+  (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ??
+  "91784602884-8jgha0g6343tplaf50oc3lemcuiinsdg.apps.googleusercontent.com";
 
 // Create persister lazily to avoid test/runtime import mismatches
 const createPersister = (): Persister => ({
@@ -59,10 +65,12 @@ export const AppProviders = ({ children }: Props) => {
   }, [queryClient]);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </GoogleOAuthProvider>
   );
 };

@@ -1,8 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
 import { z } from "zod";
+import type { PrismaClient } from "@prisma/client";
 
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from "../../auth/tokens";
+import { env } from "../../env";
 import { sendPasswordResetEmail } from "../../services/email";
 import { procedure, router } from "../trpc";
 
@@ -10,6 +13,78 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
+
+// Google OAuth client (lazy-initialised so server boots even without client id)
+let _googleClient: OAuth2Client | null = null;
+const getGoogleClient = () => {
+  if (!_googleClient && env.GOOGLE_CLIENT_ID) {
+    _googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+  }
+  return _googleClient;
+};
+
+/**
+ * Helper: create default subjects + chapters for a brand-new user.
+ */
+const seedDefaultSubjects = async (
+  prisma: PrismaClient,
+  userId: string
+) => {
+  const defaultSubjects = [
+    {
+      name: "Physics",
+      description: "Mechanics, Electromagnetism, Optics, and Modern Physics",
+      chapters: [
+        "Kinematics",
+        "Laws of Motion",
+        "Work, Energy and Power",
+        "Rotational Motion",
+        "Electrostatics",
+      ],
+    },
+    {
+      name: "Chemistry",
+      description: "Physical, Organic, and Inorganic Chemistry",
+      chapters: [
+        "Atomic Structure",
+        "Chemical Bonding",
+        "Thermodynamics",
+        "Equilibrium",
+        "Organic Basics",
+      ],
+    },
+    {
+      name: "Mathematics",
+      description: "Algebra, Calculus, Coordinate Geometry, and Vectors",
+      chapters: [
+        "Quadratic Equations",
+        "Sequences and Series",
+        "Limits and Continuity",
+        "Differential Calculus",
+        "Coordinate Geometry",
+      ],
+    },
+  ];
+
+  await Promise.all(
+    defaultSubjects.map(async (subject) => {
+      const created = await prisma.subject.create({
+        data: {
+          name: subject.name,
+          description: subject.description,
+          ownerId: userId,
+        },
+      });
+
+      await prisma.chapter.createMany({
+        data: subject.chapters.map((chapter) => ({
+          title: chapter,
+          subjectId: created.id,
+        })),
+      });
+    })
+  );
+};
 
 export const authRouter = router({
   register: procedure
@@ -34,60 +109,7 @@ export const authRouter = router({
         },
       });
 
-      const defaultSubjects = [
-        {
-          name: "Physics",
-          description: "Mechanics, Electromagnetism, Optics, and Modern Physics",
-          chapters: [
-            "Kinematics",
-            "Laws of Motion",
-            "Work, Energy and Power",
-            "Rotational Motion",
-            "Electrostatics",
-          ],
-        },
-        {
-          name: "Chemistry",
-          description: "Physical, Organic, and Inorganic Chemistry",
-          chapters: [
-            "Atomic Structure",
-            "Chemical Bonding",
-            "Thermodynamics",
-            "Equilibrium",
-            "Organic Basics",
-          ],
-        },
-        {
-          name: "Mathematics",
-          description: "Algebra, Calculus, Coordinate Geometry, and Vectors",
-          chapters: [
-            "Quadratic Equations",
-            "Sequences and Series",
-            "Limits and Continuity",
-            "Differential Calculus",
-            "Coordinate Geometry",
-          ],
-        },
-      ];
-
-      await Promise.all(
-        defaultSubjects.map(async (subject) => {
-          const created = await ctx.prisma.subject.create({
-            data: {
-              name: subject.name,
-              description: subject.description,
-              ownerId: user.id,
-            },
-          });
-
-          await ctx.prisma.chapter.createMany({
-            data: subject.chapters.map((chapter) => ({
-              title: chapter,
-              subjectId: created.id,
-            })),
-          });
-        })
-      );
+      await seedDefaultSubjects(ctx.prisma, user.id);
 
       const tokens = {
         accessToken: createAccessToken({ sub: user.id, email: user.email }),
@@ -103,6 +125,88 @@ export const authRouter = router({
         ...tokens,
       };
     }),
+
+  // ─── Google OAuth Login / Register ───────────────────────
+  googleLogin: procedure
+    .input(z.object({ credential: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const client = getGoogleClient();
+      if (!client || !env.GOOGLE_CLIENT_ID) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Google sign-in is not configured on this server",
+        });
+      }
+
+      // 1. Verify the Google ID token
+      let payload;
+      try {
+        const ticket = await client.verifyIdToken({
+          idToken: input.credential,
+          audience: env.GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } catch (error) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Invalid Google credential",
+          cause: error,
+        });
+      }
+
+      if (!payload || !payload.email) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Google account has no email" });
+      }
+
+      const googleId = payload.sub;
+      const email = payload.email;
+      const name = payload.name || email.split("@")[0];
+
+      // 2. Find existing user by googleId OR email
+      let user = await ctx.prisma.user.findUnique({ where: { googleId } });
+
+      if (!user) {
+        // Check if user exists with same email (registered via email/password)
+        user = await ctx.prisma.user.findUnique({ where: { email } });
+
+        if (user) {
+          // Link Google account to existing email/password user
+          user = await ctx.prisma.user.update({
+            where: { id: user.id },
+            data: { googleId },
+          });
+        } else {
+          // Brand-new user via Google — create account
+          user = await ctx.prisma.user.create({
+            data: {
+              email,
+              name,
+              googleId,
+              passwordHash: null,
+            },
+          });
+
+          // Seed default subjects for new user
+          await seedDefaultSubjects(ctx.prisma, user.id);
+        }
+      }
+
+      // 3. Issue JWT tokens
+      const tokens = {
+        accessToken: createAccessToken({ sub: user.id, email: user.email }),
+        refreshToken: createRefreshToken({ sub: user.id, email: user.email }),
+      };
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        ...tokens,
+      };
+    }),
+
   requestPasswordReset: procedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
@@ -206,6 +310,14 @@ export const authRouter = router({
     const user = await ctx.prisma.user.findUnique({ where: { email: input.email } });
     if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+    }
+
+    // User registered via Google only — no password set
+    if (!user.passwordHash) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "This account uses Google sign-in. Please use the Google button to log in.",
+      });
     }
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);

@@ -1,3 +1,4 @@
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -38,6 +39,7 @@ export const LoginPage = () => {
   }, [setFocus]);
 
   const mutation = trpc.authApi.login.useMutation();
+  const googleMutation = trpc.authApi.googleLogin.useMutation();
 
   useEffect(() => {
     if (mutation.isSuccess && mutation.data) {
@@ -46,14 +48,30 @@ export const LoginPage = () => {
     }
   }, [mutation.isSuccess, mutation.data, handleAuth, navigate, from]);
 
+  useEffect(() => {
+    if (googleMutation.isSuccess && googleMutation.data) {
+      handleAuth(googleMutation.data);
+      navigate(from, { replace: true });
+    }
+  }, [googleMutation.isSuccess, googleMutation.data, handleAuth, navigate, from]);
+
   const onSubmit = (values: LoginForm) => {
     mutation.mutate(values);
+  };
+
+  const handleGoogleSuccess = (response: CredentialResponse) => {
+    if (response.credential) {
+      googleMutation.mutate({ credential: response.credential });
+    }
   };
 
   const handleGuestMode = () => {
     authStorage.setGuestMode();
     navigate(from, { replace: true });
   };
+
+  const activeError = mutation.error || googleMutation.error;
+  const isLoading = mutation.isPending || googleMutation.isPending;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-6 py-12 text-slate-100 overflow-hidden">
@@ -83,6 +101,30 @@ export const LoginPage = () => {
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary via-purple-600 to-blue-600 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition duration-500"></div>
           <form onSubmit={handleSubmit(onSubmit)} className="relative space-y-5 rounded-3xl glass-card border border-slate-800/50 p-8 fade-in-up">
+
+            {/* ─── Google Sign-In ─── */}
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {}}
+                theme="filled_black"
+                shape="pill"
+                size="large"
+                width="100%"
+                text="signin_with"
+                logo_alignment="left"
+              />
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800/50"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-slate-900 px-3 text-slate-500">Or sign in with email</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,19 +183,19 @@ export const LoginPage = () => {
               </div>
             </div>
 
-            {mutation.error && (
+            {activeError && (
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-start gap-3 fade-in">
                 <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-red-300">{mutation.error.message ?? "Invalid credentials"}</p>
+                <p className="text-sm text-red-300">{activeError.message ?? "Invalid credentials"}</p>
               </div>
             )}
 
             <button
               type="submit"
               className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
-              disabled={mutation.isPending}
+              disabled={isLoading}
             >
               {mutation.isPending ? (
                 <>

@@ -128,39 +128,31 @@ export const authRouter = router({
 
   // ─── Google OAuth Login / Register ───────────────────────
   googleLogin: procedure
-    .input(z.object({ credential: z.string().min(1) }))
+    .input(z.object({ accessToken: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const client = getGoogleClient();
-      if (!client || !env.GOOGLE_CLIENT_ID) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "Google sign-in is not configured on this server",
-        });
-      }
-
-      // 1. Verify the Google ID token
-      let payload;
+      // 1. Verify via Google's userinfo endpoint (works with any access token)
+      let profile: { sub?: string; email?: string; name?: string };
       try {
-        const ticket = await client.verifyIdToken({
-          idToken: input.credential,
-          audience: env.GOOGLE_CLIENT_ID,
+        const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${input.accessToken}` },
         });
-        payload = ticket.getPayload();
+        if (!res.ok) throw new Error(`Google userinfo returned ${res.status}`);
+        profile = await res.json() as { sub?: string; email?: string; name?: string };
       } catch (error) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message: "Invalid Google credential",
+          message: "Invalid Google access token",
           cause: error,
         });
       }
 
-      if (!payload || !payload.email) {
+      if (!profile.email || !profile.sub) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Google account has no email" });
       }
 
-      const googleId = payload.sub;
-      const email = payload.email;
-      const name = payload.name || email.split("@")[0];
+      const googleId = profile.sub;
+      const email = profile.email;
+      const name = profile.name || email.split("@")[0];
 
       // 2. Find existing user by googleId OR email
       let user = await ctx.prisma.user.findUnique({ where: { googleId } });

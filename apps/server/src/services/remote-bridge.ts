@@ -1059,35 +1059,35 @@ async function authenticateWebSocket(
       return { success: false, error: "User not found" };
     }
 
-    // Only allow devices that were already registered via QR pairing or manual link
-    const existingDevice = await prisma.remoteBridgeDevice.findUnique({
-      where: { userId_deviceId: { userId, deviceId } },
-    });
-
-    if (!existingDevice) {
-      logger.warn({ userId, deviceId, deviceType }, "WebSocket auth rejected: device not registered (must pair via QR or manual code first)");
-      return { success: false, error: "Device not registered. Please pair via QR code or manual link first." };
-    }
-
-    // Build update data — only update lastSeen and IP, never create
-    const updateData: any = {
-      lastSeen: new Date(),
-      ipAddress: ip,
-    };
-
-    // Only update deviceName if provided and non-empty (don't overwrite with null/"")
+    // Resolve device name
     const resolvedName = (typeof deviceName === "string" && deviceName.trim()) ? deviceName.trim() : null;
-    if (resolvedName) {
-      updateData.deviceName = resolvedName;
-    }
+    const resolvedType = deviceType || "phone";
 
-    await prisma.remoteBridgeDevice.update({
-      where: { id: existingDevice.id },
-      data: updateData,
+    // Upsert — create if first connection, update if returning
+    // Ghost devices are prevented because:
+    //   - Phones use a stable deviceId stored in SharedPreferences
+    //   - Tablets use a stable deviceId stored in localStorage
+    const device = await prisma.remoteBridgeDevice.upsert({
+      where: { userId_deviceId: { userId, deviceId } },
+      create: {
+        userId,
+        deviceId,
+        deviceType: resolvedType,
+        deviceName: resolvedName,
+        trusted: true,
+        lastSeen: new Date(),
+        ipAddress: ip,
+      } as any,
+      update: {
+        lastSeen: new Date(),
+        ipAddress: ip,
+        // Only update name if provided (don't overwrite existing name with null)
+        ...(resolvedName ? { deviceName: resolvedName } : {}),
+      } as any,
     });
 
     await logActivity(userId, deviceId, "ws_connected", `WebSocket connected from ${ip}`, ip);
-    return { success: true, userId, deviceId, deviceName: resolvedName || existingDevice.deviceName || undefined };
+    return { success: true, userId, deviceId, deviceName: resolvedName || device.deviceName || undefined };
   } catch (error) {
     logger.error({ error }, "WebSocket auth error");
     return { success: false, error: "Invalid token" };

@@ -471,7 +471,7 @@ function CallPanel({
                  callState === "ACTIVE" ? "#34C759" :
                  callState === "HOLDING" ? "#FF9500" :
                  "#8E8E93"
-        }} className="rb-call-status">>
+        }} className="rb-call-status">
           {callState === "RINGING" ? "📞 Incoming Call..." :
            callState === "ACTIVE" ? `🟢 Active · ${formatDuration(currentCall?.durationSeconds || 0)}` :
            callState === "CONNECTING" ? "📲 Connecting..." :

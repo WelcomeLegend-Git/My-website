@@ -1231,7 +1231,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "20px 32px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
-    backdrop filter: "blur(10px)",
+    backdropFilter: "blur(10px)",
     flexWrap: "wrap" as const,
     gap: 16,
   },

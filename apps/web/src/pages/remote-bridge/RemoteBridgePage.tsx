@@ -89,12 +89,17 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         padding: 18px 32px !important;
         font-size: 17px !important;
       }
+      
+      .rb-recent-calls-container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
     }
     
     @media (min-width: 1024px) {
       .rb-content {
         padding: 48px 64px !important;
-        max-width: 1400px;
+        max-width: none;
         margin: 0 auto;
       }
       
@@ -131,11 +136,37 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         width: 320px !important;
         height: 320px !important;
       }
+      
+      .rb-recent-calls-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      
+      .rb-status-bar {
+        padding: 24px 64px !important;
+      }
+      
+      .rb-tab-bar {
+        padding: 20px 64px !important;
+      }
     }
     
     @media (min-width: 1440px) {
       .rb-content {
-        max-width: 1600px;
+        max-width: none;
+        padding: 48px 80px !important;
+      }
+      
+      .rb-recent-calls-container {
+        max-width: 1400px;
+      }
+      
+      .rb-status-bar {
+        padding: 24px 80px !important;
+      }
+      
+      .rb-tab-bar {
+        padding: 20px 80px !important;
       }
     }
   `;
@@ -283,7 +314,7 @@ export function RemoteBridgePage() {
   return (
     <div style={styles.container} className="rb-container">
       {/* Status Bar */}
-      <div style={styles.statusBar}>
+      <div style={styles.statusBar} className="rb-status-bar">
         <div style={styles.statusLeft}>
           <div
             style={{
@@ -321,7 +352,7 @@ export function RemoteBridgePage() {
       </div>
 
       {/* Tab Bar */}
-      <div style={styles.tabBar}>
+      <div style={styles.tabBar} className="rb-tab-bar">
         {(["call", "dial", "settings"] as const).map((tab) => (
           <button
             key={tab}
@@ -1232,8 +1263,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
     backdropFilter: "blur(10px)",
-    flexWrap: "wrap" as const,
+    flexWrap: "nowrap" as const,
     gap: 16,
+    minHeight: 72,
   },
   statusLeft: { display: "flex", alignItems: "center", gap: 12 },
   statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor" },
@@ -1261,12 +1293,15 @@ const styles: Record<string, React.CSSProperties> = {
   tabBar: {
     display: "flex",
     gap: 8,
-    padding: "16px 24px",
+    padding: "16px 32px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
+    minHeight: 68,
+    alignItems: "center",
   },
   tab: {
     flex: 1,
+    maxWidth: 200,
     padding: "14px 0",
     border: "none",
     borderRadius: 12,
@@ -1384,6 +1419,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     padding: "0 20px 20px",
     boxSizing: "border-box" as const,
+    maxWidth: "100%",
   },
   recentCallsTitle: {
     fontSize: 22,

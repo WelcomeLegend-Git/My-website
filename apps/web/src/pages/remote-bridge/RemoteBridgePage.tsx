@@ -37,6 +37,16 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
       animation: fadeIn 0.5s ease-out;
     }
     
+    /* Sticky header group */
+    .rb-header-group {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+    
     .rb-glass-card {
       background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(20px);
@@ -65,6 +75,13 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
       transform: translateY(0);
     }
     
+    /* ─── Scrollable content area ─── */
+    .rb-scroll-content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
     @media (min-width: 768px) {
       .rb-content {
         padding: 32px 48px !important;
@@ -89,18 +106,12 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         padding: 18px 32px !important;
         font-size: 17px !important;
       }
-      
-      .rb-recent-calls-container {
-        max-width: 900px;
-        margin: 0 auto;
-      }
     }
     
     @media (min-width: 1024px) {
       .rb-content {
-        padding: 48px 64px !important;
+        padding: 40px 64px !important;
         max-width: none;
-        margin: 0 auto;
       }
       
       .rb-dial-pad {
@@ -137,17 +148,12 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         height: 320px !important;
       }
       
-      .rb-recent-calls-container {
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-      
       .rb-status-bar {
-        padding: 24px 64px !important;
+        padding: 20px 64px !important;
       }
       
       .rb-tab-bar {
-        padding: 20px 64px !important;
+        padding: 16px 64px !important;
       }
     }
     
@@ -157,16 +163,12 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         padding: 48px 80px !important;
       }
       
-      .rb-recent-calls-container {
-        max-width: 1400px;
-      }
-      
       .rb-status-bar {
-        padding: 24px 80px !important;
+        padding: 20px 80px !important;
       }
       
       .rb-tab-bar {
-        padding: 20px 80px !important;
+        padding: 16px 80px !important;
       }
     }
   `;
@@ -243,17 +245,59 @@ export function RemoteBridgePage() {
         const data = await res.json();
         setPhoneOnline(data.phoneOnline);
         if (data.phoneOnline) {
+          // Phone is online — request fresh data immediately + retry after delay
           requestStatus();
           getRecentCalls();
+          // Retry after 2s in case the phone wasn't fully ready on first request
+          setTimeout(() => {
+            requestStatus();
+            getRecentCalls();
+          }, 2000);
         }
       }
     } catch {}
     setRefreshing(false);
   }, [authToken, requestStatus, getRecentCalls, setPhoneOnline]);
 
-  // QR pairing confirmed callback
-  const handleQrPaired = useCallback((encryptionKey: string) => {
+  // QR pairing confirmed callback — register tablet device on server first
+  const handleQrPaired = useCallback(async (encryptionKey: string) => {
     const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
+
+    // Derive a user-friendly device name from the browser
+    const deviceName = (() => {
+      try {
+        const ua = navigator.userAgent;
+        if (/iPad/i.test(ua)) return "iPad";
+        if (/iPhone/i.test(ua)) return "iPhone";
+        if (/Android/i.test(ua)) return "Android Tablet";
+        if (/Mac/i.test(ua)) return "Mac Browser";
+        if (/Windows/i.test(ua)) return "Windows Browser";
+        if (/Linux/i.test(ua)) return "Linux Browser";
+        return "Web Browser";
+      } catch { return "Web Browser"; }
+    })();
+
+    // Register the tablet device on the server before WebSocket connects
+    try {
+      const token = authStorage.getAccessToken();
+      const base = getApiBaseUrl();
+      await fetch(`${base}/api/remote-bridge/devices/register`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          deviceId,
+          deviceType: "tablet",
+          deviceName,
+          encryptionKey,
+        }),
+      });
+    } catch (err) {
+      console.error("[RemoteBridge] Failed to register tablet device:", err);
+    }
+
     const newConfig: BridgeConfig = { encryptionKey, deviceId };
     saveBridgeConfig(newConfig);
     setConfig(newConfig);
@@ -313,107 +357,117 @@ export function RemoteBridgePage() {
 
   return (
     <div style={styles.container} className="rb-container">
-      {/* Status Bar */}
-      <div style={styles.statusBar} className="rb-status-bar">
-        <div style={styles.statusLeft}>
-          <div
-            style={{
-              ...styles.statusDot,
-              backgroundColor: status.connected && status.authenticated
-                ? status.phoneOnline ? "#34C759" : "#FF9500"
-                : "#FF3B30",
-            }}
-          />
-          <span style={styles.statusText}>
-            {!status.connected ? "Disconnected" :
-             !status.authenticated ? "Authenticating..." :
-             !status.phoneOnline ? "Phone Offline" :
-             "Connected"}
-          </span>
-          {status.connected && status.authenticated && (
-            <button
-              onClick={checkPhoneStatus}
-              disabled={refreshing}
+      {/* Sticky Header Group */}
+      <div className="rb-header-group">
+        {/* Status Bar */}
+        <div style={styles.statusBar} className="rb-status-bar">
+          <div style={styles.statusLeft}>
+            <div
               style={{
-                ...styles.refreshBtn,
-                ...(refreshing ? { animation: "spin 1s linear infinite" } : {}),
+                ...styles.statusDot,
+                backgroundColor: status.connected && status.authenticated
+                  ? status.phoneOnline ? "#34C759" : "#FF9500"
+                  : "#FF3B30",
               }}
-              title="Refresh connection (check if phone is online)"
+            />
+            <span style={styles.statusText}>
+              {!status.connected ? "Disconnected" :
+               !status.authenticated ? "Authenticating..." :
+               !status.phoneOnline ? "Phone Offline" :
+               "Connected"}
+            </span>
+            {status.connected && status.authenticated && (
+              <button
+                onClick={checkPhoneStatus}
+                disabled={refreshing}
+                style={{
+                  ...styles.refreshBtn,
+                  ...(refreshing ? { animation: "spin 1s linear infinite" } : {}),
+                }}
+                title="Refresh connection (check if phone is online)"
+              >
+                🔄
+              </button>
+            )}
+          </div>
+          <div style={styles.statusRight}>
+            {currentCall?.bluetoothDeviceName && (
+              <div style={styles.btBadge}>
+                🎧 {currentCall.bluetoothDeviceName}
+              </div>
+            )}
+            <div style={styles.brandBadge}>
+              AuraRing Bridge
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Bar */}
+        <div style={styles.tabBar} className="rb-tab-bar">
+          {(["call", "dial", "settings"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                ...styles.tab,
+                ...(activeTab === tab ? styles.tabActive : {}),
+              }}
             >
-              🔄
+              {tab === "call" ? "📞 Calls" : tab === "dial" ? "⌨️ Dial" : "⚙️ Settings"}
             </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="rb-scroll-content">
+        <div style={styles.content} className="rb-content">
+          {activeTab === "call" && (
+            <CallPanel
+              callState={callState}
+              currentCall={currentCall}
+              onAccept={acceptCall}
+              onReject={rejectCall}
+              onHangup={hangupCall}
+              onToggleMute={toggleMute}
+              onToggleSpeaker={toggleSpeaker}
+              onHold={holdCall}
+              onUnhold={unholdCall}
+              phoneOnline={status.phoneOnline}
+              recentCalls={status.recentCalls}
+              onDialNumber={(num) => {
+                bridgeDialNumber(num);
+                setActiveTab("dial");
+                setDialNumber(num);
+              }}
+            />
+          )}
+
+          {activeTab === "dial" && (
+            <DialPanel
+              number={dialNumber}
+              onChange={setDialNumber}
+              onDial={() => {
+                if (dialNumber.trim()) {
+                  bridge.dialNumber(dialNumber.trim());
+                  setDialNumber("");
+                }
+              }}
+              disabled={!status.phoneOnline}
+            />
+          )}
+
+          {activeTab === "settings" && (
+            <SettingsPanel
+              config={config}
+              onReset={() => {
+                clearBridgeConfig();
+                setConfig(null);
+                setShowSetup(true);
+              }}
+            />
           )}
         </div>
-        {currentCall?.bluetoothDeviceName && (
-          <div style={styles.btBadge}>
-            🎧 {currentCall.bluetoothDeviceName}
-          </div>
-        )}
-      </div>
-
-      {/* Tab Bar */}
-      <div style={styles.tabBar} className="rb-tab-bar">
-        {(["call", "dial", "settings"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              ...styles.tab,
-              ...(activeTab === tab ? styles.tabActive : {}),
-            }}
-          >
-            {tab === "call" ? "📞 Calls" : tab === "dial" ? "⌨️ Dial" : "⚙️ Settings"}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div style={styles.content} className="rb-content">
-        {activeTab === "call" && (
-          <CallPanel
-            callState={callState}
-            currentCall={currentCall}
-            onAccept={acceptCall}
-            onReject={rejectCall}
-            onHangup={hangupCall}
-            onToggleMute={toggleMute}
-            onToggleSpeaker={toggleSpeaker}
-            onHold={holdCall}
-            onUnhold={unholdCall}
-            phoneOnline={status.phoneOnline}
-            recentCalls={status.recentCalls}
-            onDialNumber={(num) => {
-              bridgeDialNumber(num);
-              setActiveTab("dial");
-              setDialNumber(num);
-            }}
-          />
-        )}
-
-        {activeTab === "dial" && (
-          <DialPanel
-            number={dialNumber}
-            onChange={setDialNumber}
-            onDial={() => {
-              if (dialNumber.trim()) {
-                bridge.dialNumber(dialNumber.trim());
-                setDialNumber("");
-              }
-            }}
-            disabled={!status.phoneOnline}
-          />
-        )}
-
-        {activeTab === "settings" && (
-          <SettingsPanel
-            config={config}
-            onReset={() => {
-              clearBridgeConfig();
-              setConfig(null);
-              setShowSetup(true);
-            }}
-          />
-        )}
       </div>
     </div>
   );
@@ -1243,6 +1297,7 @@ function formatDuration(seconds: number): string {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
+    height: "100vh",
     background: "linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%, #0a0a1a 100%)",
     backgroundSize: "400% 400%",
     color: "#fff",
@@ -1259,26 +1314,39 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "20px 32px",
+    padding: "16px 24px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    backdropFilter: "blur(10px)",
+    background: "rgba(10,10,26,0.95)",
+    backdropFilter: "blur(24px)",
     flexWrap: "nowrap" as const,
     gap: 16,
-    minHeight: 72,
+    minHeight: 64,
   },
   statusLeft: { display: "flex", alignItems: "center", gap: 12 },
-  statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor" },
-  statusText: { fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 500 },
+  statusRight: { display: "flex", alignItems: "center", gap: 12 },
+  statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor", flexShrink: 0 },
+  statusText: { fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 600, whiteSpace: "nowrap" as const },
   refreshBtn: {
     background: "rgba(255,255,255,0.08)",
     border: "1px solid rgba(255,255,255,0.12)",
     cursor: "pointer",
-    fontSize: 18,
-    padding: "8px 12px",
-    borderRadius: 10,
+    fontSize: 16,
+    padding: "6px 10px",
+    borderRadius: 8,
     transition: "all 0.2s",
     opacity: 0.8,
+    lineHeight: 1,
+  },
+  brandBadge: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "6px 14px",
+    borderRadius: 20,
+    background: "linear-gradient(135deg, rgba(108,99,255,0.15), rgba(108,99,255,0.08))",
+    color: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(108,99,255,0.2)",
+    letterSpacing: 0.5,
+    whiteSpace: "nowrap" as const,
   },
   btBadge: {
     fontSize: 12,
@@ -1288,21 +1356,23 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#0A84FF",
     border: "1px solid rgba(0,122,255,0.3)",
     fontWeight: 600,
+    whiteSpace: "nowrap" as const,
   },
   // Tabs
   tabBar: {
     display: "flex",
     gap: 8,
-    padding: "16px 32px",
+    padding: "12px 24px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    minHeight: 68,
+    background: "rgba(10,10,26,0.9)",
+    backdropFilter: "blur(24px)",
+    minHeight: 56,
     alignItems: "center",
   },
   tab: {
     flex: 1,
     maxWidth: 200,
-    padding: "14px 0",
+    padding: "12px 0",
     border: "none",
     borderRadius: 12,
     background: "transparent",
@@ -1417,9 +1487,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column" as const,
     height: "100%",
     width: "100%",
-    padding: "0 20px 20px",
     boxSizing: "border-box" as const,
-    maxWidth: "100%",
   },
   recentCallsTitle: {
     fontSize: 22,

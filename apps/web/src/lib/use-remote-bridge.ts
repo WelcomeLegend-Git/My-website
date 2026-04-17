@@ -433,6 +433,16 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
             case "DEVICE_CONNECTED":
               if (message.deviceType === "phone") {
                 setStatus((s) => ({ ...s, phoneOnline: true }));
+                // Phone just connected — request status & calls after short delay
+                // so the phone's state sync has time to initialize
+                setTimeout(() => {
+                  if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    // Send STATUS_REQUEST command
+                    sendCommand("STATUS_REQUEST");
+                    // Send GET_RECENT_CALLS command
+                    sendCommand("GET_RECENT_CALLS");
+                  }
+                }, 1500);
               }
               break;
 

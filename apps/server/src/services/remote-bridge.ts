@@ -546,6 +546,61 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
   });
 
+  // ═══ Register Tablet Device (called by website after QR pairing confirms) ═══
+
+  app.post("/api/remote-bridge/devices/register", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
+
+    const schema = z.object({
+      deviceId: z.string().min(1),
+      deviceType: z.enum(["phone", "tablet"]).default("tablet"),
+      deviceName: z.string().max(50).optional(),
+      encryptionKey: z.string().optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+
+    const { deviceId, deviceType, deviceName, encryptionKey } = parsed.data;
+
+    // Device limit check
+    const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId } });
+    if (deviceCount >= MAX_DEVICES_PER_USER) {
+      return res.status(403).json({
+        message: `Maximum ${MAX_DEVICES_PER_USER} devices allowed. Remove a device first.`,
+      });
+    }
+
+    await prisma.remoteBridgeDevice.upsert({
+      where: { userId_deviceId: { userId, deviceId } },
+      create: {
+        userId,
+        deviceId,
+        deviceType: deviceType || "tablet",
+        deviceName: deviceName || null,
+        trusted: true,
+        lastSeen: new Date(),
+        encryptionKey: encryptionKey || null,
+        ipAddress: ip,
+        userAgent,
+        pairedVia: "qr",
+      } as any,
+      update: {
+        lastSeen: new Date(),
+        trusted: true,
+        ipAddress: ip,
+        userAgent,
+      } as any,
+    });
+
+    await logActivity(userId, deviceId, "device_registered", `${deviceType} device registered from ${ip}`, ip);
+    return res.json({ success: true });
+  });
+
   // Website polls for pairing status
   app.get("/api/remote-bridge/pairing/:id/status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
@@ -879,6 +934,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 deviceId: result.deviceId,
                 deviceType: clientInfo.deviceType,
                 deviceName,
+                ready: true,
               });
             } else {
               ws.send(
@@ -970,11 +1026,11 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
     });
   });
 
-  // Stale connection cleanup
+  // Stale connection cleanup (3 minutes tolerance to survive phone screen-off)
   setInterval(() => {
     const now = Date.now();
     for (const [deviceId, client] of connectedClients) {
-      if (now - client.lastPing > 90_000) {
+      if (now - client.lastPing > 180_000) {
         logger.info({ deviceId }, "Closing stale WebSocket connection");
         client.ws.close(1001, "Stale connection");
         connectedClients.delete(deviceId);
@@ -1003,10 +1059,19 @@ async function authenticateWebSocket(
       return { success: false, error: "User not found" };
     }
 
-    // Build update data — always update lastSeen and IP
+    // Only allow devices that were already registered via QR pairing or manual link
+    const existingDevice = await prisma.remoteBridgeDevice.findUnique({
+      where: { userId_deviceId: { userId, deviceId } },
+    });
+
+    if (!existingDevice) {
+      logger.warn({ userId, deviceId, deviceType }, "WebSocket auth rejected: device not registered (must pair via QR or manual code first)");
+      return { success: false, error: "Device not registered. Please pair via QR code or manual link first." };
+    }
+
+    // Build update data — only update lastSeen and IP, never create
     const updateData: any = {
       lastSeen: new Date(),
-      deviceType: deviceType || "phone",
       ipAddress: ip,
     };
 
@@ -1016,22 +1081,13 @@ async function authenticateWebSocket(
       updateData.deviceName = resolvedName;
     }
 
-    await prisma.remoteBridgeDevice.upsert({
-      where: { userId_deviceId: { userId, deviceId } },
-      create: {
-        userId,
-        deviceId,
-        deviceType: deviceType || "phone",
-        deviceName: resolvedName,
-        trusted: true,
-        lastSeen: new Date(),
-        ipAddress: ip,
-      } as any,
-      update: updateData,
+    await prisma.remoteBridgeDevice.update({
+      where: { id: existingDevice.id },
+      data: updateData,
     });
 
     await logActivity(userId, deviceId, "ws_connected", `WebSocket connected from ${ip}`, ip);
-    return { success: true, userId, deviceId, deviceName: resolvedName || undefined };
+    return { success: true, userId, deviceId, deviceName: resolvedName || existingDevice.deviceName || undefined };
   } catch (error) {
     logger.error({ error }, "WebSocket auth error");
     return { success: false, error: "Invalid token" };

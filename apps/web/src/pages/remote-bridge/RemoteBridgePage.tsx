@@ -4,7 +4,7 @@ import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 
-// Inject spin keyframe and responsive styles
+// Inject animations and premium responsive styles
 if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")) {
   const style = document.createElement("style");
   style.id = "rb-spin-style";
@@ -14,54 +14,60 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
       to { transform: rotate(360deg); } 
     }
     
-    /* Responsive container */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    /* Premium full-screen container */
     .rb-container {
-      max-width: 480px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    .rb-glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .rb-glass-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(108, 99, 255, 0.3);
+      box-shadow: 0 12px 48px rgba(108, 99, 255, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .rb-btn-hover {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .rb-btn-hover:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(108, 99, 255, 0.4);
+    }
+    
+    .rb-btn-hover:active:not(:disabled) {
+      transform: translateY(0);
     }
     
     @media (min-width: 768px) {
-      .rb-container {
-        max-width: 720px;
-      }
-      
-      .rb-dial-pad {
-        gap: 16px !important;
-      }
-      
-      .rb-dial-key {
-        width: 90px !important;
-        height: 70px !important;
-        font-size: 26px !important;
-      }
-      
-      .rb-call-actions {
-        max-width: 480px !important;
-      }
-      
-      .rb-action-btn {
-        min-width: 140px !important;
-        padding: 16px 28px !important;
-        font-size: 16px !important;
-      }
-      
-      .rb-recent-calls-container {
-        padding: 0 24px 24px !important;
-      }
-      
-      .rb-settings-panel {
-        max-width: 600px;
-        margin: 0 auto;
-      }
-    }
-    
-    @media (min-width: 1024px) {
-      .rb-container {
-        max-width: 900px;
-      }
-      
       .rb-content {
-        padding: 24px 32px !important;
+        padding: 32px 48px !important;
       }
       
       .rb-dial-pad {
@@ -74,41 +80,62 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
         font-size: 28px !important;
       }
       
-      .rb-caller-avatar {
-        width: 120px !important;
-        height: 120px !important;
-        font-size: 48px !important;
+      .rb-call-actions {
+        max-width: 600px !important;
       }
       
-      .rb-caller-name {
-        font-size: 32px !important;
-      }
-      
-      .rb-call-status {
-        font-size: 16px !important;
-      }
-      
-      .rb-setup-card {
-        max-width: 500px !important;
-        padding: 60px !important;
-      }
-      
-      .rb-qr-box svg {
-        width: 280px !important;
-        height: 280px !important;
+      .rb-action-btn {
+        min-width: 160px !important;
+        padding: 18px 32px !important;
+        font-size: 17px !important;
       }
     }
     
-    @media (min-width: 1280px) {
-      .rb-container {
-        max-width: 1100px;
+    @media (min-width: 1024px) {
+      .rb-content {
+        padding: 48px 64px !important;
+        max-width: 1400px;
+        margin: 0 auto;
       }
       
-      .rb-content-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 32px;
-        align-items: start;
+      .rb-dial-pad {
+        gap: 24px !important;
+      }
+      
+      .rb-dial-key {
+        width: 110px !important;
+        height: 90px !important;
+        font-size: 32px !important;
+      }
+      
+      .rb-caller-avatar {
+        width: 140px !important;
+        height: 140px !important;
+        font-size: 56px !important;
+      }
+      
+      .rb-caller-name {
+        font-size: 36px !important;
+      }
+      
+      .rb-call-status {
+        font-size: 18px !important;
+      }
+      
+      .rb-setup-card {
+        max-width: 600px !important;
+        padding: 80px !important;
+      }
+      
+      .rb-qr-box svg {
+        width: 320px !important;
+        height: 320px !important;
+      }
+    }
+    
+    @media (min-width: 1440px) {
+      .rb-content {
+        max-width: 1600px;
       }
     }
   `;
@@ -427,7 +454,7 @@ function CallPanel({
             const typeColor = call.type === 3 ? "#FF3B30" : "rgba(255,255,255,0.7)";
             
             return (
-              <div key={i} style={styles.recentCallItem}>
+              <div key={i} style={styles.recentCallItem} className="rb-glass-card">
                 <div style={styles.recentCallAvatar}>
                   {(call.name || call.number).charAt(0).toUpperCase()}
                 </div>
@@ -441,6 +468,7 @@ function CallPanel({
                 <button 
                   onClick={() => onDialNumber(call.number)}
                   style={styles.recentCallDialBtn}
+                  className="rb-btn-hover"
                   title={`Call ${call.name || call.number}`}
                 >
                   📞
@@ -484,10 +512,10 @@ function CallPanel({
       <div style={styles.callActions} className="rb-call-actions">
         {callState === "RINGING" && (
           <>
-            <button onClick={onAccept} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn">
+            <button onClick={onAccept} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn rb-btn-hover">
               ✅ Accept
             </button>
-            <button onClick={onReject} style={{ ...styles.actionBtn, ...styles.rejectBtn }} className="rb-action-btn">
+            <button onClick={onReject} style={{ ...styles.actionBtn, ...styles.rejectBtn }} className="rb-action-btn rb-btn-hover">
               ❌ Reject
             </button>
           </>
@@ -502,7 +530,7 @@ function CallPanel({
                 ...styles.controlBtn,
                 ...(currentCall?.isMuted ? styles.controlBtnActive : {}),
               }}
-              className="rb-action-btn"
+              className="rb-action-btn rb-btn-hover"
             >
               {currentCall?.isMuted ? "🔇 Muted" : "🎤 Mute"}
             </button>
@@ -513,14 +541,14 @@ function CallPanel({
                 ...styles.controlBtn,
                 ...(currentCall?.isSpeakerOn ? styles.controlBtnActive : {}),
               }}
-              className="rb-action-btn"
+              className="rb-action-btn rb-btn-hover"
             >
               {currentCall?.isSpeakerOn ? "🔊 Speaker" : "🔈 Speaker"}
             </button>
-            <button onClick={onHold} style={{ ...styles.actionBtn, ...styles.controlBtn }} className="rb-action-btn">
+            <button onClick={onHold} style={{ ...styles.actionBtn, ...styles.controlBtn }} className="rb-action-btn rb-btn-hover">
               ⏸ Hold
             </button>
-            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn">
+            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn rb-btn-hover">
               📞 End Call
             </button>
           </>
@@ -528,10 +556,10 @@ function CallPanel({
 
         {callState === "HOLDING" && (
           <>
-            <button onClick={onUnhold} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn">
+            <button onClick={onUnhold} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn rb-btn-hover">
               ▶️ Resume
             </button>
-            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn">
+            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn rb-btn-hover">
               📞 End Call
             </button>
           </>
@@ -573,7 +601,7 @@ function DialPanel({
                 key={digit}
                 onClick={() => onChange(number + digit)}
                 style={styles.dialKey}
-                className="rb-dial-key"
+                className="rb-dial-key rb-glass-card rb-btn-hover"
               >
                 {digit}
               </button>
@@ -586,6 +614,7 @@ function DialPanel({
         <button
           onClick={() => onChange(number.slice(0, -1))}
           style={styles.dialDelete}
+          className="rb-glass-card rb-btn-hover"
           disabled={!number}
         >
           ⌫
@@ -597,6 +626,7 @@ function DialPanel({
             ...styles.dialCallBtn,
             opacity: disabled || !number.trim() ? 0.4 : 1,
           }}
+          className="rb-btn-hover"
         >
           📞 Call
         </button>
@@ -1182,67 +1212,78 @@ function formatDuration(seconds: number): string {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%)",
+    background: "linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%, #0a0a1a 100%)",
+    backgroundSize: "400% 400%",
     color: "#fff",
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     display: "flex",
     flexDirection: "column",
     width: "100%",
     margin: "0 auto",
+    position: "relative" as const,
+    overflow: "hidden",
   },
   // Status bar
   statusBar: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "16px 20px",
-    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    padding: "20px 32px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+    backdrop filter: "blur(10px)",
     flexWrap: "wrap" as const,
-    gap: 12,
+    gap: 16,
   },
-  statusLeft: { display: "flex", alignItems: "center", gap: 8 },
-  statusDot: { width: 8, height: 8, borderRadius: "50%" },
-  statusText: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
+  statusLeft: { display: "flex", alignItems: "center", gap: 12 },
+  statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor" },
+  statusText: { fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 500 },
   refreshBtn: {
-    background: "none",
-    border: "none",
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.12)",
     cursor: "pointer",
-    fontSize: 16,
-    padding: "2px 6px",
-    borderRadius: 8,
-    transition: "transform 0.2s",
-    opacity: 0.7,
+    fontSize: 18,
+    padding: "8px 12px",
+    borderRadius: 10,
+    transition: "all 0.2s",
+    opacity: 0.8,
   },
   btBadge: {
-    fontSize: 11,
-    padding: "4px 10px",
-    borderRadius: 12,
-    background: "rgba(0,122,255,0.15)",
+    fontSize: 12,
+    padding: "6px 14px",
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(0,122,255,0.2), rgba(0,122,255,0.1))",
     color: "#0A84FF",
+    border: "1px solid rgba(0,122,255,0.3)",
+    fontWeight: 600,
   },
   // Tabs
   tabBar: {
     display: "flex",
-    gap: 4,
-    padding: "8px 16px",
-    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    gap: 8,
+    padding: "16px 24px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
   },
   tab: {
     flex: 1,
-    padding: "10px 0",
+    padding: "14px 0",
     border: "none",
-    borderRadius: 10,
+    borderRadius: 12,
     background: "transparent",
     color: "rgba(255,255,255,0.5)",
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: 600,
     cursor: "pointer",
-    transition: "all 0.2s",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
   tabActive: {
-    background: "rgba(255,255,255,0.08)",
+    background: "linear-gradient(135deg, rgba(108,99,255,0.2), rgba(90,82,213,0.2))",
     color: "#fff",
+    boxShadow: "0 4px 16px rgba(108,99,255,0.3)",
+    border: "1px solid rgba(108,99,255,0.3)",
   },
-  content: { flex: 1, padding: "16px 20px" },
+  content: { flex: 1, padding: "24px 20px" },
   // Setup
   setupCard: {
     margin: "auto",
@@ -1284,50 +1325,54 @@ const styles: Record<string, React.CSSProperties> = {
   emptyTitle: { fontSize: 18, fontWeight: 600, marginBottom: 8 },
   emptyDesc: { fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 },
   // Call panel
-  callPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", paddingTop: 40 },
-  callerInfo: { textAlign: "center" as const, marginBottom: 40 },
+  callPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", paddingTop: 60 },
+  callerInfo: { textAlign: "center" as const, marginBottom: 50 },
   callerAvatar: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     borderRadius: "50%",
     background: "linear-gradient(135deg, #6C63FF, #5A52D5)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: 700,
-    margin: "0 auto 16px",
+    margin: "0 auto 20px",
+    boxShadow: "0 8px 32px rgba(108, 99, 255, 0.4)",
+    border: "3px solid rgba(108, 99, 255, 0.3)",
   },
-  callerName: { fontSize: 24, fontWeight: 700, marginBottom: 4 },
-  callerNumber: { fontSize: 14, color: "rgba(255,255,255,0.5)" },
-  callStatus: { fontSize: 14, marginTop: 8, fontWeight: 500 },
+  callerName: { fontSize: 28, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.5px" },
+  callerNumber: { fontSize: 16, color: "rgba(255,255,255,0.6)" },
+  callStatus: { fontSize: 15, marginTop: 10, fontWeight: 600 },
   callActions: {
     display: "flex",
     flexWrap: "wrap" as const,
-    gap: 12,
+    gap: 14,
     justifyContent: "center",
-    maxWidth: 320,
+    maxWidth: 400,
   },
   actionBtn: {
-    padding: "14px 24px",
-    borderRadius: 16,
+    padding: "16px 28px",
+    borderRadius: 18,
     border: "none",
-    fontSize: 15,
-    fontWeight: 600,
+    fontSize: 16,
+    fontWeight: 700,
     cursor: "pointer",
-    transition: "all 0.2s",
-    minWidth: 120,
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    minWidth: 130,
+    boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
   },
-  acceptBtn: { background: "#34C759", color: "#fff" },
-  rejectBtn: { background: "#FF3B30", color: "#fff" },
-  endBtn: { background: "#FF3B30", color: "#fff", width: "100%" },
+  acceptBtn: { background: "linear-gradient(135deg, #34C759, #30B350)", color: "#fff" },
+  rejectBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "#fff" },
+  endBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "#fff", width: "100%" },
   controlBtn: {
-    background: "rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.1)",
     color: "#fff",
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    backdropFilter: "blur(10px)",
   },
   controlBtnActive: {
-    background: "rgba(255,149,0,0.2)",
+    background: "linear-gradient(135deg, rgba(255,149,0,0.3), rgba(255,149,0,0.2))",
     borderColor: "#FF9500",
     color: "#FF9500",
   },
@@ -1337,43 +1382,48 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column" as const,
     height: "100%",
     width: "100%",
-    padding: "0 16px 16px",
+    padding: "0 20px 20px",
     boxSizing: "border-box" as const,
   },
   recentCallsTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: 700,
+    marginBottom: 20,
     color: "#fff",
+    letterSpacing: "-0.5px",
   },
   recentCallsList: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 12,
+    gap: 14,
     overflowY: "auto" as const,
     paddingBottom: 24,
   },
   recentCallItem: {
     display: "flex",
     alignItems: "center",
-    padding: "12px",
-    background: "rgba(255,255,255,0.05)",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.05)",
+    padding: "16px",
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    backdropFilter: "blur(10px)",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    cursor: "pointer",
   },
   recentCallAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    background: "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(90,82,213,0.2))",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 18,
-    fontWeight: 600,
+    fontSize: 20,
+    fontWeight: 700,
     color: "#fff",
-    marginRight: 12,
+    marginRight: 14,
     flexShrink: 0,
+    border: "2px solid rgba(108,99,255,0.3)",
   },
   recentCallInfo: {
     flex: 1,
@@ -1383,86 +1433,91 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden" as const,
   },
   recentCallName: {
-    fontSize: 16,
-    fontWeight: 500,
+    fontSize: 17,
+    fontWeight: 600,
     color: "#fff",
     whiteSpace: "nowrap" as const,
     overflow: "hidden" as const,
     textOverflow: "ellipsis" as const,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   recentCallMeta: {
-    fontSize: 13,
+    fontSize: 14,
   },
   recentCallDialBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    background: "rgba(52, 199, 89, 0.15)",
-    border: "none",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    background: "linear-gradient(135deg, rgba(52, 199, 89, 0.25), rgba(52, 199, 89, 0.15))",
+    border: "1px solid rgba(52, 199, 89, 0.3)",
     color: "#34C759",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 18,
+    fontSize: 20,
     cursor: "pointer",
-    marginLeft: 12,
+    marginLeft: 14,
     flexShrink: 0,
-    transition: "transform 0.1s, background 0.2s",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
   },
   // Dial
-  dialPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", width: "100%" },
+  dialPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", width: "100%", padding: "20px 0" },
   dialInput: {
     width: "100%",
-    maxWidth: 400,
-    padding: "16px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(255,255,255,0.05)",
+    maxWidth: 500,
+    padding: "20px 24px",
+    borderRadius: 18,
+    border: "2px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
     color: "#fff",
-    fontSize: 22,
+    fontSize: 28,
     textAlign: "center" as const,
     outline: "none",
-    marginBottom: 20,
-    letterSpacing: 2,
+    marginBottom: 32,
+    letterSpacing: 3,
     boxSizing: "border-box" as const,
+    fontWeight: 600,
+    transition: "all 0.3s",
   },
-  dialPad: { display: "flex", flexDirection: "column" as const, gap: 10, marginBottom: 20 },
-  dialRow: { display: "flex", gap: 10, justifyContent: "center" },
+  dialPad: { display: "flex", flexDirection: "column" as const, gap: 14, marginBottom: 28 },
+  dialRow: { display: "flex", gap: 14, justifyContent: "center" },
   dialKey: {
-    width: 72,
-    height: 56,
-    borderRadius: 14,
-    border: "none",
+    width: 80,
+    height: 64,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    fontSize: 22,
-    fontWeight: 500,
+    fontSize: 24,
+    fontWeight: 600,
     cursor: "pointer",
-    transition: "background 0.15s",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    backdropFilter: "blur(10px)",
   },
-  dialActions: { display: "flex", gap: 12, width: "100%", maxWidth: 320 },
+  dialActions: { display: "flex", gap: 16, width: "100%", maxWidth: 400 },
   dialDelete: {
     flex: 1,
-    padding: "14px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "transparent",
+    padding: "16px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
     color: "#fff",
-    fontSize: 18,
+    fontSize: 20,
     cursor: "pointer",
+    transition: "all 0.2s",
   },
   dialCallBtn: {
     flex: 2,
-    padding: "14px",
-    borderRadius: 14,
+    padding: "16px",
+    borderRadius: 16,
     border: "none",
-    background: "#34C759",
+    background: "linear-gradient(135deg, #34C759, #30B350)",
     color: "#fff",
-    fontSize: 16,
-    fontWeight: 600,
+    fontSize: 17,
+    fontWeight: 700,
     cursor: "pointer",
-    transition: "opacity 0.2s",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "0 4px 16px rgba(52, 199, 89, 0.4)",
   },
   // Settings
   settingsPanel: { display: "flex", flexDirection: "column" as const, gap: 24 },

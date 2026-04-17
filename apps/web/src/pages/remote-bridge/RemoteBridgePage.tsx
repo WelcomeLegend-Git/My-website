@@ -4,11 +4,114 @@ import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 
-// Inject spin keyframe for refresh button
+// Inject spin keyframe and responsive styles
 if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")) {
   const style = document.createElement("style");
   style.id = "rb-spin-style";
-  style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  style.textContent = `
+    @keyframes spin { 
+      from { transform: rotate(0deg); } 
+      to { transform: rotate(360deg); } 
+    }
+    
+    /* Responsive container */
+    .rb-container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    
+    @media (min-width: 768px) {
+      .rb-container {
+        max-width: 720px;
+      }
+      
+      .rb-dial-pad {
+        gap: 16px !important;
+      }
+      
+      .rb-dial-key {
+        width: 90px !important;
+        height: 70px !important;
+        font-size: 26px !important;
+      }
+      
+      .rb-call-actions {
+        max-width: 480px !important;
+      }
+      
+      .rb-action-btn {
+        min-width: 140px !important;
+        padding: 16px 28px !important;
+        font-size: 16px !important;
+      }
+      
+      .rb-recent-calls-container {
+        padding: 0 24px 24px !important;
+      }
+      
+      .rb-settings-panel {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+    }
+    
+    @media (min-width: 1024px) {
+      .rb-container {
+        max-width: 900px;
+      }
+      
+      .rb-content {
+        padding: 24px 32px !important;
+      }
+      
+      .rb-dial-pad {
+        gap: 20px !important;
+      }
+      
+      .rb-dial-key {
+        width: 100px !important;
+        height: 80px !important;
+        font-size: 28px !important;
+      }
+      
+      .rb-caller-avatar {
+        width: 120px !important;
+        height: 120px !important;
+        font-size: 48px !important;
+      }
+      
+      .rb-caller-name {
+        font-size: 32px !important;
+      }
+      
+      .rb-call-status {
+        font-size: 16px !important;
+      }
+      
+      .rb-setup-card {
+        max-width: 500px !important;
+        padding: 60px !important;
+      }
+      
+      .rb-qr-box svg {
+        width: 280px !important;
+        height: 280px !important;
+      }
+    }
+    
+    @media (min-width: 1280px) {
+      .rb-container {
+        max-width: 1100px;
+      }
+      
+      .rb-content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: start;
+      }
+    }
+  `;
   document.head.appendChild(style);
 }
 
@@ -140,7 +243,7 @@ export function RemoteBridgePage() {
 
   if (showSetup || !config) {
     return (
-      <div style={styles.container}>
+      <div style={styles.container} className="rb-container">
         <SetupScreen
           onQrPaired={handleQrPaired}
         />
@@ -151,7 +254,7 @@ export function RemoteBridgePage() {
   // ─── Main Dashboard ───
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="rb-container">
       {/* Status Bar */}
       <div style={styles.statusBar}>
         <div style={styles.statusLeft}>
@@ -207,7 +310,7 @@ export function RemoteBridgePage() {
       </div>
 
       {/* Content */}
-      <div style={styles.content}>
+      <div style={styles.content} className="rb-content">
         {activeTab === "call" && (
           <CallPanel
             callState={callState}
@@ -313,7 +416,7 @@ function CallPanel({
     }
     
     return (
-      <div style={styles.recentCallsContainer}>
+      <div style={styles.recentCallsContainer} className="rb-recent-calls-container">
         <h3 style={styles.recentCallsTitle}>Recent Calls</h3>
         <div style={styles.recentCallsList}>
           {recentCalls.map((call, i) => {
@@ -357,10 +460,10 @@ function CallPanel({
     <div style={styles.callPanel}>
       {/* Caller Info */}
       <div style={styles.callerInfo}>
-        <div style={styles.callerAvatar}>
+        <div style={styles.callerAvatar} className="rb-caller-avatar">
           {callerDisplay.charAt(0).toUpperCase()}
         </div>
-        <h2 style={styles.callerName}>{callerDisplay}</h2>
+        <h2 style={styles.callerName} className="rb-caller-name">{callerDisplay}</h2>
         {callerNumber && <p style={styles.callerNumber}>{callerNumber}</p>}
         <p style={{
           ...styles.callStatus,
@@ -368,7 +471,7 @@ function CallPanel({
                  callState === "ACTIVE" ? "#34C759" :
                  callState === "HOLDING" ? "#FF9500" :
                  "#8E8E93"
-        }}>
+        }} className="rb-call-status">>
           {callState === "RINGING" ? "📞 Incoming Call..." :
            callState === "ACTIVE" ? `🟢 Active · ${formatDuration(currentCall?.durationSeconds || 0)}` :
            callState === "CONNECTING" ? "📲 Connecting..." :
@@ -378,13 +481,13 @@ function CallPanel({
       </div>
 
       {/* Call Actions */}
-      <div style={styles.callActions}>
+      <div style={styles.callActions} className="rb-call-actions">
         {callState === "RINGING" && (
           <>
-            <button onClick={onAccept} style={{ ...styles.actionBtn, ...styles.acceptBtn }}>
+            <button onClick={onAccept} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn">
               ✅ Accept
             </button>
-            <button onClick={onReject} style={{ ...styles.actionBtn, ...styles.rejectBtn }}>
+            <button onClick={onReject} style={{ ...styles.actionBtn, ...styles.rejectBtn }} className="rb-action-btn">
               ❌ Reject
             </button>
           </>
@@ -399,6 +502,7 @@ function CallPanel({
                 ...styles.controlBtn,
                 ...(currentCall?.isMuted ? styles.controlBtnActive : {}),
               }}
+              className="rb-action-btn"
             >
               {currentCall?.isMuted ? "🔇 Muted" : "🎤 Mute"}
             </button>
@@ -409,13 +513,14 @@ function CallPanel({
                 ...styles.controlBtn,
                 ...(currentCall?.isSpeakerOn ? styles.controlBtnActive : {}),
               }}
+              className="rb-action-btn"
             >
               {currentCall?.isSpeakerOn ? "🔊 Speaker" : "🔈 Speaker"}
             </button>
-            <button onClick={onHold} style={{ ...styles.actionBtn, ...styles.controlBtn }}>
+            <button onClick={onHold} style={{ ...styles.actionBtn, ...styles.controlBtn }} className="rb-action-btn">
               ⏸ Hold
             </button>
-            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }}>
+            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn">
               📞 End Call
             </button>
           </>
@@ -423,10 +528,10 @@ function CallPanel({
 
         {callState === "HOLDING" && (
           <>
-            <button onClick={onUnhold} style={{ ...styles.actionBtn, ...styles.acceptBtn }}>
+            <button onClick={onUnhold} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn">
               ▶️ Resume
             </button>
-            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }}>
+            <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn">
               📞 End Call
             </button>
           </>
@@ -460,7 +565,7 @@ function DialPanel({
         autoComplete="off"
       />
 
-      <div style={styles.dialPad}>
+      <div style={styles.dialPad} className="rb-dial-pad">
         {DIAL_PAD.map((row, ri) => (
           <div key={ri} style={styles.dialRow}>
             {row.map((digit) => (
@@ -468,6 +573,7 @@ function DialPanel({
                 key={digit}
                 onClick={() => onChange(number + digit)}
                 style={styles.dialKey}
+                className="rb-dial-key"
               >
                 {digit}
               </button>
@@ -663,7 +769,7 @@ function SettingsPanel({
   };
 
   return (
-    <div style={styles.settingsPanel}>
+    <div style={styles.settingsPanel} className="rb-settings-panel">
       {/* ─── Background Notifications Toggle ─── */}
       <div style={styles.settingSection}>
         <h3 style={styles.settingTitle}>🔔 Background Notifications</h3>
@@ -960,7 +1066,7 @@ function SetupScreen({
             </div>
           ) : (
             <>
-              <div style={styles.qrBox}>
+              <div style={styles.qrBox} className="rb-qr-box">
                 <QRCodeSVG
                   value={qrData || ""}
                   size={220}
@@ -1081,7 +1187,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     display: "flex",
     flexDirection: "column",
-    maxWidth: 480,
+    width: "100%",
     margin: "0 auto",
   },
   // Status bar
@@ -1091,6 +1197,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     padding: "16px 20px",
     borderBottom: "1px solid rgba(255,255,255,0.06)",
+    flexWrap: "wrap" as const,
+    gap: 12,
   },
   statusLeft: { display: "flex", alignItems: "center", gap: 8 },
   statusDot: { width: 8, height: 8, borderRadius: "50%" },
@@ -1140,7 +1248,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "auto",
     padding: 40,
     textAlign: "center" as const,
-    maxWidth: 380,
+    maxWidth: 420,
+    width: "100%",
   },
   setupIcon: { fontSize: 48, marginBottom: 16 },
   setupTitle: { fontSize: 22, fontWeight: 600, marginBottom: 8 },
@@ -1302,9 +1411,10 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "transform 0.1s, background 0.2s",
   },
   // Dial
-  dialPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center" },
+  dialPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", width: "100%" },
   dialInput: {
     width: "100%",
+    maxWidth: 400,
     padding: "16px",
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.1)",
@@ -1331,7 +1441,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     transition: "background 0.15s",
   },
-  dialActions: { display: "flex", gap: 12, width: "100%", maxWidth: 240 },
+  dialActions: { display: "flex", gap: 12, width: "100%", maxWidth: 320 },
   dialDelete: {
     flex: 1,
     padding: "14px",

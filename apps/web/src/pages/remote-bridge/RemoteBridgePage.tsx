@@ -3,6 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
+import { authenticatedFetch } from "../../lib/auth-fetch";
 
 // Inject animations and premium responsive styles
 if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")) {
@@ -201,6 +202,18 @@ function clearBridgeConfig() {
   localStorage.removeItem(BRIDGE_CONFIG_KEY);
 }
 
+async function getBridgeErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.clone().json();
+    if (typeof data?.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+  } catch {
+    // Use the generic fallback when the server does not return JSON.
+  }
+  return fallback;
+}
+
 // ─── Dial Pad Buttons ───
 
 const DIAL_PAD = [
@@ -238,9 +251,7 @@ export function RemoteBridgePage() {
     setRefreshing(true);
     try {
       const base = getApiBaseUrl();
-      const res = await fetch(`${base}/api/remote-bridge/phone-status`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const res = await authenticatedFetch(`${base}/api/remote-bridge/phone-status`);
       if (res.ok) {
         const data = await res.json();
         setPhoneOnline(data.phoneOnline);
@@ -279,12 +290,10 @@ export function RemoteBridgePage() {
 
     // Register the tablet device on the server before WebSocket connects
     try {
-      const token = authStorage.getAccessToken();
       const base = getApiBaseUrl();
-      await fetch(`${base}/api/remote-bridge/devices/register`, {
+      await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -382,6 +391,7 @@ export function RemoteBridgePage() {
                 disabled={refreshing}
                 style={{
                   ...styles.refreshBtn,
+                  ...styles.statusRefreshBtn,
                   ...(refreshing ? { animation: "spin 1s linear infinite" } : {}),
                 }}
                 title="Refresh connection (check if phone is online)"
@@ -730,7 +740,6 @@ function SettingsPanel({
   onReset: () => void;
 }) {
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Push notification state
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -739,15 +748,13 @@ function SettingsPanel({
   const [pushLoading, setPushLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    const token = authStorage.getAccessToken();
     const base = getApiBaseUrl();
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
 
     try {
       const [logRes, pushRes] = await Promise.all([
-        fetch(`${base}/api/remote-bridge/activity?limit=20`, { headers }),
-        fetch(`${base}/api/remote-bridge/push/status`, { headers }),
+        authenticatedFetch(`${base}/api/remote-bridge/activity?limit=20`, { headers }),
+        authenticatedFetch(`${base}/api/remote-bridge/push/status`, { headers }),
       ]);
       if (logRes.ok) setActivityLogs(await logRes.json());
       if (pushRes.ok) {
@@ -762,7 +769,7 @@ function SettingsPanel({
             const registration = await navigator.serviceWorker.ready;
             const existingSub = await registration.pushManager.getSubscription();
             if (existingSub) {
-              const resubRes = await fetch(`${base}/api/remote-bridge/push/subscribe`, {
+              const resubRes = await authenticatedFetch(`${base}/api/remote-bridge/push/subscribe`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({ subscription: existingSub.toJSON() }),
@@ -781,7 +788,6 @@ function SettingsPanel({
     } catch (err) {
       console.error("Failed to fetch bridge data:", err);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -792,11 +798,8 @@ function SettingsPanel({
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const token = authStorage.getAccessToken();
         const base = getApiBaseUrl();
-        const res = await fetch(`${base}/api/remote-bridge/push/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authenticatedFetch(`${base}/api/remote-bridge/push/status`);
         if (res.ok) {
           const data = await res.json();
           setPhoneToggle(data.phoneToggle);
@@ -810,9 +813,8 @@ function SettingsPanel({
   // Subscribe to push notifications
   const handlePushToggle = async (enabled: boolean) => {
     setPushLoading(true);
-    const token = authStorage.getAccessToken();
     const base = getApiBaseUrl();
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
 
     try {
       if (enabled) {
@@ -825,7 +827,7 @@ function SettingsPanel({
         }
 
         // 2. Get VAPID key
-        const vapidRes = await fetch(`${base}/api/remote-bridge/push/vapid-key`, { headers });
+        const vapidRes = await authenticatedFetch(`${base}/api/remote-bridge/push/vapid-key`, { headers });
         if (!vapidRes.ok) {
           alert("Push notifications not configured on server. Contact admin.");
           setPushLoading(false);
@@ -841,7 +843,7 @@ function SettingsPanel({
         });
 
         // 4. Send subscription to server
-        const subRes = await fetch(`${base}/api/remote-bridge/push/subscribe`, {
+        const subRes = await authenticatedFetch(`${base}/api/remote-bridge/push/subscribe`, {
           method: "POST",
           headers,
           body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -858,7 +860,7 @@ function SettingsPanel({
         const subscription = await registration.pushManager.getSubscription();
         if (subscription) await subscription.unsubscribe();
 
-        await fetch(`${base}/api/remote-bridge/push/unsubscribe`, {
+        await authenticatedFetch(`${base}/api/remote-bridge/push/unsubscribe`, {
           method: "POST",
           headers,
         });
@@ -874,12 +876,8 @@ function SettingsPanel({
 
   const handleKillSwitch = async () => {
     if (!window.confirm("This will disconnect ALL devices and revoke all sessions. Continue?")) return;
-    const token = authStorage.getAccessToken();
     const base = getApiBaseUrl();
-    await fetch(`${base}/api/remote-bridge/kill-switch`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await authenticatedFetch(`${base}/api/remote-bridge/kill-switch`, { method: "POST" });
     onReset();
   };
 
@@ -1026,19 +1024,19 @@ function SetupScreen({
     setQrError(null);
     setTimeLeft(60);
 
-    const token = authStorage.getAccessToken();
     const base = getApiBaseUrl();
 
     try {
-      const res = await fetch(`${base}/api/remote-bridge/pairing/create`, {
+      const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/create`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      if (!res.ok) throw new Error("Failed to create pairing session");
+      if (!res.ok) {
+        throw new Error(await getBridgeErrorMessage(res, "Failed to create pairing session"));
+      }
 
       const data = await res.json();
       pairingIdRef.current = data.pairingId;
@@ -1071,7 +1069,7 @@ function SetupScreen({
         });
       }, 1000);
     } catch (err) {
-      setQrError("Failed to generate code. Check your connection.");
+      setQrError(err instanceof Error ? err.message : "Failed to generate code. Check your connection.");
       setQrLoading(false);
     }
   }, []);
@@ -1081,13 +1079,10 @@ function SetupScreen({
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
     pollIntervalRef.current = setInterval(async () => {
-      const token = authStorage.getAccessToken();
       const base = getApiBaseUrl();
 
       try {
-        const res = await fetch(`${base}/api/remote-bridge/pairing/${pairingId}/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/${pairingId}/status`);
 
         if (res.ok) {
           const data = await res.json();
@@ -1326,7 +1321,7 @@ const styles: Record<string, React.CSSProperties> = {
   statusRight: { display: "flex", alignItems: "center", gap: 12 },
   statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor", flexShrink: 0 },
   statusText: { fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 600, whiteSpace: "nowrap" as const },
-  refreshBtn: {
+  statusRefreshBtn: {
     background: "rgba(255,255,255,0.08)",
     border: "1px solid rgba(255,255,255,0.12)",
     cursor: "pointer",

@@ -179,6 +179,7 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
 // ─── Config Storage (persisted in localStorage) ───
 
 const BRIDGE_CONFIG_KEY = "aura-remote-bridge-config";
+const BRIDGE_DEVICE_ID_KEY = "aura-remote-bridge-device-id";
 
 interface BridgeConfig {
   encryptionKey: string;
@@ -200,6 +201,15 @@ function saveBridgeConfig(config: BridgeConfig) {
 
 function clearBridgeConfig() {
   localStorage.removeItem(BRIDGE_CONFIG_KEY);
+}
+
+function getOrCreateBridgeDeviceId(): string {
+  const existing = localStorage.getItem(BRIDGE_DEVICE_ID_KEY);
+  if (existing) return existing;
+
+  const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
+  localStorage.setItem(BRIDGE_DEVICE_ID_KEY, deviceId);
+  return deviceId;
 }
 
 async function getBridgeErrorMessage(response: Response, fallback: string): Promise<string> {
@@ -272,7 +282,7 @@ export function RemoteBridgePage() {
 
   // QR pairing confirmed callback — register tablet device on server first
   const handleQrPaired = useCallback(async (encryptionKey: string) => {
-    const deviceId = `tablet_${crypto.randomUUID().slice(0, 12)}`;
+    const deviceId = getOrCreateBridgeDeviceId();
 
     // Derive a user-friendly device name from the browser
     const deviceName = (() => {
@@ -881,6 +891,18 @@ function SettingsPanel({
     onReset();
   };
 
+  const handleResetConnection = async () => {
+    try {
+      const base = getApiBaseUrl();
+      await authenticatedFetch(`${base}/api/remote-bridge/devices/${config.deviceId}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.warn("[RemoteBridge] Failed to remove web device before reset:", err);
+    }
+    onReset();
+  };
+
   return (
     <div style={styles.settingsPanel} className="rb-settings-panel">
       {/* ─── Background Notifications Toggle ─── */}
@@ -980,7 +1002,7 @@ function SettingsPanel({
         <button onClick={handleKillSwitch} style={styles.killBtn}>
           🚨 Emergency Kill Switch
         </button>
-        <button onClick={onReset} style={styles.resetBtn}>
+        <button onClick={handleResetConnection} style={styles.resetBtn}>
           Reset Connection
         </button>
       </div>

@@ -116,6 +116,12 @@ interface PairingRateLimit {
 
 const pairingRateLimits = new Map<string, PairingRateLimit>();
 
+async function getLinkedTabletCount(userId: string): Promise<number> {
+  return prisma.remoteBridgeDevice.count({
+    where: { userId, deviceType: "tablet" },
+  });
+}
+
 function checkPairingRateLimit(userId: string, type: "qr" | "manual"): boolean {
   const now = Date.now();
   let limit = pairingRateLimits.get(userId);
@@ -229,7 +235,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
   app.get("/api/remote-bridge/devices", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const devices = await prisma.remoteBridgeDevice.findMany({
-      where: { userId },
+      where: { userId, deviceType: "tablet" },
       orderBy: { createdAt: "desc" },
     });
     // Return only safe fields
@@ -393,16 +399,6 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     //   });
     // }
 
-    // Device limit check
-    const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId } });
-    if (deviceCount >= MAX_DEVICES_PER_USER) {
-      return res.status(403).json({
-        message: `Maximum ${MAX_DEVICES_PER_USER} devices allowed. Remove a device first.`,
-        currentCount: deviceCount,
-        maxAllowed: MAX_DEVICES_PER_USER,
-      });
-    }
-
     // Generate pairing data
     const pairingId = crypto.randomUUID();
     const pairingToken = crypto.randomBytes(32).toString("hex");
@@ -484,12 +480,6 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         return res.status(409).json({ message: "Pairing already confirmed" });
       }
 
-      // Device limit check (re-check at confirmation time)
-      const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId: session.userId } });
-      if (deviceCount >= MAX_DEVICES_PER_USER) {
-        return res.status(403).json({ message: `Maximum ${MAX_DEVICES_PER_USER} devices reached.` });
-      }
-
       const user = await prisma.user.findUnique({ where: { id: session.userId } });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -567,12 +557,19 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
     const { deviceId, deviceType, deviceName, encryptionKey } = parsed.data;
 
-    // Device limit check
-    const deviceCount = await prisma.remoteBridgeDevice.count({ where: { userId } });
-    if (deviceCount >= MAX_DEVICES_PER_USER) {
-      return res.status(403).json({
-        message: `Maximum ${MAX_DEVICES_PER_USER} devices allowed. Remove a device first.`,
+    if (deviceType === "tablet") {
+      const existingDevice = await prisma.remoteBridgeDevice.findUnique({
+        where: { userId_deviceId: { userId, deviceId } },
       });
+      const tabletCount = await getLinkedTabletCount(userId);
+
+      if (!existingDevice && tabletCount >= MAX_DEVICES_PER_USER) {
+        return res.status(403).json({
+          message: `Maximum ${MAX_DEVICES_PER_USER} linked web devices allowed. Remove one in AuraRing first.`,
+          currentCount: tabletCount,
+          maxAllowed: MAX_DEVICES_PER_USER,
+        });
+      }
     }
 
     await prisma.remoteBridgeDevice.upsert({
@@ -628,7 +625,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const userId = (req as any).user.id;
 
     const devices = await prisma.remoteBridgeDevice.findMany({
-      where: { userId },
+      where: { userId, deviceType: "tablet" },
       orderBy: { createdAt: "desc" },
     });
 

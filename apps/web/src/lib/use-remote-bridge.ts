@@ -391,7 +391,9 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           switch (message.type) {
             case "AUTH_OK":
               console.log("[RemoteBridge] Auth OK!");
-              setStatus((s) => ({ ...s, authenticated: true, authError: null }));
+              // Reset phoneOnline — the server will send DEVICE_CONNECTED for
+              // any peers that are currently online right after AUTH_OK
+              setStatus((s) => ({ ...s, authenticated: true, authError: null, phoneOnline: false }));
               pingIntervalRef.current = setInterval(() => {
                 ws.send(JSON.stringify({ type: "PING", ts: Date.now() }));
               }, 25_000);
@@ -494,7 +496,9 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           ...s,
           connected: false,
           authenticated: false,
-          phoneOnline: false,
+          // Don't reset phoneOnline here — the phone may still be connected;
+          // it's our own tablet socket that dropped (e.g. browser background throttle).
+          // On reconnect, the server will send DEVICE_CONNECTED for online peers.
           currentCall: null,
         }));
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);

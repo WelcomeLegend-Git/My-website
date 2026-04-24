@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { authStorage } from "./auth-storage";
+import { ensureFreshAuthTokens } from "./auth-fetch";
 import { getApiBaseUrl } from "./env";
 
 // ─── Types ───
@@ -38,6 +40,7 @@ export interface BridgeStatus {
   phoneOnline: boolean;
   currentCall: CallEvent | null;
   recentCalls: RecentCall[];
+  authError: string | null;
 }
 
 interface UseBridgeOptions {
@@ -211,7 +214,7 @@ function stopRingtone() {
 
 let lastNotifiedCallState: string | null = null;
 
-function showCallNotification(callEvent: CallEvent, actions: { accept: () => void; reject: () => void }) {
+function showCallNotification(callEvent: CallEvent) {
   const callState = callEvent.callState;
   if (!callState) return;
 
@@ -268,6 +271,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     phoneOnline: false,
     currentCall: null,
     recentCalls: [],
+    authError: null,
   });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -281,6 +285,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
   const sendCommand = useCallback(
     async (commandType: string, extra: Record<string, unknown> = {}) => {
       if (!wsRef.current || !cryptoKeyRef.current || !options) return;
+      if (wsRef.current.readyState !== WebSocket.OPEN) return;
 
       const payload = JSON.stringify({ commandType, ...extra });
       const { encrypted, iv } = await encrypt(payload, cryptoKeyRef.current);
@@ -300,15 +305,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     [options]
   );
 
-  // ─── Accept/Reject for notification use ───
-  const acceptCallRef = useRef(() => sendCommand("ACCEPT_CALL"));
-  const rejectCallRef = useRef(() => sendCommand("REJECT_CALL"));
-
-  useEffect(() => {
-    acceptCallRef.current = () => sendCommand("ACCEPT_CALL");
-    rejectCallRef.current = () => sendCommand("REJECT_CALL");
-  }, [sendCommand]);
-
   // ─── Connect ───
 
   useEffect(() => {
@@ -320,6 +316,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
+
+    let shouldReconnect = true;
 
     async function connect() {
       try {
@@ -342,7 +340,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
       ws.onopen = () => {
         console.log("[RemoteBridge] WS connected, sending auth...");
-        setStatus((s) => ({ ...s, connected: true }));
+        setStatus((s) => ({ ...s, connected: true, authError: null }));
         reconnectAttempts.current = 0;
 
         // Send auth handshake — include device name for display
@@ -362,7 +360,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         ws.send(
           JSON.stringify({
             type: "AUTH",
-            token: authToken,
+            token: authStorage.getAccessToken() || authToken,
             deviceId,
             deviceType: "tablet",
             deviceName: deviceNameFromUA,
@@ -380,7 +378,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           switch (message.type) {
             case "AUTH_OK":
               console.log("[RemoteBridge] Auth OK!");
-              setStatus((s) => ({ ...s, authenticated: true }));
+              setStatus((s) => ({ ...s, authenticated: true, authError: null }));
               pingIntervalRef.current = setInterval(() => {
                 ws.send(JSON.stringify({ type: "PING", ts: Date.now() }));
               }, 25_000);
@@ -388,10 +386,22 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
             case "AUTH_FAIL":
               console.error("[RemoteBridge] Auth FAILED:", message.reason);
+              if (/invalid token|jwt expired|token/i.test(message.reason || "")) {
+                shouldReconnect = false;
+                const refreshed = await ensureFreshAuthTokens();
+                if (refreshed) {
+                  reconnectTimerRef.current = setTimeout(connect, 250);
+                  ws.close(1000, "Token refreshed");
+                  break;
+                }
+              }
+
+              shouldReconnect = false;
               setStatus((s) => ({
                 ...s,
                 authenticated: false,
                 connected: false,
+                authError: message.reason || "Authentication failed",
               }));
               ws.close();
               break;
@@ -419,10 +429,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     }));
 
                     // Show notification + play ringtone for incoming calls
-                    showCallNotification(callEvent, {
-                      accept: () => acceptCallRef.current(),
-                      reject: () => rejectCallRef.current(),
-                    });
+                    showCallNotification(callEvent);
                   }
                 } catch (err) {
                   console.error("Failed to decrypt event:", err);
@@ -481,9 +488,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         stopRingtone();
 
         // Reconnect
-        const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
-        reconnectAttempts.current++;
-        reconnectTimerRef.current = setTimeout(connect, delay);
+        if (shouldReconnect) {
+          const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+          reconnectAttempts.current++;
+          reconnectTimerRef.current = setTimeout(connect, delay);
+        }
       };
 
       ws.onerror = (ev) => {
@@ -495,12 +504,13 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     connect();
 
     return () => {
+      shouldReconnect = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       wsRef.current?.close();
       stopRingtone();
     };
-  }, [options]);
+  }, [options, sendCommand]);
 
   return {
     status,

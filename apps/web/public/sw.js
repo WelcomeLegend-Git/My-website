@@ -113,13 +113,20 @@ self.addEventListener('notificationclick', (event) => {
   const url = '/remote-bridge';
 
   if (action === 'decline') {
-    // Send message to all clients to reject the call
+    // Send message to an open Remote Bridge client; if none exists, open one
+    // with an action query so the page can reject after WebSocket auth.
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true })
         .then((clientList) => {
+          let sent = false;
           for (const client of clientList) {
-            client.postMessage({ type: 'CALL_ACTION', action: 'REJECT_CALL' });
+            if (client.url.includes('/remote-bridge')) {
+              client.postMessage({ type: 'CALL_ACTION', action: 'REJECT_CALL' });
+              sent = true;
+              if ('focus' in client) return client.focus();
+            }
           }
+          if (!sent) return clients.openWindow(url + '?action=decline');
         })
     );
     return;

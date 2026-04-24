@@ -198,7 +198,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
       const { email, password } = parsed.data;
       const user = await prisma.user.findUnique({ where: { email } });
-      if (!user) {
+      if (!user || !user.passwordHash) {
         recordLoginAttempt(ip, false);
         await logAttempt(ip, email, false);
         return res.status(401).json({ message: "Invalid credentials" });
@@ -591,6 +591,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         trusted: true,
         ipAddress: ip,
         userAgent,
+        ...(encryptionKey ? { encryptionKey } : {}),
+        ...(deviceName ? { deviceName } : {}),
       } as any,
     });
 
@@ -744,25 +746,32 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     // Find or update the tablet device for this user
     const deviceId = parsed.data.deviceId;
     if (deviceId) {
-      await prisma.remoteBridgeDevice.updateMany({
-        where: { userId, deviceId },
+      const result = await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceId, deviceType: "tablet" },
         data: { pushSubscription: subJson, pushEnabled: true },
       });
+      if (result.count === 0) {
+        return res.status(404).json({ message: "Tablet device not registered. Pair this browser again." });
+      }
     } else {
-      // Update all tablet devices for this user
+      // Legacy clients did not send a deviceId. Keep them working, but new clients are scoped.
       await prisma.remoteBridgeDevice.updateMany({
         where: { userId, deviceType: "tablet" },
         data: { pushSubscription: subJson, pushEnabled: true },
       });
     }
 
-    // Check phone toggle status
-    const phoneDevice = await prisma.remoteBridgeDevice.findFirst({
-      where: { userId, deviceType: "phone" },
+    // Check phone-side permission as stored on tablet devices.
+    const tablet = await prisma.remoteBridgeDevice.findFirst({
+      where: {
+        userId,
+        deviceType: "tablet",
+        ...(deviceId ? { deviceId } : {}),
+      },
     });
 
     await logActivity(userId, null, "push_subscribed", `Push subscription registered from ${ip}`, ip);
-    return res.json({ success: true, tabletToggle: true, phoneToggle: phoneDevice?.pushAllowed ?? false });
+    return res.json({ success: true, tabletToggle: true, phoneToggle: tablet?.pushAllowed ?? false });
   });
 
   // Unsubscribe from push
@@ -770,8 +779,20 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const userId = (req as any).user.id;
     const ip = req.ip || "unknown";
 
+    const schema = z.object({
+      deviceId: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+
     await prisma.remoteBridgeDevice.updateMany({
-      where: { userId, deviceType: "tablet" },
+      where: {
+        userId,
+        deviceType: "tablet",
+        ...(parsed.data.deviceId ? { deviceId: parsed.data.deviceId } : {}),
+      },
       data: { pushSubscription: null, pushEnabled: false },
     });
 
@@ -787,6 +808,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const schema = z.object({
       device: z.enum(["phone", "tablet"]),
       enabled: z.boolean(),
+      deviceId: z.string().optional(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -801,9 +823,14 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         data: { pushAllowed: parsed.data.enabled },
       });
     } else {
-      // Tablet controls its own pushEnabled
+      // Tablet controls its own pushEnabled. New web clients send deviceId so one
+      // browser cannot accidentally toggle every linked tablet/browser.
       await prisma.remoteBridgeDevice.updateMany({
-        where: { userId, deviceType: "tablet" },
+        where: {
+          userId,
+          deviceType: "tablet",
+          ...(parsed.data.deviceId ? { deviceId: parsed.data.deviceId } : {}),
+        },
         data: {
           pushEnabled: parsed.data.enabled,
           ...(parsed.data.enabled ? {} : { pushSubscription: null }),
@@ -842,15 +869,32 @@ export function setupRemoteBridgeRoutes(app: Express): void {
   // Get push toggle status (live status for both devices)
   app.get("/api/remote-bridge/push/status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
+    const deviceId = typeof req.query.deviceId === "string" ? req.query.deviceId : undefined;
 
-    const tablet = await prisma.remoteBridgeDevice.findFirst({
-      where: { userId, deviceType: "tablet" },
+    const tablets = await prisma.remoteBridgeDevice.findMany({
+      where: {
+        userId,
+        deviceType: "tablet",
+        ...(deviceId ? { deviceId } : {}),
+      },
+      orderBy: { updatedAt: "desc" },
     });
 
+    const tablet = tablets[0];
+    const phoneToggle = deviceId
+      ? tablet?.pushAllowed ?? false
+      : tablets.some((d: any) => d.pushAllowed);
+    const tabletToggle = deviceId
+      ? tablet?.pushEnabled ?? false
+      : tablets.some((d: any) => d.pushEnabled);
+    const hasSubscription = deviceId
+      ? !!tablet?.pushSubscription
+      : tablets.some((d: any) => !!d.pushSubscription);
+
     return res.json({
-      phoneToggle: tablet?.pushAllowed ?? false,
-      tabletToggle: tablet?.pushEnabled ?? false,
-      hasSubscription: !!tablet?.pushSubscription,
+      phoneToggle,
+      tabletToggle,
+      hasSubscription,
       pushConfigured: !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
     });
   });
@@ -873,6 +917,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
 
   wss.on("connection", (ws: WebSocket, request: any, path: string) => {
     const ip = request.socket.remoteAddress || "unknown";
+    const expectedDeviceType = path === "/ws/tablet" ? "tablet" : "phone";
     let authenticated = false;
     let clientInfo: { userId: string; deviceId: string; deviceType: string } | null = null;
 
@@ -889,14 +934,17 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
 
         if (!authenticated) {
           if (message.type === "AUTH") {
-            const result = await authenticateWebSocket(message, ip);
+            const result = await authenticateWebSocket(
+              { ...message, deviceType: expectedDeviceType },
+              ip
+            );
             if (result.success && result.userId && result.deviceId) {
               authenticated = true;
               clearTimeout(authTimeout);
               clientInfo = {
                 userId: result.userId,
                 deviceId: result.deviceId,
-                deviceType: message.deviceType || "phone",
+                deviceType: expectedDeviceType,
               };
               const deviceName = result.deviceName || null;
 
@@ -1060,25 +1108,27 @@ async function authenticateWebSocket(
     const resolvedName = (typeof deviceName === "string" && deviceName.trim()) ? deviceName.trim() : null;
     const resolvedType = deviceType || "phone";
 
-    // Upsert — create if first connection, update if returning
-    // Ghost devices are prevented because:
-    //   - Phones use a stable deviceId stored in SharedPreferences
-    //   - Tablets use a stable deviceId stored in localStorage
-    const device = await prisma.remoteBridgeDevice.upsert({
+    const device = await prisma.remoteBridgeDevice.findUnique({
       where: { userId_deviceId: { userId, deviceId } },
-      create: {
-        userId,
-        deviceId,
-        deviceType: resolvedType,
-        deviceName: resolvedName,
-        trusted: true,
+    });
+
+    if (!device) {
+      return { success: false, error: "Device not registered. Pair this device again." };
+    }
+
+    if (device.deviceType !== resolvedType) {
+      return { success: false, error: "Device type mismatch. Pair this device again." };
+    }
+
+    if (!device.trusted) {
+      return { success: false, error: "Device is not trusted" };
+    }
+
+    await prisma.remoteBridgeDevice.update({
+      where: { id: device.id },
+      data: {
         lastSeen: new Date(),
         ipAddress: ip,
-      } as any,
-      update: {
-        lastSeen: new Date(),
-        ipAddress: ip,
-        // Only update name if provided (don't overwrite existing name with null)
         ...(resolvedName ? { deviceName: resolvedName } : {}),
       } as any,
     });

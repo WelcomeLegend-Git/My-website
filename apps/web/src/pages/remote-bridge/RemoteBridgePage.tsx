@@ -301,7 +301,7 @@ export function RemoteBridgePage() {
     // Register the tablet device on the server before WebSocket connects
     try {
       const base = getApiBaseUrl();
-      await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
+      const registerRes = await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -313,8 +313,13 @@ export function RemoteBridgePage() {
           encryptionKey,
         }),
       });
+      if (!registerRes.ok) {
+        throw new Error(await getBridgeErrorMessage(registerRes, "Failed to register this browser"));
+      }
     } catch (err) {
       console.error("[RemoteBridge] Failed to register tablet device:", err);
+      alert(err instanceof Error ? err.message : "Failed to register this browser. Please try pairing again.");
+      return;
     }
 
     const newConfig: BridgeConfig = { encryptionKey, deviceId };
@@ -337,6 +342,15 @@ export function RemoteBridgePage() {
     }
   }, [status.authenticated, status.phoneOnline]);
 
+  useEffect(() => {
+    if (!status.authError) return;
+    if (/not registered|type mismatch|not trusted/i.test(status.authError)) {
+      clearBridgeConfig();
+      setConfig(null);
+      setShowSetup(true);
+    }
+  }, [status.authError]);
+
   // Handle service worker messages (Answer/Decline from push notification)
   useEffect(() => {
     const handleSWMessage = (event: MessageEvent) => {
@@ -349,8 +363,10 @@ export function RemoteBridgePage() {
 
     // Handle ?action=answer from notification click opening new window
     const params = new URLSearchParams(window.location.search);
-    if (params.get("action") === "answer" && status.authenticated) {
-      acceptCall();
+    const action = params.get("action");
+    if ((action === "answer" || action === "decline") && status.authenticated) {
+      if (action === "answer") acceptCall();
+      if (action === "decline") rejectCall();
       // Clean URL
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -764,7 +780,7 @@ function SettingsPanel({
     try {
       const [logRes, pushRes] = await Promise.all([
         authenticatedFetch(`${base}/api/remote-bridge/activity?limit=20`, { headers }),
-        authenticatedFetch(`${base}/api/remote-bridge/push/status`, { headers }),
+        authenticatedFetch(`${base}/api/remote-bridge/push/status?deviceId=${encodeURIComponent(config.deviceId)}`, { headers }),
       ]);
       if (logRes.ok) setActivityLogs(await logRes.json());
       if (pushRes.ok) {
@@ -782,7 +798,7 @@ function SettingsPanel({
               const resubRes = await authenticatedFetch(`${base}/api/remote-bridge/push/subscribe`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ subscription: existingSub.toJSON() }),
+                body: JSON.stringify({ subscription: existingSub.toJSON(), deviceId: config.deviceId }),
               });
               if (resubRes.ok) {
                 const resubData = await resubRes.json();
@@ -798,7 +814,7 @@ function SettingsPanel({
     } catch (err) {
       console.error("Failed to fetch bridge data:", err);
     }
-  }, []);
+  }, [config.deviceId]);
 
   useEffect(() => {
     fetchData();
@@ -809,16 +825,17 @@ function SettingsPanel({
     const interval = setInterval(async () => {
       try {
         const base = getApiBaseUrl();
-        const res = await authenticatedFetch(`${base}/api/remote-bridge/push/status`);
+        const res = await authenticatedFetch(`${base}/api/remote-bridge/push/status?deviceId=${encodeURIComponent(config.deviceId)}`);
         if (res.ok) {
           const data = await res.json();
           setPhoneToggle(data.phoneToggle);
+          setPushEnabled(data.tabletToggle);
           setPushConfigured(data.pushConfigured);
         }
       } catch { /* ignore */ }
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [config.deviceId]);
 
   // Subscribe to push notifications
   const handlePushToggle = async (enabled: boolean) => {
@@ -856,7 +873,7 @@ function SettingsPanel({
         const subRes = await authenticatedFetch(`${base}/api/remote-bridge/push/subscribe`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ subscription: subscription.toJSON() }),
+          body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: config.deviceId }),
         });
 
         if (subRes.ok) {
@@ -873,6 +890,7 @@ function SettingsPanel({
         await authenticatedFetch(`${base}/api/remote-bridge/push/unsubscribe`, {
           method: "POST",
           headers,
+          body: JSON.stringify({ deviceId: config.deviceId }),
         });
 
         setPushEnabled(false);
@@ -1034,17 +1052,17 @@ function SetupScreen({
   const [qrData, setQrData] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [qrError, setQrError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(60); // 1 min countdown
+  const [timeLeft, setTimeLeft] = useState(60);
   const pairingIdRef = useRef<string | null>(null);
   const encryptionKeyRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval>>();
   const countdownRef = useRef<ReturnType<typeof setInterval>>();
 
   // Create pairing session & generate QR
-  const createPairingSession = useCallback(async () => {
+  const createPairingSession = useCallback(async (type: "qr" | "manual" = setupTab) => {
     setQrLoading(true);
     setQrError(null);
-    setTimeLeft(60);
+    setTimeLeft(type === "manual" ? 120 : 60);
 
     const base = getApiBaseUrl();
 
@@ -1054,6 +1072,7 @@ function SetupScreen({
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ type }),
       });
 
       if (!res.ok) {
@@ -1063,6 +1082,7 @@ function SetupScreen({
       const data = await res.json();
       pairingIdRef.current = data.pairingId;
       encryptionKeyRef.current = data.encryptionKey;
+      setTimeLeft(Number(data.expiresInSeconds) || (type === "manual" ? 120 : 60));
 
       // QR payload: compact JSON
       const qrPayload = JSON.stringify({
@@ -1094,7 +1114,7 @@ function SetupScreen({
       setQrError(err instanceof Error ? err.message : "Failed to generate code. Check your connection.");
       setQrLoading(false);
     }
-  }, []);
+  }, [setupTab]);
 
   // Poll server for pairing confirmation
   const startPolling = useCallback((pairingId: string, encryptionKey: string) => {
@@ -1122,19 +1142,21 @@ function SetupScreen({
         // Ignore polling errors
       }
     }, 2000); // Poll every 2 seconds
-  }, [onQrPaired, createPairingSession]);
+  }, [onQrPaired]);
 
   // Initialize on mount
   useEffect(() => {
     if (setupTab === "qr") {
-      createPairingSession();
+      createPairingSession("qr");
+    } else {
+      createPairingSession("manual");
     }
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [setupTab]);
+  }, [setupTab, createPairingSession]);
 
   const formatCountdown = (s: number) => {
     const m = Math.floor(s / 60);
@@ -1185,14 +1207,14 @@ function SetupScreen({
           ) : qrError ? (
             <div style={styles.qrPlaceholder}>
               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
-              <button onClick={createPairingSession} style={styles.refreshBtn}>
+              <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
                 🔄 Retry
               </button>
             </div>
           ) : timeLeft === 0 ? (
             <div style={styles.qrPlaceholder}>
               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
-              <button onClick={createPairingSession} style={styles.refreshBtn}>
+              <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
                 🔄 Generate New
               </button>
             </div>
@@ -1222,7 +1244,7 @@ function SetupScreen({
                     Expires in {formatCountdown(timeLeft)}
                   </span>
                   <button
-                    onClick={createPairingSession}
+                    onClick={() => createPairingSession()}
                     style={styles.refreshBtn}
                   >
                     🔄 Refresh
@@ -1249,14 +1271,14 @@ function SetupScreen({
           ) : timeLeft === 0 ? (
              <div style={styles.qrPlaceholder}>
                <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
-               <button onClick={createPairingSession} style={styles.refreshBtn}>
+               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
                  🔄 Generate New
                </button>
              </div>
           ) : qrError ? (
              <div style={styles.qrPlaceholder}>
                <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
-               <button onClick={createPairingSession} style={styles.refreshBtn}>🔄 Retry</button>
+               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>🔄 Retry</button>
              </div>
           ) : (
             <>

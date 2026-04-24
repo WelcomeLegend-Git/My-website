@@ -52,7 +52,7 @@ const refreshAuthTokens = async (): Promise<boolean> => {
   }
 };
 
-const ensureFreshAuthTokens = async () => {
+export const ensureFreshAuthTokens = async () => {
   if (!refreshPromise) {
     refreshPromise = refreshAuthTokens().finally(() => {
       refreshPromise = null;

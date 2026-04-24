@@ -663,31 +663,6 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     });
   });
 
-  // ═══ Delete a linked device ═══
-
-  app.delete("/api/remote-bridge/devices/:deviceId", requireAuth, async (req, res) => {
-    const userId = (req as any).user.id;
-    const { deviceId } = req.params;
-
-    try {
-      await prisma.remoteBridgeDevice.deleteMany({
-        where: { userId, deviceId },
-      });
-
-      // Also disconnect if currently connected
-      const client = connectedClients.get(deviceId);
-      if (client && client.userId === userId) {
-        client.ws.close(1000, "Device removed");
-        connectedClients.delete(deviceId);
-      }
-
-      return res.json({ success: true });
-    } catch (error) {
-      logger.error({ error }, "Failed to delete device");
-      return res.status(500).json({ message: "Failed to delete device" });
-    }
-  });
-
   // ═══ Phone status check (is any phone online for this user?) ═══
 
   app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {

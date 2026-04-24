@@ -105,6 +105,11 @@ async function computeHmac(data: string, base64Key: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
+function generateNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...bytes));
+}
+
 // ─── Ringtone Audio ───
 
 let ringtoneAudio: HTMLAudioElement | null = null;
@@ -289,15 +294,23 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
       const payload = JSON.stringify({ commandType, ...extra });
       const { encrypted, iv } = await encrypt(payload, cryptoKeyRef.current);
-      const hmac = await computeHmac(encrypted, options.encryptionKey);
+      const ts = Date.now();
+      const nonce = generateNonce();
+
+      // HMAC covers the full envelope to prevent replay/tamper attacks
+      // Must match Android's RemoteCallProtocol.Envelope.hmacInput() format:
+      // "type|payload|iv|ts|deviceId|nonce"
+      const hmacInput = `COMMAND|${encrypted}|${iv}|${ts}|${options.deviceId}|${nonce}`;
+      const hmac = await computeHmac(hmacInput, options.encryptionKey);
 
       const envelope = {
         type: "COMMAND",
         payload: encrypted,
         iv,
         hmac,
-        ts: Date.now(),
+        ts,
         deviceId: options.deviceId,
+        nonce,
       };
 
       wsRef.current.send(JSON.stringify(envelope));

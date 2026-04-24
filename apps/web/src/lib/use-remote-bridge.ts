@@ -504,8 +504,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         stopRingtone();
 
-        // Reconnect
-        if (shouldReconnect) {
+        // Reconnect — but only if online
+        if (shouldReconnect && navigator.onLine) {
           const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
           reconnectAttempts.current++;
           reconnectTimerRef.current = setTimeout(connect, delay);
@@ -520,12 +520,49 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
     connect();
 
+    // ─── Smart reconnect on page focus (like Phone Link) ───
+    // When user switches to this tab, if we're disconnected, reconnect immediately
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && shouldReconnect) {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          console.log("[RemoteBridge] Tab became visible — reconnecting");
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+          reconnectAttempts.current = 0;
+          connect();
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // ─── Network-aware reconnect ───
+    // When iPad comes back online, reconnect immediately
+    function handleOnline() {
+      console.log("[RemoteBridge] Network came back online");
+      const ws = wsRef.current;
+      if (shouldReconnect && (!ws || ws.readyState !== WebSocket.OPEN)) {
+        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        reconnectAttempts.current = 0;
+        connect();
+      }
+    }
+    // When iPad goes offline, don't spam reconnect — just note it
+    function handleOffline() {
+      console.log("[RemoteBridge] Network went offline — pausing reconnect");
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    }
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
       shouldReconnect = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       wsRef.current?.close();
       stopRingtone();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [options, sendCommand]);
 

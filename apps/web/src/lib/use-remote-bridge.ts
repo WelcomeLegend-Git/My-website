@@ -1,4 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+
+// Diagnostic logging helper
+const DIAG = true; // Set false to disable diagnostic logs
+function diagLog(msg: string) {
+  if (!DIAG) return;
+  console.log(`[DIAG ${new Date().toISOString()}] ${msg}`);
+}
 import { authStorage } from "./auth-storage";
 import { ensureFreshAuthTokens } from "./auth-fetch";
 import { getApiBaseUrl } from "./env";
@@ -352,7 +359,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("[RemoteBridge] WS connected, sending auth...");
+      console.log("[RemoteBridge] WS connected, sending auth...");
+        diagLog(`WS_OPEN — sending auth handshake`);
         setStatus((s) => ({ ...s, connected: true, authError: null }));
         reconnectAttempts.current = 0;
 
@@ -391,6 +399,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           switch (message.type) {
             case "AUTH_OK":
               console.log("[RemoteBridge] Auth OK!");
+              diagLog(`AUTH_OK — starting ping interval`);
               // Reset phoneOnline — the server will send DEVICE_CONNECTED for
               // any peers that are currently online right after AUTH_OK
               setStatus((s) => ({ ...s, authenticated: true, authError: null, phoneOnline: false }));
@@ -401,6 +410,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
             case "AUTH_FAIL":
               console.error("[RemoteBridge] Auth FAILED:", message.reason);
+              diagLog(`AUTH_FAIL reason=${message.reason}`);
               if (/invalid token|jwt expired|token/i.test(message.reason || "")) {
                 shouldReconnect = false;
                 const refreshed = await ensureFreshAuthTokens();
@@ -432,6 +442,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                   );
                   const callEvent = JSON.parse(plaintext) as CallEvent;
 
+                  diagLog(`EVENT decrypted: eventType=${callEvent.eventType} callState=${callEvent.callState || 'none'}`);
+
                   if (callEvent.eventType === "RECENT_CALLS") {
                     if (callEvent.recentCalls) {
                       setStatus((s) => ({ ...s, phoneOnline: true, recentCalls: callEvent.recentCalls! }));
@@ -453,6 +465,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
               break;
 
             case "DEVICE_CONNECTED":
+              diagLog(`DEVICE_CONNECTED type=${message.deviceType} id=${message.deviceId}`);
               if (message.deviceType === "phone") {
                 setStatus((s) => ({ ...s, phoneOnline: true }));
                 // Phone just connected — request status & calls after short delay
@@ -469,6 +482,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
               break;
 
             case "DEVICE_DISCONNECTED":
+              diagLog(`DEVICE_DISCONNECTED type=${message.deviceType} id=${message.deviceId}`);
               if (message.deviceType === "phone") {
                 setStatus((s) => ({
                   ...s,
@@ -492,6 +506,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
       ws.onclose = (ev) => {
         console.log("[RemoteBridge] WS closed, code:", ev.code, "reason:", ev.reason);
+        diagLog(`WS_CLOSED code=${ev.code} reason=${ev.reason} shouldReconnect=${shouldReconnect} online=${navigator.onLine}`);
         setStatus((s) => ({
           ...s,
           connected: false,

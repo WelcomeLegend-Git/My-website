@@ -78,6 +78,7 @@ model User {
   remoteBridgeDevices    RemoteBridgeDevice[]
   remoteBridgeSessions   RemoteBridgeSession[]
   remoteBridgeActivityLogs RemoteBridgeActivityLog[]
+  remoteBridgeDiagLogs   RemoteBridgeDiagLog[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 }
@@ -504,5 +505,18 @@ model RemoteBridgeLoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([ipAddress])
+  @@index([createdAt])
+}
+
+model RemoteBridgeDiagLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    String   // "server", "phone", "tablet"
+  event     String   // e.g. "WS_OPEN", "AUTH_OK", "CALL_STATE_CHANGE", "WS_CLOSED"
+  details   String?  // Additional context
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
   @@index([createdAt])
 }

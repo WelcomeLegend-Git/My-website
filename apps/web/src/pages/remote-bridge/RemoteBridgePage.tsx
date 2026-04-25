@@ -4,6 +4,7 @@ import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 import { authenticatedFetch } from "../../lib/auth-fetch";
+import { BridgeDiagnosticsPanel } from "./BridgeDiagnosticsPanel";
 
 // Inject animations and premium responsive styles
 if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")) {
@@ -239,7 +240,7 @@ export function RemoteBridgePage() {
   const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
-  const [activeTab, setActiveTab] = useState<"call" | "dial" | "settings">("call");
+  const [activeTab, setActiveTab] = useState<"call" | "dial" | "settings" | "diag">("call");
   const [refreshing, setRefreshing] = useState(false);
 
   const auth = authStorage.getState();
@@ -440,7 +441,7 @@ export function RemoteBridgePage() {
 
         {/* Tab Bar */}
         <div style={styles.tabBar} className="rb-tab-bar">
-          {(["call", "dial", "settings"] as const).map((tab) => (
+          {(["call", "dial", "settings", "diag"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -449,7 +450,7 @@ export function RemoteBridgePage() {
                 ...(activeTab === tab ? styles.tabActive : {}),
               }}
             >
-              {tab === "call" ? "📞 Calls" : tab === "dial" ? "⌨️ Dial" : "⚙️ Settings"}
+              {tab === "call" ? "📞 Calls" : tab === "dial" ? "⌨️ Dial" : tab === "settings" ? "⚙️ Settings" : "🔍 Diag"}
             </button>
           ))}
         </div>
@@ -502,6 +503,10 @@ export function RemoteBridgePage() {
                 setShowSetup(true);
               }}
             />
+          )}
+
+          {activeTab === "diag" && (
+            <BridgeDiagnosticsPanel />
           )}
         </div>
       </div>

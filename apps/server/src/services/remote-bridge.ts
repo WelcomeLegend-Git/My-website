@@ -170,6 +170,37 @@ async function sendFcmToPhone(
   }
 }
 
+// ─── Persistent Diagnostic Logging (stored in DB for viewing) ───
+
+async function diagLog(
+  userId: string,
+  source: "server" | "phone" | "tablet",
+  event: string,
+  details?: string
+): Promise<void> {
+  try {
+    await prisma.remoteBridgeDiagLog.create({
+      data: { userId, source, event, details },
+    });
+    // Auto-cleanup: keep only last 500 logs per user
+    const count = await prisma.remoteBridgeDiagLog.count({ where: { userId } });
+    if (count > 500) {
+      const oldest = await prisma.remoteBridgeDiagLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+        take: count - 500,
+        select: { id: true },
+      });
+      await prisma.remoteBridgeDiagLog.deleteMany({
+        where: { id: { in: oldest.map((r) => r.id) } },
+      });
+    }
+  } catch (error) {
+    // Never let diagnostic logging break the main flow
+    logger.error({ error }, "diagLog write failed");
+  }
+}
+
 // ─── Types ───
 
 interface AuthenticatedSocket {
@@ -777,6 +808,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     });
 
     logger.info({ userId, callerName: name, via: "http-fallback" }, "Push notification triggered via HTTP fallback");
+    diagLog(userId, "server", "CALL_SIGNAL_PUSH", `caller=${name} via=HTTP_FALLBACK`);
     return res.json({ sent: true });
   });
 
@@ -812,8 +844,55 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const sent = await sendFcmToPhone(userId, {
       action: "WAKE_BRIDGE",
     });
+    diagLog(userId, "server", "WAKE_PHONE_FCM", `sent=${sent}`);
 
     return res.json({ sent });
+  });
+
+  // ═══ Diagnostics — View bridge event logs ═══
+
+  app.get("/api/remote-bridge/diagnostics", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+
+    const logs = await prisma.remoteBridgeDiagLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, source: true, event: true, details: true, createdAt: true },
+    });
+
+    return res.json({ logs });
+  });
+
+  // ═══ Diagnostics — Phone pushes its events to server ═══
+
+  app.post("/api/remote-bridge/diag", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { events } = req.body || {};
+
+    if (!Array.isArray(events) || events.length === 0) {
+      return res.status(400).json({ message: "events array required" });
+    }
+
+    // Batch insert (max 50 per request to prevent abuse)
+    const toInsert = events.slice(0, 50).map((e: any) => ({
+      userId,
+      source: "phone" as const,
+      event: String(e.event || "UNKNOWN"),
+      details: e.details ? String(e.details).slice(0, 500) : null,
+    }));
+
+    await prisma.remoteBridgeDiagLog.createMany({ data: toInsert });
+    return res.json({ inserted: toInsert.length });
+  });
+
+  // ═══ Diagnostics — Clear logs ═══
+
+  app.delete("/api/remote-bridge/diagnostics", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    await prisma.remoteBridgeDiagLog.deleteMany({ where: { userId } });
+    return res.json({ cleared: true });
   });
 
   app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {
@@ -1088,6 +1167,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 { deviceId: result.deviceId, deviceType: clientInfo.deviceType, deviceName },
                 "Remote bridge client connected"
               );
+              diagLog(result.userId, "server", "WS_CONNECTED", `${clientInfo.deviceType} ${result.deviceId} name=${deviceName}`);
 
               // Tell the new client about all already-connected peers
               for (const [peerId, peer] of connectedClients) {
@@ -1111,6 +1191,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
               ws.send(
                 JSON.stringify({ type: "AUTH_FAIL", reason: result.error || "Invalid credentials" })
               );
+              diagLog("", "server", "WS_AUTH_FAIL", `type=${expectedDeviceType} error=${result.error}`);
               ws.close(4003, "Authentication failed");
             }
           } else {
@@ -1131,6 +1212,8 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           case "EVENT":
             if (clientInfo.deviceType === "phone") {
               forwardToDeviceType(clientInfo.userId, clientInfo.deviceId, "tablet", message);
+              // Extract call state from encrypted envelope for diagnostic visibility
+              diagLog(clientInfo.userId, "server", "EVENT_FORWARDED", `from=phone to=tablet`);
             }
             break;
 
@@ -1146,6 +1229,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
                 requireInteraction: true,
               });
               logger.info({ userId: clientInfo.userId, callerName }, "Push notification triggered for incoming call");
+              diagLog(clientInfo.userId, "server", "CALL_SIGNAL_PUSH", `caller=${callerName} via=WS`);
             }
             break;
 
@@ -1189,6 +1273,7 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           deviceType: clientInfo.deviceType,
         });
         logger.info({ deviceId: clientInfo.deviceId }, "Remote bridge client disconnected");
+        diagLog(clientInfo.userId, "server", "WS_DISCONNECTED", `${clientInfo.deviceType} ${clientInfo.deviceId}`);
       }
     });
 

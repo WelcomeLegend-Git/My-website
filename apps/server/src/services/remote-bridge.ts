@@ -10,6 +10,28 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { env } from "../env";
 import webpush from "web-push";
+import admin from "firebase-admin";
+import fs from "node:fs";
+import path from "node:path";
+
+// ─── Firebase Admin SDK (FCM for phone push commands) ───
+
+const serviceAccountPath = path.join(__dirname, "..", "firebase-service-account.json");
+if (fs.existsSync(serviceAccountPath)) {
+  try {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    }
+    logger.info("Firebase Admin SDK initialized (FCM ready)");
+  } catch (error) {
+    logger.error({ error }, "Failed to initialize Firebase Admin SDK");
+  }
+} else {
+  logger.warn("firebase-service-account.json not found — FCM disabled");
+}
 
 // ─── Constants ───
 
@@ -74,6 +96,60 @@ async function sendPushNotification(userId: string, payload: object): Promise<vo
     }
   } catch (error) {
     logger.error({ error }, "sendPushNotification error");
+  }
+}
+
+// ─── FCM Push to Phone (for commands + wake signals) ───
+
+async function sendFcmToPhone(
+  userId: string,
+  data: Record<string, string>
+): Promise<boolean> {
+  if (!admin.apps.length) return false;
+
+  try {
+    // Find all phone devices for this user with FCM tokens
+    const phones = await prisma.remoteBridgeDevice.findMany({
+      where: {
+        userId,
+        deviceType: "phone",
+        fcmToken: { not: null },
+      },
+    });
+
+    let sent = false;
+    for (const phone of phones) {
+      if (!phone.fcmToken) continue;
+      try {
+        await admin.messaging().send({
+          token: phone.fcmToken,
+          data, // FCM data-only message — wakes the app
+          android: {
+            priority: "high", // Ensures delivery even in Doze mode
+          },
+        });
+        logger.info({ userId, deviceId: phone.deviceId }, "FCM sent to phone");
+        sent = true;
+      } catch (error: any) {
+        if (
+          error.code === "messaging/registration-token-not-registered" ||
+          error.code === "messaging/invalid-registration-token"
+        ) {
+          // Token expired — clear it
+          await prisma.remoteBridgeDevice.update({
+            where: { id: phone.id },
+            data: { fcmToken: null },
+          });
+          logger.info({ deviceId: phone.deviceId }, "FCM token expired, cleared");
+        } else {
+          logger.error({ error, deviceId: phone.deviceId }, "FCM send failed");
+        }
+      }
+    }
+    return sent;
+  } catch (error) {
+    logger.error({ error }, "sendFcmToPhone error");
+    return false;
   }
 }
 
@@ -687,7 +763,41 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ sent: true });
   });
 
-  // ═══ Phone status check (is any phone online for this user?) ═══
+  // ═══ FCM Token Registration (phone registers its FCM token) ═══
+
+  app.post("/api/remote-bridge/fcm-token", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { fcmToken, deviceId } = req.body || {};
+
+    if (!fcmToken || !deviceId) {
+      return res.status(400).json({ message: "fcmToken and deviceId required" });
+    }
+
+    try {
+      await prisma.remoteBridgeDevice.updateMany({
+        where: { userId, deviceId },
+        data: { fcmToken },
+      });
+
+      logger.info({ userId, deviceId }, "FCM token registered");
+      return res.json({ success: true });
+    } catch (error) {
+      logger.error({ error }, "Failed to register FCM token");
+      return res.status(500).json({ message: "Failed to register FCM token" });
+    }
+  });
+
+  // ═══ Wake Bridge (website tells server to wake up the phone via FCM) ═══
+
+  app.post("/api/remote-bridge/wake-phone", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+
+    const sent = await sendFcmToPhone(userId, {
+      action: "WAKE_BRIDGE",
+    });
+
+    return res.json({ sent });
+  });
 
   app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;

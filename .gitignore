@@ -8,3 +8,7 @@ uploads
 coverage
 *.local
 .vercel
+
+# Firebase service account (PRIVATE KEY - never commit)
+firebase-service-account.json
+apps/server/firebase-service-account.json

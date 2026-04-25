@@ -458,6 +458,7 @@ model RemoteBridgeDevice {
   pushSubscription  String?   // JSON stringified push subscription (tablet only)
   pushEnabled       Boolean   @default(false) // tablet wants background alerts
   pushAllowed       Boolean   @default(false) // phone allows push to this tablet
+  fcmToken          String?   // FCM token for push commands (phone only)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

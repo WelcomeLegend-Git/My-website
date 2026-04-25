@@ -522,6 +522,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
     // ─── Smart reconnect on page focus (like Phone Link) ───
     // When user switches to this tab, if we're disconnected, reconnect immediately
+    // Also wake the phone via FCM if it's not connected
     function handleVisibilityChange() {
       if (document.visibilityState === "visible" && shouldReconnect) {
         const ws = wsRef.current;
@@ -530,6 +531,17 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
           reconnectAttempts.current = 0;
           connect();
+        }
+
+        // Wake the phone via FCM (in case its WebSocket is down)
+        if (options) {
+          fetch("/api/remote-bridge/wake-phone", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${options.authToken}`,
+            },
+          }).catch(() => {}); // Fire-and-forget
         }
       }
     }

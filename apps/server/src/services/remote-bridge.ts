@@ -15,22 +15,39 @@ import fs from "node:fs";
 import path from "node:path";
 
 // ─── Firebase Admin SDK (FCM for phone push commands) ───
+// Loads credentials from FIREBASE_SERVICE_ACCOUNT env var (Render)
+// or from firebase-service-account.json file (local dev)
 
-const serviceAccountPath = path.join(__dirname, "..", "firebase-service-account.json");
-if (fs.existsSync(serviceAccountPath)) {
+let firebaseServiceAccount: any = null;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+    firebaseServiceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } catch (error) {
+    logger.error({ error }, "Failed to parse FIREBASE_SERVICE_ACCOUNT env var");
+  }
+} else {
+  const serviceAccountPath = path.join(__dirname, "..", "firebase-service-account.json");
+  if (fs.existsSync(serviceAccountPath)) {
+    try {
+      firebaseServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    } catch (error) {
+      logger.error({ error }, "Failed to read firebase-service-account.json");
     }
+  }
+}
+
+if (firebaseServiceAccount && !admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(firebaseServiceAccount),
+    });
     logger.info("Firebase Admin SDK initialized (FCM ready)");
   } catch (error) {
     logger.error({ error }, "Failed to initialize Firebase Admin SDK");
   }
-} else {
-  logger.warn("firebase-service-account.json not found — FCM disabled");
+} else if (!firebaseServiceAccount) {
+  logger.warn("No Firebase credentials found — FCM disabled. Set FIREBASE_SERVICE_ACCOUNT env var or provide firebase-service-account.json");
 }
 
 // ─── Constants ───

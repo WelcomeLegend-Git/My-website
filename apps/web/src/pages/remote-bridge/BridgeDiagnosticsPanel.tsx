@@ -9,15 +9,34 @@ interface DiagLog {
   createdAt: string;
 }
 
+type TimeFilter = "1h" | "2h" | "3h" | "6h" | "1w" | "all";
+
+const TIME_FILTERS: { key: TimeFilter; label: string; hours: number | null }[] = [
+  { key: "1h", label: "1 Hr", hours: 1 },
+  { key: "2h", label: "2 Hr", hours: 2 },
+  { key: "3h", label: "3 Hr", hours: 3 },
+  { key: "6h", label: "6 Hr", hours: 6 },
+  { key: "1w", label: "Week", hours: 24 * 7 },
+  { key: "all", label: "All", hours: null },
+];
+
 export function BridgeDiagnosticsPanel() {
   const [logs, setLogs] = useState<DiagLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("3h");
+  const [copied, setCopied] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await authenticatedFetch("/api/remote-bridge/diagnostics?limit=300");
+      const filter = TIME_FILTERS.find((f) => f.key === timeFilter);
+      let url = "/api/remote-bridge/diagnostics";
+      if (filter?.hours) {
+        const since = new Date(Date.now() - filter.hours * 3600_000).toISOString();
+        url += `?since=${since}`;
+      }
+      const res = await authenticatedFetch(url);
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -27,7 +46,7 @@ export function BridgeDiagnosticsPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeFilter]);
 
   const clearLogs = useCallback(async () => {
     try {
@@ -37,6 +56,24 @@ export function BridgeDiagnosticsPanel() {
       console.error("Failed to clear diagnostics:", err);
     }
   }, []);
+
+  const copyLogs = useCallback(() => {
+    const text = logs
+      .slice()
+      .reverse() // oldest first for reading
+      .map((l) => {
+        const t = new Date(l.createdAt).toLocaleString("en-IN", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+          hour12: false, day: "2-digit", month: "short",
+        });
+        return `[${t}] [${l.source.toUpperCase()}] ${l.event}${l.details ? " " + l.details : ""}`;
+      })
+      .join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [logs]);
 
   useEffect(() => {
     fetchLogs();
@@ -50,10 +87,10 @@ export function BridgeDiagnosticsPanel() {
 
   const sourceColor = (source: string) => {
     switch (source) {
-      case "server": return "#60a5fa";   // blue
-      case "phone": return "#34d399";    // green
-      case "tablet": return "#c084fc";   // purple
-      default: return "#9ca3af";         // gray
+      case "server": return "#60a5fa";
+      case "phone": return "#34d399";
+      case "tablet": return "#c084fc";
+      default: return "#9ca3af";
     }
   };
 
@@ -69,10 +106,7 @@ export function BridgeDiagnosticsPanel() {
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
     }) + "." + String(d.getMilliseconds()).padStart(3, "0");
   };
 
@@ -83,7 +117,7 @@ export function BridgeDiagnosticsPanel() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", weekday: "short" });
   };
 
   // Group logs by date
@@ -93,6 +127,18 @@ export function BridgeDiagnosticsPanel() {
     if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
     groupedByDate[dateKey].push(log);
   }
+
+  const btnStyle = (active?: boolean): React.CSSProperties => ({
+    background: active ? "rgba(96, 165, 250, 0.25)" : "rgba(255,255,255,0.06)",
+    border: active ? "1px solid rgba(96, 165, 250, 0.5)" : "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "8px",
+    padding: "5px 10px",
+    color: active ? "#60a5fa" : "#e2e8f0",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontFamily: "system-ui",
+    transition: "all 0.2s",
+  });
 
   return (
     <div style={{
@@ -108,7 +154,7 @@ export function BridgeDiagnosticsPanel() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "16px",
+        marginBottom: "12px",
         flexWrap: "wrap",
         gap: "10px",
       }}>
@@ -127,54 +173,47 @@ export function BridgeDiagnosticsPanel() {
             {autoRefresh ? "● LIVE" : "○ PAUSED"}
           </span>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            onClick={() => setAutoRefresh((a) => !a)}
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "8px",
-              padding: "6px 12px",
-              color: "#e2e8f0",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "system-ui",
-            }}
-          >
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          <button onClick={() => setAutoRefresh((a) => !a)} style={btnStyle()}>
             {autoRefresh ? "⏸ Pause" : "▶ Resume"}
           </button>
-          <button
-            onClick={fetchLogs}
-            disabled={loading}
-            style={{
-              background: "rgba(96, 165, 250, 0.15)",
-              border: "1px solid rgba(96, 165, 250, 0.3)",
-              borderRadius: "8px",
-              padding: "6px 12px",
-              color: "#60a5fa",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "system-ui",
-            }}
-          >
+          <button onClick={fetchLogs} disabled={loading} style={btnStyle()}>
             🔄 Refresh
           </button>
-          <button
-            onClick={clearLogs}
-            style={{
-              background: "rgba(248, 113, 113, 0.1)",
-              border: "1px solid rgba(248, 113, 113, 0.2)",
-              borderRadius: "8px",
-              padding: "6px 12px",
-              color: "#f87171",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "system-ui",
-            }}
-          >
+          <button onClick={copyLogs} style={btnStyle()}>
+            {copied ? "✅ Copied!" : "📋 Copy"}
+          </button>
+          <button onClick={clearLogs} style={{
+            ...btnStyle(),
+            background: "rgba(248, 113, 113, 0.1)",
+            border: "1px solid rgba(248, 113, 113, 0.2)",
+            color: "#f87171",
+          }}>
             🗑 Clear
           </button>
         </div>
+      </div>
+
+      {/* Time Filters */}
+      <div style={{
+        display: "flex",
+        gap: "6px",
+        marginBottom: "12px",
+        flexWrap: "wrap",
+        alignItems: "center",
+      }}>
+        <span style={{ color: "#6b7280", fontSize: "12px", fontFamily: "system-ui", marginRight: "4px" }}>
+          Show:
+        </span>
+        {TIME_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setTimeFilter(f.key)}
+            style={btnStyle(timeFilter === f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* Legend */}
@@ -184,10 +223,12 @@ export function BridgeDiagnosticsPanel() {
         marginBottom: "12px",
         fontSize: "11px",
         fontFamily: "system-ui",
+        color: "#9ca3af",
       }}>
         <span><span style={{ color: "#60a5fa" }}>●</span> Server</span>
         <span><span style={{ color: "#34d399" }}>●</span> Phone</span>
         <span><span style={{ color: "#c084fc" }}>●</span> Tablet</span>
+        <span style={{ marginLeft: "auto" }}>{logs.length} events</span>
       </div>
 
       {/* Logs */}
@@ -205,7 +246,7 @@ export function BridgeDiagnosticsPanel() {
             color: "#6b7280",
             fontFamily: "system-ui",
           }}>
-            No diagnostic logs yet. Connect your phone and use the bridge — events will appear here automatically.
+            {loading ? "Loading..." : "No diagnostic logs yet. Connect your phone and use the bridge — events will appear here automatically."}
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, dateLogs]) => (
@@ -282,7 +323,7 @@ export function BridgeDiagnosticsPanel() {
         fontFamily: "system-ui",
         textAlign: "right",
       }}>
-        {logs.length} events • Auto-refreshes every 10s when live
+        Auto-refreshes every 10s when live
       </div>
     </div>
   );

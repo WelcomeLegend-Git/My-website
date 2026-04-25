@@ -182,19 +182,6 @@ async function diagLog(
     await prisma.remoteBridgeDiagLog.create({
       data: { userId, source, event, details },
     });
-    // Auto-cleanup: keep only last 500 logs per user
-    const count = await prisma.remoteBridgeDiagLog.count({ where: { userId } });
-    if (count > 500) {
-      const oldest = await prisma.remoteBridgeDiagLog.findMany({
-        where: { userId },
-        orderBy: { createdAt: "asc" },
-        take: count - 500,
-        select: { id: true },
-      });
-      await prisma.remoteBridgeDiagLog.deleteMany({
-        where: { id: { in: oldest.map((r) => r.id) } },
-      });
-    }
   } catch (error) {
     // Never let diagnostic logging break the main flow
     logger.error({ error }, "diagLog write failed");
@@ -853,12 +840,20 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
   app.get("/api/remote-bridge/diagnostics", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const limit = Math.min(Number(req.query.limit) || 200, 500);
+
+    // Optional time filter: ?since=2024-01-01T00:00:00Z
+    const sinceParam = req.query.since as string | undefined;
+    const where: any = { userId };
+    if (sinceParam) {
+      const sinceDate = new Date(sinceParam);
+      if (!isNaN(sinceDate.getTime())) {
+        where.createdAt = { gte: sinceDate };
+      }
+    }
 
     const logs = await prisma.remoteBridgeDiagLog.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: "desc" },
-      take: limit,
       select: { id: true, source: true, event: true, details: true, createdAt: true },
     });
 

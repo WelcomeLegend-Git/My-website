@@ -26,6 +26,7 @@ export function BridgeDiagnosticsPanel() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("3h");
   const [copied, setCopied] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -56,6 +57,22 @@ export function BridgeDiagnosticsPanel() {
       console.error("Failed to clear diagnostics:", err);
     }
   }, []);
+
+  const testPing = useCallback(async () => {
+    try {
+      const res = await authenticatedFetch("/api/remote-bridge/diagnostics/test", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setTestResult(`✅ Write OK! (${data.totalLogs} total logs)`);
+        fetchLogs(); // Refresh to show the test entry
+      } else {
+        setTestResult(`❌ Write FAILED: ${data.error}`);
+      }
+    } catch (err: any) {
+      setTestResult(`❌ Request failed: ${err.message}`);
+    }
+    setTimeout(() => setTestResult(null), 5000);
+  }, [fetchLogs]);
 
   const copyLogs = useCallback(() => {
     const text = logs
@@ -191,8 +208,30 @@ export function BridgeDiagnosticsPanel() {
           }}>
             🗑 Clear
           </button>
+          <button onClick={testPing} style={{
+            ...btnStyle(),
+            background: "rgba(251, 191, 36, 0.1)",
+            border: "1px solid rgba(251, 191, 36, 0.2)",
+            color: "#fbbf24",
+          }}>
+            🧪 Test
+          </button>
         </div>
       </div>
+      {testResult && (
+        <div style={{
+          padding: "8px 12px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          background: testResult.startsWith("✅") ? "rgba(52, 211, 153, 0.1)" : "rgba(248, 113, 113, 0.1)",
+          border: `1px solid ${testResult.startsWith("✅") ? "rgba(52, 211, 153, 0.3)" : "rgba(248, 113, 113, 0.3)"}`,
+          color: testResult.startsWith("✅") ? "#34d399" : "#f87171",
+          fontSize: "13px",
+          fontFamily: "system-ui",
+        }}>
+          {testResult}
+        </div>
+      )}
 
       {/* Time Filters */}
       <div style={{

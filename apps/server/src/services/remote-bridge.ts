@@ -178,13 +178,18 @@ async function diagLog(
   event: string,
   details?: string
 ): Promise<void> {
+  if (!userId) {
+    logger.warn({ source, event, details }, "diagLog skipped: no userId");
+    return;
+  }
   try {
     await prisma.remoteBridgeDiagLog.create({
       data: { userId, source, event, details },
     });
+    logger.debug({ userId, source, event }, "diagLog written");
   } catch (error) {
     // Never let diagnostic logging break the main flow
-    logger.error({ error }, "diagLog write failed");
+    logger.error({ error, userId, source, event }, "diagLog write failed");
   }
 }
 
@@ -834,6 +839,27 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     diagLog(userId, "server", "WAKE_PHONE_FCM", `sent=${sent}`);
 
     return res.json({ sent });
+  });
+
+  // ═══ Diagnostics — Test write (verify DB path works) ═══
+
+  app.post("/api/remote-bridge/diagnostics/test", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    try {
+      await prisma.remoteBridgeDiagLog.create({
+        data: {
+          userId,
+          source: "server",
+          event: "DIAG_TEST_PING",
+          details: `Manual test at ${new Date().toISOString()}`,
+        },
+      });
+      const count = await prisma.remoteBridgeDiagLog.count({ where: { userId } });
+      return res.json({ success: true, totalLogs: count });
+    } catch (error: any) {
+      logger.error({ error }, "Diag test write failed");
+      return res.status(500).json({ success: false, error: error.message });
+    }
   });
 
   // ═══ Diagnostics — View bridge event logs ═══

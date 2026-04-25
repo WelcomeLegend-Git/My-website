@@ -35,6 +35,9 @@ services:
     region: singapore
     buildCommand: npm install && cd apps/web && npm run build
     staticPublishPath: apps/web/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://jee-study-backend.onrender.com
     routes:
       - type: rewrite
         source: /*

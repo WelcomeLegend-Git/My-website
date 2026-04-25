@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { authenticatedFetch } from "../../lib/auth-fetch";
+import { getApiBaseUrl } from "../../lib/env";
 
 interface DiagLog {
   id: string;
@@ -32,7 +33,8 @@ export function BridgeDiagnosticsPanel() {
     try {
       setLoading(true);
       const filter = TIME_FILTERS.find((f) => f.key === timeFilter);
-      let url = "/api/remote-bridge/diagnostics";
+      const base = getApiBaseUrl();
+      let url = `${base}/api/remote-bridge/diagnostics`;
       if (filter?.hours) {
         const since = new Date(Date.now() - filter.hours * 3600_000).toISOString();
         url += `?since=${since}`;
@@ -51,7 +53,7 @@ export function BridgeDiagnosticsPanel() {
 
   const clearLogs = useCallback(async () => {
     try {
-      await authenticatedFetch("/api/remote-bridge/diagnostics", { method: "DELETE" });
+      await authenticatedFetch(`${getApiBaseUrl()}/api/remote-bridge/diagnostics`, { method: "DELETE" });
       setLogs([]);
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);
@@ -60,7 +62,7 @@ export function BridgeDiagnosticsPanel() {
 
   const testPing = useCallback(async () => {
     try {
-      const res = await authenticatedFetch("/api/remote-bridge/diagnostics/test", { method: "POST" });
+      const res = await authenticatedFetch(`${getApiBaseUrl()}/api/remote-bridge/diagnostics/test`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setTestResult(`✅ Write OK! (${data.totalLogs} total logs)`);

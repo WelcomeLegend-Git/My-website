@@ -663,6 +663,30 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     });
   });
 
+  // ═══ HTTP Fallback: Call Signal (phone → push notification, no WebSocket needed) ═══
+
+  app.post("/api/remote-bridge/call-signal", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const { callerName, callState, deviceId } = req.body || {};
+
+    if (callState !== "RINGING") {
+      return res.json({ sent: false, reason: "Only RINGING triggers push" });
+    }
+
+    const name = callerName || "Unknown";
+
+    await sendPushNotification(userId, {
+      title: "📞 Incoming Call",
+      body: `${name} is calling...`,
+      tag: "incoming-call",
+      url: "/remote-bridge",
+      requireInteraction: true,
+    });
+
+    logger.info({ userId, callerName: name, via: "http-fallback" }, "Push notification triggered via HTTP fallback");
+    return res.json({ sent: true });
+  });
+
   // ═══ Phone status check (is any phone online for this user?) ═══
 
   app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {

@@ -246,7 +246,7 @@ export function BridgeDiagnosticsPanel() {
             color: "#6b7280",
             fontFamily: "system-ui",
           }}>
-            {loading ? "Loading..." : "No diagnostic logs yet. Connect your phone and use the bridge — events will appear here automatically."}
+            {loading ? "Loading..." : "No diagnostic logs found for this time range. Events are recorded automatically — try selecting a wider range or click Refresh."}
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, dateLogs]) => (

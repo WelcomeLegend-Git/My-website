@@ -877,13 +877,18 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       }
     }
 
-    const logs = await prisma.remoteBridgeDiagLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      select: { id: true, source: true, event: true, details: true, createdAt: true },
-    });
+    try {
+      const logs = await prisma.remoteBridgeDiagLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        select: { id: true, source: true, event: true, details: true, createdAt: true },
+      });
 
-    return res.json({ logs });
+      return res.json({ logs });
+    } catch (error: any) {
+      logger.error({ error }, "Failed to read diagnostic logs");
+      return res.status(503).json({ logs: [], error: "Database temporarily unavailable" });
+    }
   });
 
   // ═══ Diagnostics — Phone pushes its events to server ═══
@@ -904,16 +909,26 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       details: e.details ? String(e.details).slice(0, 500) : null,
     }));
 
-    await prisma.remoteBridgeDiagLog.createMany({ data: toInsert });
-    return res.json({ inserted: toInsert.length });
+    try {
+      await prisma.remoteBridgeDiagLog.createMany({ data: toInsert });
+      return res.json({ inserted: toInsert.length });
+    } catch (error: any) {
+      logger.error({ error }, "Diag batch insert failed (DB unreachable?)");
+      return res.status(503).json({ inserted: 0, error: "Database temporarily unavailable" });
+    }
   });
 
   // ═══ Diagnostics — Clear logs ═══
 
   app.delete("/api/remote-bridge/diagnostics", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    await prisma.remoteBridgeDiagLog.deleteMany({ where: { userId } });
-    return res.json({ cleared: true });
+    try {
+      await prisma.remoteBridgeDiagLog.deleteMany({ where: { userId } });
+      return res.json({ cleared: true });
+    } catch (error: any) {
+      logger.error({ error }, "Failed to clear diagnostic logs");
+      return res.status(503).json({ cleared: false, error: "Database temporarily unavailable" });
+    }
   });
 
   app.get("/api/remote-bridge/phone-status", requireAuth, async (req, res) => {

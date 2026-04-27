@@ -1294,14 +1294,25 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
     ws.on("close", () => {
       clearTimeout(authTimeout);
       if (clientInfo) {
-        connectedClients.delete(clientInfo.deviceId);
-        broadcastToUser(clientInfo.userId, clientInfo.deviceId, {
-          type: "DEVICE_DISCONNECTED",
-          deviceId: clientInfo.deviceId,
-          deviceType: clientInfo.deviceType,
-        });
-        logger.info({ deviceId: clientInfo.deviceId }, "Remote bridge client disconnected");
-        diagLog(clientInfo.userId, "server", "WS_DISCONNECTED", `${clientInfo.deviceType} ${clientInfo.deviceId}`);
+        // Only evict if this WS is still the active socket for the device.
+        // If the device has already re-authenticated on a new socket, the map
+        // will hold that new socket — deleting it here would incorrectly mark
+        // the device offline even though the new connection is healthy.
+        const current = connectedClients.get(clientInfo.deviceId);
+        if (current && current.ws === ws) {
+          connectedClients.delete(clientInfo.deviceId);
+          broadcastToUser(clientInfo.userId, clientInfo.deviceId, {
+            type: "DEVICE_DISCONNECTED",
+            deviceId: clientInfo.deviceId,
+            deviceType: clientInfo.deviceType,
+          });
+          logger.info({ deviceId: clientInfo.deviceId }, "Remote bridge client disconnected");
+          diagLog(clientInfo.userId, "server", "WS_DISCONNECTED", `${clientInfo.deviceType} ${clientInfo.deviceId}`);
+        } else {
+          // Stale socket close — a newer socket has already taken over; ignore.
+          logger.info({ deviceId: clientInfo.deviceId }, "Stale WS close ignored — device already re-authenticated on new socket");
+          diagLog(clientInfo.userId, "server", "WS_STALE_CLOSE_IGNORED", `${clientInfo.deviceType} ${clientInfo.deviceId}`);
+        }
       }
     });
 

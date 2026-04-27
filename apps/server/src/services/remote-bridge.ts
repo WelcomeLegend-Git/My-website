@@ -1174,6 +1174,13 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
               };
               const deviceName = result.deviceName || null;
 
+              // Close any existing connection for this device to prevent ghost sockets
+              const existing = connectedClients.get(result.deviceId);
+              if (existing && existing.ws !== ws && existing.ws.readyState === WebSocket.OPEN) {
+                logger.info({ deviceId: result.deviceId }, "Closing stale WS for re-authenticating device");
+                try { existing.ws.close(4000, "Replaced by new connection"); } catch {}
+              }
+
               connectedClients.set(result.deviceId, {
                 ws,
                 userId: result.userId,

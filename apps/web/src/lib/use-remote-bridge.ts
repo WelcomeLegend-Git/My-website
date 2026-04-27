@@ -550,7 +550,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
         // Wake the phone via FCM (in case its WebSocket is down)
         if (options) {
-          fetch("/api/remote-bridge/wake-phone", {
+          fetch(`${getApiBaseUrl()}/api/remote-bridge/wake-phone`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -58,6 +58,7 @@ const MANUAL_CODE_EXPIRY_MS = 2 * 60 * 1000; // 2 minutes
 const MAX_PAIRINGS_PER_HOUR = 5;        // 5 QR + 5 manual per hour
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const INCOMING_CALL_PUSH_DEDUPE_MS = 75 * 1000; // one push burst per ringing call
 
 // ─── Web Push Setup ───
 
@@ -76,6 +77,43 @@ if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
 }
 
 // ─── Push Notifications (DB-backed, persistent) ───
+
+const incomingCallPushes = new Map<string, number>();
+
+function getIncomingCallPushKey(input: {
+  userId: string;
+  deviceId?: string;
+  callerName?: string;
+  callSignalId?: string;
+}): string {
+  const deviceId = input.deviceId || "unknown-device";
+  const callIdentity = input.callSignalId ||
+    (input.callerName || "unknown").trim().toLowerCase().slice(0, 80);
+  return `${input.userId}:${deviceId}:${callIdentity}`;
+}
+
+function shouldSendIncomingCallPush(input: {
+  userId: string;
+  deviceId?: string;
+  callerName?: string;
+  callSignalId?: string;
+}): { send: boolean; key: string } {
+  const now = Date.now();
+  const expiryCutoff = now - INCOMING_CALL_PUSH_DEDUPE_MS;
+
+  for (const [key, lastSentAt] of incomingCallPushes) {
+    if (lastSentAt < expiryCutoff) incomingCallPushes.delete(key);
+  }
+
+  const key = getIncomingCallPushKey(input);
+  const lastSentAt = incomingCallPushes.get(key);
+  if (lastSentAt && now - lastSentAt < INCOMING_CALL_PUSH_DEDUPE_MS) {
+    return { send: false, key };
+  }
+
+  incomingCallPushes.set(key, now);
+  return { send: true, key };
+}
 
 async function sendPushNotification(userId: string, payload: object): Promise<void> {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
@@ -783,13 +821,24 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
   app.post("/api/remote-bridge/call-signal", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const { callerName, callState, deviceId } = req.body || {};
+    const { callerName, callState, deviceId, callSignalId } = req.body || {};
 
     if (callState !== "RINGING") {
       return res.json({ sent: false, reason: "Only RINGING triggers push" });
     }
 
     const name = callerName || "Unknown";
+    const dedupe = shouldSendIncomingCallPush({
+      userId,
+      deviceId,
+      callerName: name,
+      callSignalId,
+    });
+    if (!dedupe.send) {
+      logger.info({ userId, callerName: name, via: "http-fallback", key: dedupe.key }, "Duplicate incoming call push suppressed");
+      diagLog(userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${name} via=HTTP_FALLBACK key=${dedupe.key}`);
+      return res.json({ sent: false, deduped: true });
+    }
 
     await sendPushNotification(userId, {
       title: "📞 Incoming Call",
@@ -1264,6 +1313,17 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
             // Unencrypted signal from phone for push notifications (RINGING only)
             if (clientInfo.deviceType === "phone" && message.callState === "RINGING") {
               const callerName = message.callerName || "Unknown";
+              const dedupe = shouldSendIncomingCallPush({
+                userId: clientInfo.userId,
+                deviceId: message.deviceId || clientInfo.deviceId,
+                callerName,
+                callSignalId: message.callSignalId,
+              });
+              if (!dedupe.send) {
+                logger.info({ userId: clientInfo.userId, callerName, key: dedupe.key }, "Duplicate incoming call push suppressed");
+                diagLog(clientInfo.userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${callerName} via=WS key=${dedupe.key}`);
+                break;
+              }
               sendPushNotification(clientInfo.userId, {
                 title: "📞 Incoming Call",
                 body: `${callerName} is calling...`,

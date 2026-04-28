@@ -338,6 +338,34 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     }
 
     let shouldReconnect = true;
+    let lastWakePhoneAt = 0;
+
+    async function wakePhone(reason: string) {
+      if (!navigator.onLine) return;
+
+      const now = Date.now();
+      if (now - lastWakePhoneAt < 10_000) return;
+      lastWakePhoneAt = now;
+
+      const sendWake = () =>
+        fetch(`${getApiBaseUrl()}/api/remote-bridge/wake-phone`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authStorage.getAccessToken() || authToken}`,
+          },
+        });
+
+      try {
+        let res = await sendWake();
+        if (res.status === 401 && await ensureFreshAuthTokens()) {
+          res = await sendWake();
+        }
+        diagLog(`WAKE_PHONE reason=${reason} status=${res.status}`);
+      } catch {
+        diagLog(`WAKE_PHONE_FAILED reason=${reason}`);
+      }
+    }
 
     async function connect() {
       try {
@@ -534,6 +562,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     }
 
     connect();
+    wakePhone("mount");
 
     // ─── Smart reconnect on page focus (like Phone Link) ───
     // When user switches to this tab, if we're disconnected, reconnect immediately
@@ -548,16 +577,8 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           connect();
         }
 
-        // Wake the phone via FCM (in case its WebSocket is down)
-        if (options) {
-          fetch(`${getApiBaseUrl()}/api/remote-bridge/wake-phone`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${options.authToken}`,
-            },
-          }).catch(() => {}); // Fire-and-forget
-        }
+        // Wake the phone via FCM in case its WebSocket went idle while the page was closed.
+        wakePhone("visible");
       }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -572,6 +593,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
         reconnectAttempts.current = 0;
         connect();
       }
+      wakePhone("online");
     }
     // When iPad goes offline, don't spam reconnect — just note it
     function handleOffline() {

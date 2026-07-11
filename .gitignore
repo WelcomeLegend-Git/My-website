@@ -1,14 +1,40 @@
+# Dependencies
 node_modules
 dist
 build
-.env
-*.log
 .turbo
-uploads
 coverage
-*.local
-.vercel
 
-# Firebase service account (PRIVATE KEY - never commit)
+# Environment & Secrets
+.env
+.env.local
+.env.production
+*.local
 firebase-service-account.json
 apps/server/firebase-service-account.json
+
+# Logs & Debug Artifacts
+*.log
+*.txt
+!README.md
+!LICENSE
+
+# Upload Directories
+uploads
+uploads-test
+
+# IDE & OS
+.vscode/settings.json
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Deployment
+.vercel
+.render
+
+# One-off Scripts & Stale Files
+*.bat
+userscript*.js

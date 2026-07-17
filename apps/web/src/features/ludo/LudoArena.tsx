@@ -14,7 +14,7 @@ import {
   Users,
   Wifi,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { LudoSoundEngine } from "./audio/SoundEngine";
 import { ParticleCanvas } from "./effects/ParticleCanvas";
@@ -97,6 +97,20 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   const [inviteSecret, setInviteSecret] = useState("");
   const [copied, setCopied] = useState(false);
   const [onlineNotice, setOnlineNotice] = useState<string | null>(null);
+  const [showSixBurst, setShowSixBurst] = useState(false);
+  const [boardShaking, setBoardShaking] = useState(false);
+
+  // --- Sound engine (top-level, unconditional) ---
+  const soundRef = useRef<LudoSoundEngine | null>(null);
+  if (!soundRef.current) soundRef.current = new LudoSoundEngine();
+  soundRef.current.muted = muted;
+
+  // --- Particle system (top-level, unconditional) ---
+  const particles = useParticles();
+  const prevDiceValueRef = useRef<number | null>(null);
+  const prevPhaseRef = useRef<string | null>(null);
+  const prevRevisionRef = useRef<number>(0);
+  const boardShellRef = useRef<HTMLDivElement>(null);
 
   const activeRoomLink = useMemo(() => {
     if (!roomCode || !inviteSecret || typeof window === "undefined") return "";
@@ -116,9 +130,84 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     }
   }, [initialRoomCode]);
 
+  // --- Sound & particle effects (top-level, guarded) ---
+  useEffect(() => {
+    const state = controller.game;
+    if (!state) return;
+    if (state.diceValue !== null && state.diceValue !== prevDiceValueRef.current && prevPhaseRef.current === "rolling") {
+      soundRef.current?.diceRoll();
+      if (state.diceValue === 6) {
+        soundRef.current?.sixRoll();
+        setShowSixBurst(true);
+        setTimeout(() => setShowSixBurst(false), 700);
+        const shell = boardShellRef.current;
+        if (shell) {
+          const rect = shell.getBoundingClientRect();
+          particles.emit("six", { x: rect.width * 0.85, y: rect.height * 0.08 });
+        }
+      }
+    }
+    prevDiceValueRef.current = state.diceValue;
+    prevPhaseRef.current = state.phase;
+  }, [controller.game?.diceValue, controller.game?.phase, particles]);
+
+  useEffect(() => {
+    const state = controller.game;
+    const result = controller.lastMoveResult;
+    if (!state || !result || state.revision === prevRevisionRef.current) return;
+    prevRevisionRef.current = state.revision;
+    const active = getActivePlayer(state);
+
+    soundRef.current?.tokenMove();
+
+    if (result.captured.length > 0) {
+      soundRef.current?.tokenCapture();
+      setBoardShaking(true);
+      setTimeout(() => setBoardShaking(false), 400);
+      const shell = boardShellRef.current;
+      if (shell) {
+        const rect = shell.getBoundingClientRect();
+        particles.emit("capture", { x: rect.width / 2, y: rect.height / 2 }, result.captured[0].color);
+      }
+    }
+
+    if (result.finishedToken) {
+      soundRef.current?.tokenFinish();
+      const shell = boardShellRef.current;
+      if (shell) {
+        const rect = shell.getBoundingClientRect();
+        particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, active.color);
+      }
+    }
+  }, [controller.lastMoveResult, controller.game?.revision, particles]);
+
+  useEffect(() => {
+    const state = controller.game;
+    if (!state || state.phase !== "finished") return;
+    soundRef.current?.victory();
+    const shell = boardShellRef.current;
+    if (shell) {
+      const rect = shell.getBoundingClientRect();
+      particles.emit("victory", { x: rect.width / 2, y: 0 });
+    }
+  }, [controller.game?.phase, particles]);
+
+  useEffect(() => {
+    const state = controller.game;
+    if (!state || state.phase !== "rolling" || state.revision <= 1) return;
+    soundRef.current?.turnChime();
+  }, [controller.game?.activePlayerIndex, controller.game?.phase, controller.game?.revision]);
+
+  useEffect(() => {
+    const engine = soundRef.current;
+    return () => engine?.dispose();
+  }, []);
+
   const updateName = (index: number, value: string): void => {
     setPlayerNames((names) => names.map((name, nameIndex) => (nameIndex === index ? value : name)));
   };
+
+
 
   const openMode = (mode: GameMode): void => {
     setSelectedMode(mode);
@@ -145,9 +234,10 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
 
   const createRoom = (): void => {
     const code = generateRoomCode();
+    const secret = generateInviteSecret();
     setRoomCode(code);
-    setInviteSecret(generateInviteSecret());
-    setOnlineNotice("Room created. Copy the private invite link and send it to your friend.");
+    setInviteSecret(secret);
+    setOnlineNotice("Room ready. The server will create a guest identity after your name is confirmed.");
   };
 
   const joinRoom = (): void => {
@@ -189,98 +279,6 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     const winnerColor = state.winnerOrder[0];
     const winner = winnerColor ? state.players.find((player) => player.color === winnerColor) : null;
     const active = getActivePlayer(state);
-
-    /* eslint-disable react-hooks/rules-of-hooks -- conditional but stable (game !== null gate) */
-    const soundRef = useRef<LudoSoundEngine | null>(null);
-    if (!soundRef.current) soundRef.current = new LudoSoundEngine();
-    soundRef.current.muted = muted;
-
-    const particles = useParticles();
-    const prevDiceValueRef = useRef<number | null>(null);
-    const prevPhaseRef = useRef(state.phase);
-    const prevRevisionRef = useRef(state.revision);
-    const [showSixBurst, setShowSixBurst] = useState(false);
-    const [boardShaking, setBoardShaking] = useState(false);
-    const boardShellRef = useRef<HTMLDivElement>(null);
-
-    // Detect dice roll events
-    useEffect(() => {
-      if (state.diceValue !== null && state.diceValue !== prevDiceValueRef.current && prevPhaseRef.current === "rolling") {
-        soundRef.current?.diceRoll();
-        // Six celebration
-        if (state.diceValue === 6) {
-          soundRef.current?.sixRoll();
-          setShowSixBurst(true);
-          setTimeout(() => setShowSixBurst(false), 700);
-          // Particle burst from dice area (top-right of board)
-          const shell = boardShellRef.current;
-          if (shell) {
-            const rect = shell.getBoundingClientRect();
-            particles.emit("six", { x: rect.width * 0.85, y: rect.height * 0.08 });
-          }
-        }
-      }
-      prevDiceValueRef.current = state.diceValue;
-      prevPhaseRef.current = state.phase;
-    }, [state.diceValue, state.phase, particles]);
-
-    // Detect move events via lastMoveResult
-    useEffect(() => {
-      const result = controller.lastMoveResult;
-      if (!result || state.revision === prevRevisionRef.current) return;
-      prevRevisionRef.current = state.revision;
-
-      // Token move sound
-      soundRef.current?.tokenMove();
-
-      // Capture effects
-      if (result.captured.length > 0) {
-        soundRef.current?.tokenCapture();
-        setBoardShaking(true);
-        setTimeout(() => setBoardShaking(false), 400);
-        const shell = boardShellRef.current;
-        if (shell) {
-          const rect = shell.getBoundingClientRect();
-          particles.emit("capture", { x: rect.width / 2, y: rect.height / 2 }, result.captured[0].color);
-        }
-      }
-
-      // Finish effects
-      if (result.finishedToken) {
-        soundRef.current?.tokenFinish();
-        const shell = boardShellRef.current;
-        if (shell) {
-          const rect = shell.getBoundingClientRect();
-          particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, active.color);
-        }
-      }
-    }, [controller.lastMoveResult, state.revision, active.color, particles]);
-
-    // Detect game finish
-    useEffect(() => {
-      if (state.phase === "finished") {
-        soundRef.current?.victory();
-        const shell = boardShellRef.current;
-        if (shell) {
-          const rect = shell.getBoundingClientRect();
-          particles.emit("victory", { x: rect.width / 2, y: 0 });
-        }
-      }
-    }, [state.phase, particles]);
-
-    // Turn change chime
-    useEffect(() => {
-      if (state.phase === "rolling" && state.revision > 1) {
-        soundRef.current?.turnChime();
-      }
-    }, [state.activePlayerIndex, state.phase, state.revision]);
-
-    // Cleanup sound engine
-    useEffect(() => {
-      const engine = soundRef.current;
-      return () => engine?.dispose();
-    }, []);
-    /* eslint-enable react-hooks/rules-of-hooks */
 
     return (
       <main className="ludo-arena">

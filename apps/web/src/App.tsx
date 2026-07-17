@@ -22,6 +22,7 @@ import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { BookmarksPage } from "./pages/bookmarks/BookmarksPage";
 import { RemoteBridgePage } from "./pages/remote-bridge/RemoteBridgePage";
+import { LudoPage } from "./pages/LudoPage";
 
 const App = () => {
   useRegisterPwa();
@@ -61,6 +62,9 @@ const App = () => {
         <Route path="remote-bridge" element={<RemoteBridgePage />} />
       </Route>
 
+      {/* Public Ludo routes: invitees can enter a room as a temporary game guest. */}
+      <Route path="ludo" element={<LudoPage />} />
+      <Route path="ludo/room/:code" element={<LudoPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

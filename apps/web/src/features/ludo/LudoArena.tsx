@@ -14,7 +14,11 @@ import {
   Users,
   Wifi,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { LudoSoundEngine } from "./audio/SoundEngine";
+import { ParticleCanvas } from "./effects/ParticleCanvas";
+import { useParticles } from "./effects/useParticles";
 
 import { LudoBoard } from "./components/LudoBoard";
 import { GameHud } from "./components/GameHud";
@@ -186,6 +190,98 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     const winner = winnerColor ? state.players.find((player) => player.color === winnerColor) : null;
     const active = getActivePlayer(state);
 
+    /* eslint-disable react-hooks/rules-of-hooks -- conditional but stable (game !== null gate) */
+    const soundRef = useRef<LudoSoundEngine | null>(null);
+    if (!soundRef.current) soundRef.current = new LudoSoundEngine();
+    soundRef.current.muted = muted;
+
+    const particles = useParticles();
+    const prevDiceValueRef = useRef<number | null>(null);
+    const prevPhaseRef = useRef(state.phase);
+    const prevRevisionRef = useRef(state.revision);
+    const [showSixBurst, setShowSixBurst] = useState(false);
+    const [boardShaking, setBoardShaking] = useState(false);
+    const boardShellRef = useRef<HTMLDivElement>(null);
+
+    // Detect dice roll events
+    useEffect(() => {
+      if (state.diceValue !== null && state.diceValue !== prevDiceValueRef.current && prevPhaseRef.current === "rolling") {
+        soundRef.current?.diceRoll();
+        // Six celebration
+        if (state.diceValue === 6) {
+          soundRef.current?.sixRoll();
+          setShowSixBurst(true);
+          setTimeout(() => setShowSixBurst(false), 700);
+          // Particle burst from dice area (top-right of board)
+          const shell = boardShellRef.current;
+          if (shell) {
+            const rect = shell.getBoundingClientRect();
+            particles.emit("six", { x: rect.width * 0.85, y: rect.height * 0.08 });
+          }
+        }
+      }
+      prevDiceValueRef.current = state.diceValue;
+      prevPhaseRef.current = state.phase;
+    }, [state.diceValue, state.phase, particles]);
+
+    // Detect move events via lastMoveResult
+    useEffect(() => {
+      const result = controller.lastMoveResult;
+      if (!result || state.revision === prevRevisionRef.current) return;
+      prevRevisionRef.current = state.revision;
+
+      // Token move sound
+      soundRef.current?.tokenMove();
+
+      // Capture effects
+      if (result.captured.length > 0) {
+        soundRef.current?.tokenCapture();
+        setBoardShaking(true);
+        setTimeout(() => setBoardShaking(false), 400);
+        const shell = boardShellRef.current;
+        if (shell) {
+          const rect = shell.getBoundingClientRect();
+          particles.emit("capture", { x: rect.width / 2, y: rect.height / 2 }, result.captured[0].color);
+        }
+      }
+
+      // Finish effects
+      if (result.finishedToken) {
+        soundRef.current?.tokenFinish();
+        const shell = boardShellRef.current;
+        if (shell) {
+          const rect = shell.getBoundingClientRect();
+          particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, active.color);
+        }
+      }
+    }, [controller.lastMoveResult, state.revision, active.color, particles]);
+
+    // Detect game finish
+    useEffect(() => {
+      if (state.phase === "finished") {
+        soundRef.current?.victory();
+        const shell = boardShellRef.current;
+        if (shell) {
+          const rect = shell.getBoundingClientRect();
+          particles.emit("victory", { x: rect.width / 2, y: 0 });
+        }
+      }
+    }, [state.phase, particles]);
+
+    // Turn change chime
+    useEffect(() => {
+      if (state.phase === "rolling" && state.revision > 1) {
+        soundRef.current?.turnChime();
+      }
+    }, [state.activePlayerIndex, state.phase, state.revision]);
+
+    // Cleanup sound engine
+    useEffect(() => {
+      const engine = soundRef.current;
+      return () => engine?.dispose();
+    }, []);
+    /* eslint-enable react-hooks/rules-of-hooks */
+
     return (
       <main className="ludo-arena">
         <div className="ludo-stars" aria-hidden="true" />
@@ -217,11 +313,16 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
               </div>
             </aside>
 
-            <LudoBoard
-              state={state}
-              onTokenSelect={controller.move}
-              interactionDisabled={Boolean(controller.handoffPlayerName) || active.isBot}
-            />
+            <div ref={boardShellRef} style={{ position: "relative" }}>
+              <LudoBoard
+                state={state}
+                onTokenSelect={controller.move}
+                interactionDisabled={Boolean(controller.handoffPlayerName) || active.isBot}
+                boardShaking={boardShaking}
+              />
+              <ParticleCanvas particles={particles} />
+              {showSixBurst && <div className="ludo-six-burst" aria-hidden="true">SIX!</div>}
+            </div>
           </div>
         </div>
 

@@ -37,6 +37,7 @@ interface LudoBoardProps {
   state: LudoGameState;
   onTokenSelect: (tokenIndex: number) => void;
   interactionDisabled?: boolean;
+  boardShaking?: boolean;
 }
 
 const onTokenKeyDown = (event: KeyboardEvent<SVGGElement>, onSelect: () => void): void => {
@@ -46,24 +47,42 @@ const onTokenKeyDown = (event: KeyboardEvent<SVGGElement>, onSelect: () => void)
   }
 };
 
-export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }: LudoBoardProps) => {
+export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, boardShaking = false }: LudoBoardProps) => {
   const activePlayer = state.players[state.activePlayerIndex];
 
   return (
     <div className="ludo-board-shell" aria-label="Ludo game board">
       <div className="ludo-board-aura ludo-board-aura-one" aria-hidden="true" />
       <div className="ludo-board-aura ludo-board-aura-two" aria-hidden="true" />
-      <svg className="ludo-board" viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="img" aria-labelledby="ludo-board-title ludo-board-description">
+      <svg className={`ludo-board ${boardShaking ? "is-shaking" : ""}`} viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="img" aria-labelledby="ludo-board-title ludo-board-description">
         <title id="ludo-board-title">A game of Ludo in progress</title>
         <desc id="ludo-board-description">Select one of your highlighted tokens after rolling the dice.</desc>
         <defs>
-          <linearGradient id="board-base" x1="0" x2="1" y1="0" y2="1">
-            <stop stopColor="#0c1731" />
-            <stop offset="0.52" stopColor="#14254b" />
-            <stop offset="1" stopColor="#081226" />
+          {/* Dark walnut wood grain base */}
+          <linearGradient id="wood-base" x1="0" x2="0.15" y1="0" y2="1">
+            <stop stopColor="#2a1a0c" />
+            <stop offset="0.3" stopColor="#3a2510" />
+            <stop offset="0.6" stopColor="#2e1c0e" />
+            <stop offset="1" stopColor="#241608" />
           </linearGradient>
+          <pattern id="wood-grain" width="600" height="600" patternUnits="userSpaceOnUse">
+            <rect width="600" height="600" fill="url(#wood-base)" />
+            {/* Grain lines */}
+            {Array.from({ length: 28 }, (_, i) => (
+              <line key={`g${i}`} x1={0} y1={i * 22 + (i % 3) * 5} x2={600} y2={i * 22 + (i % 2) * 8 + 3}
+                stroke="#4a3420" strokeOpacity={0.25 + (i % 4) * 0.06} strokeWidth={0.6 + (i % 3) * 0.4} />
+            ))}
+            {/* Knot accents */}
+            <circle cx="120" cy="180" r="8" fill="#1e1008" fillOpacity="0.18" />
+            <circle cx="430" cy="350" r="6" fill="#1e1008" fillOpacity="0.14" />
+          </pattern>
+          {/* Cell emboss filter */}
+          <filter id="cell-emboss" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="1" stdDeviation="0.8" floodColor="#8b7355" floodOpacity="0.35" />
+            <feDropShadow dx="0" dy="-1" stdDeviation="0.5" floodColor="#000" floodOpacity="0.25" />
+          </filter>
           <filter id="token-shadow" x="-60%" y="-60%" width="220%" height="220%">
-            <feDropShadow dx="0" dy="5" stdDeviation="4" floodColor="#020617" floodOpacity="0.55" />
+            <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#020617" floodOpacity="0.65" />
           </filter>
           <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
             <feGaussianBlur stdDeviation="9" result="blur" />
@@ -72,13 +91,20 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <pattern id="board-grain" width="12" height="12" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.7" fill="#d9efff" opacity="0.13" />
-          </pattern>
+          {/* Board frame highlight */}
+          <linearGradient id="frame-highlight" x1="0" y1="0" x2="0" y2="1">
+            <stop stopColor="#a0855b" stopOpacity="0.5" />
+            <stop offset="1" stopColor="#3a2510" stopOpacity="0.3" />
+          </linearGradient>
         </defs>
 
-        <rect x="3" y="3" width={SVG_SIZE - 6} height={SVG_SIZE - 6} rx="42" fill="url(#board-base)" stroke="#496489" strokeOpacity="0.58" strokeWidth="6" />
-        <rect x="11" y="11" width={SVG_SIZE - 22} height={SVG_SIZE - 22} rx="35" fill="url(#board-grain)" opacity="0.36" />
+        {/* Board base — dark walnut */}
+        <rect x="0" y="0" width={SVG_SIZE} height={SVG_SIZE} rx="42" fill="url(#wood-grain)" />
+        {/* Carved frame border */}
+        <rect x="3" y="3" width={SVG_SIZE - 6} height={SVG_SIZE - 6} rx="40" fill="none"
+          stroke="url(#frame-highlight)" strokeWidth="5" />
+        <rect x="8" y="8" width={SVG_SIZE - 16} height={SVG_SIZE - 16} rx="36" fill="none"
+          stroke="#1a0e06" strokeOpacity="0.5" strokeWidth="2" />
 
         {yardShapes.map(({ color, x, y }) => {
           const meta = COLOR_META[color];
@@ -91,10 +117,11 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
                 height={6 * UNIT - 30}
                 rx="31"
                 fill={meta.color}
-                fillOpacity="0.16"
+                fillOpacity="0.12"
                 stroke={meta.color}
-                strokeOpacity="0.63"
+                strokeOpacity="0.5"
                 strokeWidth="3"
+                filter="url(#cell-emboss)"
               />
               <rect
                 x={(x + 0.65) * UNIT}
@@ -126,12 +153,13 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
                 y={cell.y * UNIT + 2}
                 width={UNIT - 4}
                 height={UNIT - 4}
-                rx="8"
-                fill={meta?.color ?? "#e9f2ff"}
-                fillOpacity={meta ? 0.91 : 0.9}
-                stroke={meta?.deep ?? "#85a1c5"}
-                strokeOpacity={meta ? 0.8 : 0.36}
-                strokeWidth="2"
+                rx="7"
+                fill={meta?.color ?? "#f5edd6"}
+                fillOpacity={meta ? 0.88 : 0.85}
+                stroke={meta?.deep ?? "#8b7355"}
+                strokeOpacity={meta ? 0.75 : 0.4}
+                strokeWidth="1.5"
+                filter="url(#cell-emboss)"
               />
               {safe && (
                 <path
@@ -155,12 +183,13 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
                 y={cell.y * UNIT + 2}
                 width={UNIT - 4}
                 height={UNIT - 4}
-                rx="8"
+                rx="7"
                 fill={meta.color}
-                fillOpacity={0.24 + index * 0.08}
+                fillOpacity={0.22 + index * 0.08}
                 stroke={meta.color}
-                strokeOpacity="0.72"
-                strokeWidth="2"
+                strokeOpacity="0.65"
+                strokeWidth="1.5"
+                filter="url(#cell-emboss)"
               />
             );
           }),
@@ -212,12 +241,13 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
                 onKeyDown={(event) => selectable && onTokenKeyDown(event, () => onTokenSelect(tokenIndex))}
                 filter="url(#token-shadow)"
               >
-                {selectable && <circle r="23" fill={meta.color} opacity="0.35" filter="url(#glow)" />}
-                <circle r="16.5" fill="#051024" stroke={meta.color} strokeWidth="4" />
-                <circle cy="-2" r="11" fill={meta.color} />
-                <path d="M-9 2 Q0 15 9 2" fill={meta.deep} fillOpacity="0.65" />
-                <circle cx="-4" cy="-6" r="3" fill="#ffffff" fillOpacity="0.84" />
-                <text x="0" y="6" textAnchor="middle" className="ludo-token-symbol" fill="#071226">
+                {selectable && <circle r="23" fill={meta.color} opacity="0.4" filter="url(#glow)" />}
+                <circle r="17" fill="#0a0500" stroke={meta.color} strokeWidth="3.5" />
+                <circle r="14" fill={meta.color} />
+                <circle r="14" fill="url(#frame-highlight)" opacity="0.3" />
+                <circle cx="-3" cy="-5" r="5" fill="#ffffff" fillOpacity="0.55" />
+                <circle cy="-1" r="9" fill={meta.deep} fillOpacity="0.35" />
+                <text x="0" y="5" textAnchor="middle" className="ludo-token-symbol" fill="#fff" fillOpacity="0.9">
                   {meta.symbol}
                 </text>
               </motion.g>
@@ -225,7 +255,7 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
           }),
         )}
 
-        <rect x="3" y="3" width={SVG_SIZE - 6} height={SVG_SIZE - 6} rx="42" fill="none" stroke="#ffffff" strokeOpacity="0.13" strokeWidth="2" />
+        <rect x="5" y="5" width={SVG_SIZE - 10} height={SVG_SIZE - 10} rx="40" fill="none" stroke="#a0855b" strokeOpacity="0.12" strokeWidth="1.5" />
       </svg>
     </div>
   );

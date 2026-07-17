@@ -1,17 +1,12 @@
 import { ArrowLeft, Bot, Clock3, Crown, Gauge, Sparkles, Volume2, VolumeX, Wifi } from "lucide-react";
 
+import { Dice3D } from "./Dice3D";
+
 import { COLOR_META } from "../game/board";
 import { getActivePlayer } from "../game/engine";
 import { FINISH_POSITION, type LudoGameState } from "../game/types";
 
-const PIP_MAP: Record<number, number[]> = {
-  1: [4],
-  2: [0, 8],
-  3: [0, 4, 8],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8],
-};
+
 
 interface GameHudProps {
   state: LudoGameState;
@@ -89,20 +84,14 @@ export const GameHud = ({
               Skip
             </button>
           )}
-          <button
-            type="button"
-            className={`ludo-dice ${isDiceRolling ? "is-rolling" : ""} ${canRoll ? "is-ready" : ""}`}
-            onClick={onRoll}
-            disabled={!canRoll || isDiceRolling}
-            aria-label={canRoll ? "Roll the dice" : `Dice showing ${state.diceValue ?? "no value"}`}
-          >
-            <span className="ludo-dice-face">
-              {(state.diceValue ? PIP_MAP[state.diceValue] : PIP_MAP[5]).map((index) => (
-                <i key={index} className={`ludo-pip ludo-pip-${index}`} />
-              ))}
-            </span>
-            {canRoll && <span className="ludo-dice-label">ROLL</span>}
-          </button>
+          <Dice3D
+            value={state.diceValue}
+            isRolling={isDiceRolling}
+            isReady={canRoll}
+            glowColor={activeMeta.color}
+            onRoll={onRoll}
+            ariaLabel={canRoll ? "Roll the dice" : `Dice showing ${state.diceValue ?? "no value"}`}
+          />
         </div>
       </section>
 

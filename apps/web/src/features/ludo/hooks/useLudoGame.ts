@@ -9,7 +9,7 @@ import {
   rollDice,
   rollLocalDice,
 } from "../game/engine";
-import type { GameSetup, LudoGameState } from "../game/types";
+import type { GameSetup, LudoGameState, MoveResult } from "../game/types";
 
 export interface LudoGameController {
   game: LudoGameState | null;
@@ -23,6 +23,7 @@ export interface LudoGameController {
   move: (tokenIndex: number) => void;
   dismissHandoff: () => void;
   skipTurn: () => void;
+  lastMoveResult: MoveResult | null;
 }
 
 export const useLudoGame = (): LudoGameController => {
@@ -33,6 +34,7 @@ export const useLudoGame = (): LudoGameController => {
   const latestSetup = useRef<GameSetup | null>(null);
   const previousActiveIndex = useRef<number | null>(null);
   const diceTimeoutRef = useRef<number | null>(null);
+  const [lastMoveResult, setLastMoveResult] = useState<MoveResult | null>(null);
 
   const start = useCallback((setup: GameSetup) => {
     const startedAt = Date.now();
@@ -75,7 +77,9 @@ export const useLudoGame = (): LudoGameController => {
     if (handoffPlayerName) return;
     setGame((previous) => {
       if (!previous || previous.phase !== "moving") return previous;
-      return moveToken(previous, tokenIndex, Date.now()).state;
+      const result = moveToken(previous, tokenIndex, Date.now());
+      setLastMoveResult(result);
+      return result.state;
     });
   }, [handoffPlayerName]);
 
@@ -150,5 +154,6 @@ export const useLudoGame = (): LudoGameController => {
     move,
     dismissHandoff,
     skipTurn,
+    lastMoveResult,
   };
 };

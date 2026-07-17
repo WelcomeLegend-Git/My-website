@@ -23,7 +23,7 @@ export const PassDeviceOverlay = ({ playerName, onReady }: PassDeviceOverlayProp
       transition={{ type: "spring", stiffness: 260, damping: 21 }}
     >
       <span className="ludo-pass-icon"><Hand size={29} /></span>
-      <span className="ludo-eyebrow">PASS &amp; PLAY</span>
+      <span className="ludo-eyebrow">PASS & PLAY</span>
       <h2 id="pass-device-title">Pass the device to {playerName}</h2>
       <p>Your board is hidden until the next player is ready. Keep the strategy secret.</p>
       <button type="button" className="ludo-primary-button" onClick={onReady}>

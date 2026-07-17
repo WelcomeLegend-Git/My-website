@@ -42,7 +42,7 @@ const makeLog = (
   text: string,
   at: number,
 ): MoveLogEntry => ({
-  id: `${at}-${kind}-${playerColor}-${Math.random().toString(36).slice(2, 7)}`,
+  id: `${at}-${kind}-${playerColor}-${Math.random().toString(36).slice(2, 9)}`,
   at,
   kind,
   playerColor,
@@ -107,14 +107,34 @@ const tokensOnRingIndex = (
 };
 
 export const getBlockadeRingIndexes = (state: LudoGameState): number[] => {
-  const counts = new Map<number, number>();
+  const result = new Set<number>();
   for (const color of PLAYER_COLORS) {
+    const counts = new Map<number, number>();
     for (const position of state.tokens[color]) {
       const ringIndex = getRingIndex(color, position);
       if (ringIndex !== null) counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
     }
+    for (const [ringIndex, count] of counts) {
+      if (count >= 2) result.add(ringIndex);
+    }
   }
-  return [...counts.entries()].filter(([, count]) => count >= 2).map(([index]) => index);
+  return [...result];
+};
+
+const getOpponentBlockadeRingIndexes = (state: LudoGameState, playerColor: PlayerColor): Set<number> => {
+  const blocked = new Set<number>();
+  for (const color of PLAYER_COLORS) {
+    if (color === playerColor) continue;
+    const counts = new Map<number, number>();
+    for (const position of state.tokens[color]) {
+      const ringIndex = getRingIndex(color, position);
+      if (ringIndex !== null) counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
+    }
+    for (const [ringIndex, count] of counts) {
+      if (count >= 2) blocked.add(ringIndex);
+    }
+  }
+  return blocked;
 };
 
 const wouldCrossBlockade = (
@@ -125,7 +145,7 @@ const wouldCrossBlockade = (
 ): boolean => {
   if (!state.rules.blockadesEnabled || position === HOME_POSITION) return false;
 
-  const blockades = new Set(getBlockadeRingIndexes(state));
+  const blockades = getOpponentBlockadeRingIndexes(state, color);
   const startProgress = Math.max(position + 1, 0);
   const endProgress = Math.min(destination, HOME_LANE_START - 1);
   for (let progress = startProgress; progress <= endProgress; progress += 1) {
@@ -142,8 +162,15 @@ const isBlockedLanding = (
 ): boolean => {
   const ringIndex = getRingIndex(color, destination);
   if (ringIndex === null || !state.rules.blockadesEnabled) return false;
-  const opponents = tokensOnRingIndex(state, ringIndex).filter((token) => token.color !== color);
-  return opponents.length >= 2;
+  for (const opponentColor of PLAYER_COLORS) {
+    if (opponentColor === color) continue;
+    let count = 0;
+    for (const pos of state.tokens[opponentColor]) {
+      if (getRingIndex(opponentColor, pos) === ringIndex) count += 1;
+    }
+    if (count >= 2) return true;
+  }
+  return false;
 };
 
 export const getLegalTokenIndexes = (
@@ -255,7 +282,7 @@ export const advanceTurn = (
     consecutiveSixes: 0,
     turnStartedAt: now,
     turnEndsAt: now + state.rules.turnDurationSeconds * 1_000,
-    moveLog: log.slice(-16),
+    moveLog: log.slice(-state.rules.moveLogLimit),
   });
 };
 
@@ -273,7 +300,7 @@ export const rollDice = (state: LudoGameState, value: number, now = Date.now()):
         ...state,
         diceValue: value,
         consecutiveSixes,
-        moveLog: [...state.moveLog, rollLog].slice(-16),
+        moveLog: [...state.moveLog, rollLog].slice(-state.rules.moveLogLimit),
       }),
       now,
       "three-sixes",
@@ -285,7 +312,7 @@ export const rollDice = (state: LudoGameState, value: number, now = Date.now()):
     diceValue: value,
     consecutiveSixes,
     legalTokenIndexes: [],
-    moveLog: [...state.moveLog, rollLog].slice(-16),
+    moveLog: [...state.moveLog, rollLog].slice(-state.rules.moveLogLimit),
   });
   const legalTokenIndexes = getLegalTokenIndexes(rolledState);
 
@@ -345,7 +372,7 @@ export const moveToken = (state: LudoGameState, tokenIndex: number, now = Date.n
       makeLog("capture", active.color, `${active.name} sent ${capturedToken.color} home.`, now),
     ),
     ...(finishedToken ? [makeLog("finish", active.color, `${active.name} brought a token home.`, now)] : []),
-  ].slice(-16);
+  ].slice(-state.rules.moveLogLimit);
 
   const movedState = withRevision({
     ...state,

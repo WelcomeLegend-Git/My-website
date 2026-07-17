@@ -384,9 +384,9 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
             {onlineNotice && <p className="ludo-online-notice"><Sparkles size={15} /> {onlineNotice}</p>}
             <div className="ludo-online-safety"><ShieldCheck size={16} /> New friends enter as a temporary guest after naming themselves—no sign-up wall.</div>
             <button type="button" className="ludo-primary-button ludo-full-button" onClick={startRoomPreview} disabled={!roomCode}>
-              <Play size={18} /> Open room board
+              <Play size={18} /> Preview board locally
             </button>
-            <p className="ludo-preview-caption">The dedicated room transport, heartbeat/ping protocol, secure guest flow, and database contract are bundled with this feature for server connection during merge.</p>
+            <p className="ludo-preview-caption">This opens a local preview. Live online play requires the server merge. The room transport, guest protocol, and database contract are included for integration.</p>
           </motion.section>
         )}
       </section>

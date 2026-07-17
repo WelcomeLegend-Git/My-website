@@ -45,7 +45,7 @@ export const GameHud = ({
     : state.phase === "moving"
       ? `Move one ${activeMeta.label} token`
       : active.isBot
-        ? `${active.name} is thinkingâ€¦`
+        ? `${active.name} is thinking\u2026`
         : `${active.name}, roll the dice`;
 
   return (

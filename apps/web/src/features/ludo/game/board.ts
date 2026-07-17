@@ -1,5 +1,5 @@
 import { FINISH_POSITION, HOME_POSITION, type LudoGameState, type PlayerColor, type TokenPosition } from "./types";
-import { getRingIndex } from "./engine";
+import { HOME_LANE_START, getRingIndex } from "./engine";
 
 export interface BoardPoint {
   x: number;
@@ -75,7 +75,7 @@ export const getTokenPoint = (
 ): BoardPoint => {
   if (position === HOME_POSITION) return HOME_SLOTS[color][tokenIndex];
   if (position === FINISH_POSITION) return FINISH_SLOTS[color];
-  if (position >= 52) return HOME_LANE_CELLS[color][position - 52];
+  if (position >= HOME_LANE_START) return HOME_LANE_CELLS[color][position - HOME_LANE_START];
 
   const ringIndex = getRingIndex(color, position);
   return ringIndex === null ? HOME_SLOTS[color][tokenIndex] : RING_CELLS[ringIndex];
@@ -86,7 +86,10 @@ export const tokensAtPoint = (
   color: PlayerColor,
   position: TokenPosition,
 ): Array<{ color: PlayerColor; tokenIndex: number }> => {
-  const target = getTokenPoint(color, position, -1);
+  // Home and finish tokens occupy private visual slots and cannot stack with others
+  if (position === HOME_POSITION || position === FINISH_POSITION) return [];
+
+  const target = getTokenPoint(color, position, 0);
   const tokens: Array<{ color: PlayerColor; tokenIndex: number }> = [];
 
   for (const candidateColor of Object.keys(state.tokens) as PlayerColor[]) {

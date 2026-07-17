@@ -15,6 +15,9 @@ import { FINISH_POSITION, type LudoGameState, type PlayerColor } from "../game/t
 
 const SVG_SIZE = 600;
 const UNIT = SVG_SIZE / BOARD_UNITS;
+const HALF = SVG_SIZE / 2;
+const STAR_INNER = 6 * UNIT;
+const STAR_OUTER = 9 * UNIT;
 
 const colorAtStart: Record<number, PlayerColor> = {
   0: "red",
@@ -164,12 +167,12 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false }:
         )}
 
         <g className="ludo-centre-star" aria-hidden="true">
-          <path d="M300 300 L240 240 L300 240 Z" fill={COLOR_META.blue.color} fillOpacity="0.88" />
-          <path d="M300 300 L360 240 L360 300 Z" fill={COLOR_META.yellow.color} fillOpacity="0.88" />
-          <path d="M300 300 L360 360 L300 360 Z" fill={COLOR_META.green.color} fillOpacity="0.88" />
-          <path d="M300 300 L240 360 L240 300 Z" fill={COLOR_META.red.color} fillOpacity="0.88" />
-          <circle cx="300" cy="300" r="17" fill="#f8fbff" fillOpacity="0.95" />
-          <path d="M300 287 L304 296 L314 296 L306 302 L309 312 L300 306 L291 312 L294 302 L286 296 L296 296 Z" fill="#172554" />
+          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_INNER} L${HALF} ${STAR_INNER} Z`} fill={COLOR_META.blue.color} fillOpacity="0.88" />
+          <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_INNER} L${STAR_OUTER} ${HALF} Z`} fill={COLOR_META.yellow.color} fillOpacity="0.88" />
+          <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_OUTER} L${HALF} ${STAR_OUTER} Z`} fill={COLOR_META.green.color} fillOpacity="0.88" />
+          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_OUTER} L${STAR_INNER} ${HALF} Z`} fill={COLOR_META.red.color} fillOpacity="0.88" />
+          <circle cx={HALF} cy={HALF} r="17" fill="#f8fbff" fillOpacity="0.95" />
+          <path d={`M${HALF} ${HALF - 13} L${HALF + 4} ${HALF - 4} L${HALF + 14} ${HALF - 4} L${HALF + 6} ${HALF + 2} L${HALF + 9} ${HALF + 12} L${HALF} ${HALF + 6} L${HALF - 9} ${HALF + 12} L${HALF - 6} ${HALF + 2} L${HALF - 14} ${HALF - 4} L${HALF - 4} ${HALF - 4} Z`} fill="#172554" />
         </g>
 
         {state.players.flatMap((player) =>

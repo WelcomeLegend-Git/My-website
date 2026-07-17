@@ -29,6 +29,8 @@ export class LudoSocketRoom {
   private lastRevision = 0;
   private closedByOwner = false;
 
+  private static readonly MAX_RECONNECT_ATTEMPTS = 8;
+
   constructor(private readonly options: LudoSocketRoomOptions) {}
 
   connect(): void {
@@ -117,6 +119,10 @@ export class LudoSocketRoom {
   }
 
   private scheduleReconnect(): void {
+    if (this.reconnectAttempt >= LudoSocketRoom.MAX_RECONNECT_ATTEMPTS) {
+      this.options.onError(`Connection lost after ${this.reconnectAttempt} attempts. Please refresh to reconnect.`);
+      return;
+    }
     const delay = Math.min(12_000, 750 * 2 ** this.reconnectAttempt);
     this.reconnectAttempt += 1;
     this.reconnectTimer = window.setTimeout(() => this.connect(), delay);

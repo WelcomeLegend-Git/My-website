@@ -22,10 +22,13 @@ export type LudoServerMessage =
 
 export const encodeLudoMessage = (message: LudoClientMessage): string => JSON.stringify(message);
 
+const VALID_SERVER_TYPES = new Set<string>(["AUTHENTICATED", "SNAPSHOT", "PRESENCE", "PONG", "ERROR"]);
+
 export const decodeLudoMessage = (value: string): LudoServerMessage | null => {
   try {
     const message = JSON.parse(value) as Partial<LudoServerMessage>;
-    return typeof message.type === "string" ? message as LudoServerMessage : null;
+    if (typeof message.type !== "string" || !VALID_SERVER_TYPES.has(message.type)) return null;
+    return message as LudoServerMessage;
   } catch {
     return null;
   }

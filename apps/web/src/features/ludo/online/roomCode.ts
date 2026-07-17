@@ -4,6 +4,7 @@ const randomUint32 = (): number => {
     crypto.getRandomValues(values);
     return values[0];
   }
+  console.warn("[Ludo] crypto.getRandomValues unavailable; falling back to Math.random for room codes.");
   return Math.floor(Math.random() * 0xffffffff);
 };
 
@@ -14,7 +15,10 @@ export const generateRoomCode = (): string => String((randomUint32() % 90_000) +
 export const generateInviteSecret = (): string => {
   const bytes = new Uint8Array(24);
   if (typeof crypto !== "undefined" && "getRandomValues" in crypto) crypto.getRandomValues(bytes);
-  else bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
+  else {
+    console.warn("[Ludo] crypto.getRandomValues unavailable; falling back to Math.random for invite secrets.");
+    bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
+  }
 
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 };

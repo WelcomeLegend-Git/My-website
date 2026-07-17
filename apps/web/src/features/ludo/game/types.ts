@@ -17,6 +17,7 @@ export interface LudoRules {
   captureGrantsExtraTurn: boolean;
   finishGrantsExtraTurn: boolean;
   blockadesEnabled: boolean;
+  moveLogLimit: number;
   rankedFinish: boolean;
 }
 
@@ -94,5 +95,6 @@ export const DEFAULT_LUDO_RULES: LudoRules = {
   captureGrantsExtraTurn: true,
   finishGrantsExtraTurn: true,
   blockadesEnabled: true,
+  moveLogLimit: 64,
   rankedFinish: true,
 };

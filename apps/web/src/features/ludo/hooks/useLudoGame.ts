@@ -32,6 +32,7 @@ export const useLudoGame = (): LudoGameController => {
   const [handoffPlayerName, setHandoffPlayerName] = useState<string | null>(null);
   const latestSetup = useRef<GameSetup | null>(null);
   const previousActiveIndex = useRef<number | null>(null);
+  const diceTimeoutRef = useRef<number | null>(null);
 
   const start = useCallback((setup: GameSetup) => {
     const startedAt = Date.now();
@@ -61,7 +62,7 @@ export const useLudoGame = (): LudoGameController => {
     if (!current || current.phase !== "rolling" || handoffPlayerName) return;
 
     setIsDiceRolling(true);
-    window.setTimeout(() => {
+    diceTimeoutRef.current = window.setTimeout(() => {
       setGame((previous) => {
         if (!previous || previous.phase !== "rolling") return previous;
         return rollDice(previous, rollLocalDice(), Date.now());
@@ -130,6 +131,12 @@ export const useLudoGame = (): LudoGameController => {
 
     return () => window.clearTimeout(timeout);
   }, [game, handoffPlayerName, move, roll]);
+
+  useEffect(() => {
+    return () => {
+      if (diceTimeoutRef.current !== null) window.clearTimeout(diceTimeoutRef.current);
+    };
+  }, []);
 
   return {
     game,

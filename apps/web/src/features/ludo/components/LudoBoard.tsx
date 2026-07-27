@@ -196,10 +196,14 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
         )}
 
         <g className="ludo-centre-star" aria-hidden="true">
-          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_INNER} L${HALF} ${STAR_INNER} Z`} fill={COLOR_META.blue.color} fillOpacity="0.88" />
-          <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_INNER} L${STAR_OUTER} ${HALF} Z`} fill={COLOR_META.yellow.color} fillOpacity="0.88" />
-          <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_OUTER} L${HALF} ${STAR_OUTER} Z`} fill={COLOR_META.green.color} fillOpacity="0.88" />
-          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_OUTER} L${STAR_INNER} ${HALF} Z`} fill={COLOR_META.red.color} fillOpacity="0.88" />
+          {/* Left triangle (Red) */}
+          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_INNER} L${STAR_INNER} ${STAR_OUTER} Z`} fill={COLOR_META.red.color} fillOpacity="0.92" />
+          {/* Top triangle (Blue) */}
+          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_INNER} L${STAR_OUTER} ${STAR_INNER} Z`} fill={COLOR_META.blue.color} fillOpacity="0.92" />
+          {/* Right triangle (Yellow) */}
+          <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_INNER} L${STAR_OUTER} ${STAR_OUTER} Z`} fill={COLOR_META.yellow.color} fillOpacity="0.92" />
+          {/* Bottom triangle (Green) */}
+          <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_OUTER} L${STAR_OUTER} ${STAR_OUTER} Z`} fill={COLOR_META.green.color} fillOpacity="0.92" />
           <circle cx={HALF} cy={HALF} r="17" fill="#f8fbff" fillOpacity="0.95" />
           <path d={`M${HALF} ${HALF - 13} L${HALF + 4} ${HALF - 4} L${HALF + 14} ${HALF - 4} L${HALF + 6} ${HALF + 2} L${HALF + 9} ${HALF + 12} L${HALF} ${HALF + 6} L${HALF - 9} ${HALF + 12} L${HALF - 6} ${HALF + 2} L${HALF - 14} ${HALF - 4} L${HALF - 4} ${HALF - 4} Z`} fill="#172554" />
         </g>

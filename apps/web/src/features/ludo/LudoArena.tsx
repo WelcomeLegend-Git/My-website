@@ -99,6 +99,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   const [onlineNotice, setOnlineNotice] = useState<string | null>(null);
   const [showSixBurst, setShowSixBurst] = useState(false);
   const [boardShaking, setBoardShaking] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   // --- Sound engine (top-level, unconditional) ---
   const soundRef = useRef<LudoSoundEngine | null>(null);
@@ -215,21 +216,25 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   };
 
   const startLocalMatch = (mode: "single" | "pass"): void => {
-    const ownName = compactName(playerNames[0], "You");
-    const players = mode === "single"
-      ? [
-          createPlayer(0, ownName),
-          ...Array.from({ length: botCount }, (_, index) => createPlayer(index + 1, ["Nova", "Atlas", "Mira"][index], true)),
-        ]
-      : Array.from({ length: playerCount }, (_, index) =>
-          createPlayer(index, compactName(playerNames[index], `Player ${index + 1}`)),
-        );
+    setIsLaunching(true);
+    setTimeout(() => {
+      const ownName = compactName(playerNames[0], "You");
+      const players = mode === "single"
+        ? [
+            createPlayer(0, ownName),
+            ...Array.from({ length: botCount }, (_, index) => createPlayer(index + 1, ["Nova", "Atlas", "Mira"][index], true)),
+          ]
+        : Array.from({ length: playerCount }, (_, index) =>
+            createPlayer(index, compactName(playerNames[index], `Player ${index + 1}`)),
+          );
 
-    controller.start({
-      mode,
-      players,
-      rules: { turnDurationSeconds: 30, rankedFinish: true, blockadesEnabled: true },
-    });
+      controller.start({
+        mode,
+        players,
+        rules: { turnDurationSeconds: 30, rankedFinish: true, blockadesEnabled: true },
+      });
+      setIsLaunching(false);
+    }, 400);
   };
 
   const createRoom = (): void => {
@@ -262,16 +267,20 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   };
 
   const startRoomPreview = (): void => {
-    const hostName = compactName(playerNames[0], "Host");
-    controller.start({
-      id: `room-${roomCode || generateRoomCode()}`,
-      mode: "online",
-      players: [
-        createPlayer(0, hostName),
-        createPlayer(1, "Friend seat"),
-      ],
-      rules: { turnDurationSeconds: 30, rankedFinish: true, blockadesEnabled: true },
-    });
+    setIsLaunching(true);
+    setTimeout(() => {
+      const hostName = compactName(playerNames[0], "Host");
+      controller.start({
+        id: `room-${roomCode || generateRoomCode()}`,
+        mode: "online",
+        players: [
+          createPlayer(0, hostName),
+          createPlayer(1, "Friend seat"),
+        ],
+        rules: { turnDurationSeconds: 30, rankedFinish: true, blockadesEnabled: true },
+      });
+      setIsLaunching(false);
+    }, 400);
   };
 
   if (controller.game) {
@@ -489,6 +498,26 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
           </motion.section>
         )}
       </section>
+
+      <AnimatePresence>
+        {isLaunching && (
+          <motion.div
+            className="ludo-loading-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="ludo-loading-card">
+              <Sparkles className="ludo-loading-icon" size={32} />
+              <h3>Initializing Match...</h3>
+              <p>Spawning tokens & preparing board</p>
+              <div className="ludo-loading-bar-track">
+                <div className="ludo-loading-bar-fill" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 };

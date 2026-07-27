@@ -40,6 +40,11 @@ const DiceFace = ({ faceValue, faceIndex }: { faceValue: number; faceIndex: numb
 export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel }: Dice3DProps) => {
   const [justLanded, setJustLanded] = useState(false);
   const prevRolling = useRef(isRolling);
+  const lastValueRef = useRef<number>(1);
+
+  if (value !== null && value !== undefined) {
+    lastValueRef.current = value;
+  }
 
   // Detect roll → land transition for bounce
   useEffect(() => {
@@ -51,7 +56,7 @@ export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel
     prevRolling.current = isRolling;
   }, [isRolling]);
 
-  const showValue = value ?? 5; // Default display
+  const showValue = value ?? lastValueRef.current;
   const cubeTransform = isRolling ? undefined : FACE_ROTATION[showValue];
 
   return (

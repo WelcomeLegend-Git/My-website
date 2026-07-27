@@ -70,7 +70,7 @@
 .dice3d-pip-8 { grid-area: 3 / 3; }
 
 /* Ready glow ring */
-.dice3d-scene.is-ready .dice3d-face-1 {
+.dice3d-scene.is-ready .dice3d-face {
   box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.9),
     0 0 0 3px var(--dice-glow-color, rgba(131, 105, 245, 0.5)),

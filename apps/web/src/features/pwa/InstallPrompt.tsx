@@ -53,11 +53,11 @@ export const InstallPrompt = () => {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 animate-slide-up md:left-auto md:w-96">
-      <div className="rounded-2xl border border-primary/40 bg-slate-900/95 p-6 shadow-2xl backdrop-blur">
+      <div className="rounded-2xl border border-brass/30 bg-surface p-6 shadow-2xl backdrop-blur">
         <div className="mb-4 flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brass-soft">
             <svg
-              className="h-6 w-6 text-primary"
+              className="h-6 w-6 text-brass"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -71,10 +71,10 @@ export const InstallPrompt = () => {
             </svg>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-100">
+            <h3 className="text-lg font-semibold text-ink">
               Install JEE Companion
             </h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-ink-muted">
               Get quick access and work offline! Install the app on your device.
             </p>
           </div>
@@ -83,7 +83,7 @@ export const InstallPrompt = () => {
         <div className="flex gap-3">
           <button
             type="button"
-            className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex-1 rounded-xl bg-brass-soft px-4 py-2 text-sm font-semibold text-brass-foreground hover:bg-brass-soft disabled:opacity-50"
             onClick={handleInstall}
             disabled={isInstalling}
           >
@@ -91,7 +91,7 @@ export const InstallPrompt = () => {
           </button>
           <button
             type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-slate-600"
+            className="rounded-xl border border-line px-4 py-2 text-sm text-ink-muted hover:border-line"
             onClick={handleDismiss}
           >
             Not Now

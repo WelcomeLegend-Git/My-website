@@ -171,9 +171,9 @@ export const QuizHistoryPage = () => {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-400';
-    if (score >= 60) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 80) return 'text-signal';
+    if (score >= 60) return 'text-amber-500';
+    return 'text-red-500';
   };
 
   const handleToggleQuizBookmark = async (
@@ -231,8 +231,8 @@ export const QuizHistoryPage = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading quiz history...</p>
+          <div className="w-16 h-16 border-4 border-brass border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-ink-muted">Loading quiz history...</p>
         </div>
       </div>
     );
@@ -243,33 +243,33 @@ export const QuizHistoryPage = () => {
       {/* Header */}
       <div className="mb-8">
         <div className="mb-4 min-w-0">
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Quiz History</p>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Track and analyze</h1>
-          <p className="text-xs sm:text-sm text-slate-400">Track your practice sessions and analyze performance</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-ink-muted font-mono">Quiz History</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-ink font-display mb-1 sm:mb-2">Track and analyze</h1>
+          <p className="text-xs sm:text-sm text-ink-muted">Track your practice sessions and analyze performance</p>
         </div>
 
         {/* Stats Summary */}
         {quizzesSafe.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="glass-card rounded-xl p-4 border border-slate-800/50">
-              <p className="text-slate-400 text-sm mb-1">Total Quizzes</p>
-              <p className="text-2xl font-bold text-white">{quizzesSafe.length}</p>
+            <div className="glass-card rounded-xl p-4 border border-line">
+              <p className="text-ink-muted text-sm mb-1">Total Quizzes</p>
+              <p className="text-2xl font-bold text-ink font-mono">{quizzesSafe.length}</p>
             </div>
-            <div className="glass-card rounded-xl p-4 border border-slate-800/50">
-              <p className="text-slate-400 text-sm mb-1">Average Score</p>
-              <p className={`text-2xl font-bold ${getScoreColor(averageScore)}`}>
+            <div className="glass-card rounded-xl p-4 border border-line">
+              <p className="text-ink-muted text-sm mb-1">Average Score</p>
+              <p className={`text-2xl font-bold font-mono ${getScoreColor(averageScore)}`}>
                 {(averageScore || 0).toFixed(1)}%
               </p>
             </div>
-            <div className="glass-card rounded-xl p-4 border border-slate-800/50">
-              <p className="text-slate-400 text-sm mb-1">Completed</p>
-              <p className="text-2xl font-bold text-emerald-400">
+            <div className="glass-card rounded-xl p-4 border border-line">
+              <p className="text-ink-muted text-sm mb-1">Completed</p>
+              <p className="text-2xl font-bold text-signal font-mono">
                 {completedCount}
               </p>
             </div>
-            <div className="glass-card rounded-xl p-4 border border-slate-800/50">
-              <p className="text-slate-400 text-sm mb-1">Total Time</p>
-              <p className="text-2xl font-bold text-purple-400">
+            <div className="glass-card rounded-xl p-4 border border-line">
+              <p className="text-ink-muted text-sm mb-1">Total Time</p>
+              <p className="text-2xl font-bold text-brass font-mono">
                 {formatTime(totalTime)}
               </p>
             </div>
@@ -285,7 +285,7 @@ export const QuizHistoryPage = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search quizzes..."
-              className="w-full px-4 py-2 rounded-xl border border-slate-800/50 glass text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full px-4 py-2 rounded-xl border border-line bg-surface-2 text-ink placeholder-ink-muted focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20"
             />
           </div>
 
@@ -321,15 +321,15 @@ export const QuizHistoryPage = () => {
       {/* Quiz List */}
       {filteredQuizzes.length === 0 ? (
         <div className="text-center py-16">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-20 h-20 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-slate-300 mb-2">
+          <h3 className="text-xl font-semibold text-ink mb-2">
             {searchQuery ? 'No quizzes found' : 'No quiz history yet'}
           </h3>
-          <p className="text-slate-500 mb-6">
+          <p className="text-ink-muted mb-6">
             {searchQuery
               ? 'Try adjusting your search or filters'
               : 'Start practicing to see your quiz history here'}
@@ -337,7 +337,7 @@ export const QuizHistoryPage = () => {
           {!searchQuery && (
             <button
               onClick={() => navigate('/formulas')}
-              className="px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-all"
+              className="px-6 py-2.5 rounded-lg bg-brass text-white font-medium hover:bg-brass-strong transition-all"
             >
               Go to Formulas
             </button>
@@ -352,25 +352,25 @@ export const QuizHistoryPage = () => {
               <div
                 key={quiz.id}
                 onClick={() => navigate(`/quiz/${quiz.id}/results`)}
-                className="glass-card rounded-xl p-6 border border-slate-800/50 hover:border-primary/30 transition-all cursor-pointer hover-lift"
+                className="glass-card rounded-xl p-6 border border-line hover:border-brass/40 transition-all cursor-pointer hover-lift"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
-                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${quiz.examType === 'mains'
-                        ? 'bg-blue-500/20 text-blue-400'
-                        : 'bg-purple-500/20 text-purple-400'
+                      <h3 className="text-lg font-semibold text-ink">{quiz.title}</h3>
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium font-mono ${quiz.examType === 'mains'
+                        ? 'bg-brass-soft text-brass'
+                        : 'bg-brass-soft text-brass'
                         }`}>
                         {quiz.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'}
                       </span>
                       {quiz.completedAt && (
-                        <span className="px-2 py-1 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                        <span className="px-2 py-1 rounded-lg text-xs font-medium font-mono bg-brass-soft text-signal">
                           Completed
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-ink-muted">
                       {quiz._count.questions} questions • {quiz.answerType === 'single' ? 'Single' : 'Multiple'} correct • Created {formatDate(quiz.createdAt)}
                     </p>
                   </div>
@@ -380,25 +380,18 @@ export const QuizHistoryPage = () => {
                       type="button"
                       onClick={(e) => handleToggleQuizBookmark(e, quiz)}
                       className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${isQuizBookmarked(quiz.id)
-                          ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                          : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                          ? 'bg-surface-2 border-brass/30 text-brass'
+                          : 'bg-surface-2 border-line text-ink-muted hover:text-ink hover:bg-surface'
                         }`}
                       title={isQuizBookmarked(quiz.id) ? 'Remove bookmark' : 'Bookmark quiz'}
                     >
                       <svg
                         className={`w-4 h-4 transition-transform duration-300 ${isQuizBookmarked(quiz.id) ? 'scale-110' : 'scale-90'}`}
-                        fill={isQuizBookmarked(quiz.id) ? "url(#diamond-gradient-quiz)" : "none"}
+                        fill={isQuizBookmarked(quiz.id) ? "currentColor" : "none"}
                         stroke={isQuizBookmarked(quiz.id) ? "none" : "currentColor"}
                         strokeWidth={isQuizBookmarked(quiz.id) ? 0 : 2}
                         viewBox="0 0 24 24"
                       >
-                        <defs>
-                          <linearGradient id="diamond-gradient-quiz" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#22d3ee" />
-                            <stop offset="50%" stopColor="#e879f9" />
-                            <stop offset="100%" stopColor="#818cf8" />
-                          </linearGradient>
-                        </defs>
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -408,28 +401,28 @@ export const QuizHistoryPage = () => {
                     </button>
                     {quiz.score !== null && quiz.score !== undefined && (
                       <div className="text-right">
-                        <p className="text-sm text-slate-400 mb-1">Score</p>
-                        <p className={`text-2xl font-bold ${getScoreColor(quiz.score)}`}>
+                        <p className="text-sm text-ink-muted mb-1">Score</p>
+                        <p className={`text-2xl font-bold font-mono ${getScoreColor(quiz.score)}`}>
                           {quiz.score.toFixed(1)}%
                         </p>
                       </div>
                     )}
                     {quiz.timeSpent && (
                       <div className="text-right">
-                        <p className="text-sm text-slate-400 mb-1">Time</p>
-                        <p className="text-lg font-semibold text-purple-400">
+                        <p className="text-sm text-ink-muted mb-1">Time</p>
+                        <p className="text-lg font-semibold text-brass font-mono">
                           {formatTime(quiz.timeSpent)}
                         </p>
                       </div>
                     )}
-                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                 </div>
 
                 {quiz.accuracy !== null && quiz.accuracy !== undefined && (
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <div className="flex items-center gap-2 text-sm text-ink-muted">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>

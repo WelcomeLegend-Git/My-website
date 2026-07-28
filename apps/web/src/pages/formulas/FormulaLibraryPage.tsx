@@ -382,20 +382,20 @@ export const FormulaLibraryPage = () => {
         <>
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula studio</p>
-              <h2 className="text-3xl font-semibold text-slate-100">Add Formula</h2>
-              <p className="text-sm text-slate-400">Create a new formula or use AI bulk extraction</p>
+              <p className="text-xs uppercase tracking-[0.3em] font-mono text-ink-muted">Formula studio</p>
+              <h2 className="text-3xl font-display font-semibold text-ink">Add Formula</h2>
+              <p className="text-sm text-ink-muted">Create a new formula or use AI bulk extraction</p>
             </div>
             <div className="flex gap-2">
               <a
                 href="/formulas"
-                className="rounded-xl bg-slate-700/50 border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+                className="rounded-xl bg-surface-2 border border-line px-4 py-2 text-sm font-semibold text-ink hover:bg-surface transition-colors"
               >
                 ← Back to Formulas
               </a>
               <button
                 type="button"
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+                className="rounded-xl bg-brass px-4 py-2 text-sm font-semibold text-white"
                 onClick={openCreateForm}
               >
                 Add formula
@@ -403,10 +403,10 @@ export const FormulaLibraryPage = () => {
             </div>
           </header>
 
-          <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
+          <div className="rounded-3xl border border-line bg-surface glass-card p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex-1 space-y-2 md:flex-none md:w-56">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
+                <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Subject</label>
                 <GlowSelect
                   id="formula-subject"
                   value={subjectId ?? ""}
@@ -420,7 +420,7 @@ export const FormulaLibraryPage = () => {
               </div>
 
               <div className="flex-1 space-y-2 md:flex-none md:w-56">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
+                <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Chapter</label>
                 <GlowSelect
                   id="formula-chapter"
                   value={chapterId ?? ""}
@@ -435,13 +435,13 @@ export const FormulaLibraryPage = () => {
               </div>
 
               <div className="flex-1 space-y-2">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Search</label>
+                <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Search</label>
                 <input
                   type="search"
                   value={searchTerm}
                   onChange={(event: any) => setSearchTerm(event.target.value)}
                   placeholder="Title, expression, explanation keywords"
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
+                  className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink backdrop-blur focus:border-brass/50 focus:ring-2 focus:ring-brass/20 focus:outline-none transition"
                 />
               </div>
 
@@ -453,7 +453,7 @@ export const FormulaLibraryPage = () => {
                     setChapterId(undefined);
                     setSearchTerm("");
                   }}
-                  className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-2 text-sm font-medium text-slate-300 hover:border-primary/40 hover:text-primary transition"
+                  className="rounded-xl border border-line bg-surface-2 px-4 py-2 text-sm font-medium text-ink hover:border-brass/40 hover:text-brass transition"
                 >
                   Reset filters
                 </button>
@@ -468,12 +468,12 @@ export const FormulaLibraryPage = () => {
                   {[0, 1, 2].map((item) => (
                     <div
                       key={item}
-                      className="h-28 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40"
+                      className="h-28 rounded-2xl border border-line bg-surface-2"
                     />
                   ))}
                 </div>
               ) : isEmpty ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-sm text-slate-400">
+                <div className="rounded-2xl border border-line bg-surface p-6 text-center text-sm text-ink-muted">
                   No formulas yet. Capture your first derivation to unlock AI powered insights.
                 </div>
               ) : (
@@ -489,41 +489,41 @@ export const FormulaLibraryPage = () => {
                 ))
               )}
               {formulasFetching && formulas && formulas.length > 0 && (
-                <p className="text-center text-xs text-slate-500">Refreshing...</p>
+                <p className="text-center text-xs text-ink-muted">Refreshing...</p>
               )}
             </div>
 
             <aside className="space-y-4">
               {selectedFormula ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <div className="rounded-2xl border border-line bg-surface p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Active formula</p>
-                      <h3 className="mt-2 text-2xl font-semibold text-slate-100">{selectedFormula.title}</h3>
+                      <p className="text-xs uppercase font-mono tracking-[0.3em] text-ink-muted">Active formula</p>
+                      <h3 className="mt-2 text-2xl font-display font-semibold text-ink">{selectedFormula.title}</h3>
                     </div>
-                    <span className="rounded-full border border-slate-800 bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-wide text-slate-400">
+                    <span className="rounded-full border border-line bg-surface-2 px-3 py-1 text-xs uppercase font-mono tracking-wide text-ink-muted">
                       {selectedFormula.difficulty}
                     </span>
                   </div>
-                  <p className="mt-4 whitespace-pre-wrap font-mono text-sm text-slate-200">{selectedFormula.expression}</p>
+                  <p className="mt-4 whitespace-pre-wrap font-mono text-sm text-ink">{selectedFormula.expression}</p>
                   {selectedFormula.diagram ? (
                     <div className="mt-4">
                       <JeeDiagram diagram={selectedFormula.diagram as any} />
                     </div>
                   ) : null}
                   {selectedFormula.explanation && (
-                    <p className="mt-4 text-sm leading-relaxed text-slate-300">{selectedFormula.explanation}</p>
+                    <p className="mt-4 text-sm leading-relaxed text-ink">{selectedFormula.explanation}</p>
                   )}
                   {selectedFormula.derivationSteps?.length ? (
                     <div className="mt-4 space-y-2">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">Derivation steps</p>
-                      <ol className="space-y-2 text-sm text-slate-300">
+                      <p className="text-xs uppercase tracking-wide font-mono text-ink-muted">Derivation steps</p>
+                      <ol className="space-y-2 text-sm text-ink">
                         {selectedFormula.derivationSteps.map((step: any, index: number) => (
                           <li
                             key={index}
-                            className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2"
+                            className="rounded-xl border border-line bg-surface-2 px-3 py-2"
                           >
-                            <span className="mr-2 text-xs text-slate-500">{index + 1}.</span>
+                            <span className="mr-2 text-xs text-ink-muted font-mono">{index + 1}.</span>
                             {step}
                           </li>
                         ))}
@@ -535,7 +535,7 @@ export const FormulaLibraryPage = () => {
                       {selectedFormula.tags.map((tag: any) => (
                         <span
                           key={tag}
-                          className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wide text-primary"
+                          className="rounded-full border border-brass/40 bg-brass-soft px-3 py-1 text-xs uppercase font-mono tracking-wide text-brass"
                         >
                           {tag}
                         </span>
@@ -545,21 +545,21 @@ export const FormulaLibraryPage = () => {
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
                       type="button"
-                      className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                      className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink hover:border-line hover:bg-surface-2 transition"
                       onClick={() => openEditForm(selectedFormula)}
                     >
                       Edit
                     </button>
                     <button
                       type="button"
-                      className="rounded-xl border border-rose-600/40 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-300 hover:border-rose-500 hover:text-rose-200"
+                      className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-500 hover:border-red-500 hover:text-red-600 transition"
                       onClick={() => handleDeleteClick(selectedFormula)}
                     >
                       Delete
                     </button>
                     <button
                       type="button"
-                      className="rounded-xl bg-primary/80 px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary"
+                      className="rounded-xl bg-brass px-4 py-2 text-sm font-semibold text-white hover:bg-brass-strong transition"
                       onClick={() => {
                         setAiContext(toAiContext(selectedFormula));
                         openAi();
@@ -570,12 +570,12 @@ export const FormulaLibraryPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">
+                <div className="rounded-2xl border border-line bg-surface p-6 text-sm text-ink-muted">
                   Select a formula to surface derivations, context, and AI prompts.
                 </div>
               )}
               {deleteMutation.error && (
-                <p className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+                <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-500">
                   {deleteMutation.error.message}
                 </p>
               )}

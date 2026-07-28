@@ -44,23 +44,22 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
       position: sticky;
       top: 0;
       z-index: 100;
-      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+      background: var(--paper);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
     }
     
     .rb-glass-card {
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--surface);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .rb-glass-card:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(108, 99, 255, 0.3);
-      box-shadow: 0 12px 48px rgba(108, 99, 255, 0.2);
+      background: var(--surface-2);
+      border-color: var(--brass);
       transform: translateY(-2px);
     }
     
@@ -70,7 +69,6 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
     
     .rb-btn-hover:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(108, 99, 255, 0.4);
     }
     
     .rb-btn-hover:active:not(:disabled) {
@@ -402,7 +400,7 @@ export function RemoteBridgePage() {
               style={{
                 ...styles.statusDot,
                 backgroundColor: status.connected && status.authenticated
-                  ? status.phoneOnline ? "#34C759" : "#FF9500"
+                  ? status.phoneOnline ? "var(--signal)" : "var(--brass)"
                   : "#FF3B30",
               }}
             />
@@ -577,7 +575,7 @@ function CallPanel({
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
             });
             const typeIcon = call.type === 1 ? "↙️" : call.type === 2 ? "↗️" : call.type === 3 ? "❌" : "📞";
-            const typeColor = call.type === 3 ? "#FF3B30" : "rgba(255,255,255,0.7)";
+            const typeColor = call.type === 3 ? "#FF3B30" : "var(--ink-muted)";
             
             return (
               <div key={i} style={styles.recentCallItem} className="rb-glass-card">
@@ -621,10 +619,10 @@ function CallPanel({
         {callerNumber && <p style={styles.callerNumber}>{callerNumber}</p>}
         <p style={{
           ...styles.callStatus,
-          color: callState === "RINGING" ? "#FF9500" :
-                 callState === "ACTIVE" ? "#34C759" :
-                 callState === "HOLDING" ? "#FF9500" :
-                 "#8E8E93"
+          color: callState === "RINGING" ? "var(--brass)" :
+                 callState === "ACTIVE" ? "var(--signal)" :
+                 callState === "HOLDING" ? "var(--brass)" :
+                 "var(--ink-muted)"
         }} className="rb-call-status">
           {callState === "RINGING" ? "📞 Incoming Call..." :
            callState === "ACTIVE" ? `🟢 Active · ${formatDuration(currentCall?.durationSeconds || 0)}` :
@@ -931,7 +929,7 @@ function SettingsPanel({
       {/* ─── Background Notifications Toggle ─── */}
       <div style={styles.settingSection}>
         <h3 style={styles.settingTitle}>🔔 Background Notifications</h3>
-        <p style={{ color: "#8E8E93", fontSize: 12, margin: "0 0 12px" }}>
+        <p style={{ color: "var(--ink-muted)", fontSize: 12, margin: "0 0 12px" }}>
           Get notified of incoming calls even when this tab is in the background or closed.
           Both toggles must be ON for notifications to work.
         </p>
@@ -941,7 +939,7 @@ function SettingsPanel({
           <span>📲 This iPad (Background Alerts)</span>
           <div style={{
             width: 44, height: 24, borderRadius: 12,
-            backgroundColor: pushEnabled ? "#34C759" : "#38383A",
+            backgroundColor: pushEnabled ? "var(--signal)" : "var(--surface-2)",
             display: "flex", alignItems: "center", padding: "0 2px",
             justifyContent: pushEnabled ? "flex-end" : "flex-start",
             transition: "all 0.2s",
@@ -949,7 +947,7 @@ function SettingsPanel({
           }}>
             <div style={{
               width: 20, height: 20, borderRadius: 10,
-              backgroundColor: "#fff",
+              backgroundColor: "var(--ink)",
             }} />
           </div>
         </div>
@@ -957,7 +955,7 @@ function SettingsPanel({
         {/* Phone Toggle Status (read-only on web) */}
         <div style={styles.infoRow}>
           <span>📱 Phone (Allow iPad Alerts)</span>
-          <span style={{ color: phoneToggle ? "#34C759" : "#FF9500", fontSize: 13, fontWeight: 600 }}>
+          <span style={{ color: phoneToggle ? "var(--signal)" : "var(--brass)", fontSize: 13, fontWeight: 600 }}>
             {phoneToggle ? "✓ ON" : "✕ OFF"}
           </span>
         </div>
@@ -965,15 +963,15 @@ function SettingsPanel({
         {/* Live Status Indicator */}
         <div style={{
           marginTop: 8, padding: "8px 12px", borderRadius: 8,
-          backgroundColor: (pushEnabled && phoneToggle) ? "rgba(52,199,89,0.15)" :
-                           (!pushEnabled && !phoneToggle) ? "rgba(142,142,147,0.15)" :
-                           "rgba(255,149,0,0.15)",
+          backgroundColor: (pushEnabled && phoneToggle) ? "var(--signal)" :
+                           (!pushEnabled && !phoneToggle) ? "var(--line)" :
+                           "var(--brass-soft)",
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ fontSize: 16 }}>
             {(pushEnabled && phoneToggle) ? "🟢" : (!pushEnabled && !phoneToggle) ? "⚪" : "⚠️"}
           </span>
-          <span style={{ color: "#E5E5EA", fontSize: 12 }}>
+          <span style={{ color: "var(--ink-muted)", fontSize: 12 }}>
             {(pushEnabled && phoneToggle) ? "Background notifications active — you'll receive call alerts" :
              (!pushEnabled && !phoneToggle) ? "Background notifications disabled on both devices" :
              pushEnabled && !phoneToggle ? "Phone toggle is OFF — enable it from AuraRing app to receive alerts" :
@@ -982,7 +980,7 @@ function SettingsPanel({
         </div>
 
         {!pushConfigured && (
-          <p style={{ color: "#FF9500", fontSize: 11, marginTop: 8 }}>
+          <p style={{ color: "var(--brass)", fontSize: 11, marginTop: 8 }}>
             ⚠️ VAPID keys not configured on server. Push won't work until admin sets them up.
           </p>
         )}
@@ -996,7 +994,7 @@ function SettingsPanel({
         </div>
         <div style={styles.infoRow}>
           <span>Encryption</span>
-          <span style={{ color: "#34C759" }}>✓ AES-256-GCM</span>
+          <span style={{ color: "var(--signal)" }}>✓ AES-256-GCM</span>
         </div>
       </div>
 
@@ -1205,7 +1203,7 @@ function SetupScreen({
           {qrLoading ? (
             <div style={styles.qrPlaceholder}>
               <div style={styles.qrSpinner}>⏳</div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+              <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>
                 Generating secure QR code...
               </p>
             </div>
@@ -1229,8 +1227,8 @@ function SetupScreen({
                 <QRCodeSVG
                   value={qrData || ""}
                   size={220}
-                  bgColor="#ffffff"
-                  fgColor="#0a0a1a"
+                  bgColor="var(--ink)"
+                  fgColor="var(--paper)"
                   level="Q"
                   marginSize={2}
                   style={{ borderRadius: 12 }}
@@ -1243,7 +1241,7 @@ function SetupScreen({
                 </p>
                 <div style={styles.qrTimer}>
                   <span style={{
-                    color: timeLeft < 60 ? "#FF3B30" : "rgba(255,255,255,0.5)",
+                    color: timeLeft < 60 ? "#FF3B30" : "var(--ink-muted)",
                     fontSize: 12,
                   }}>
                     Expires in {formatCountdown(timeLeft)}
@@ -1271,7 +1269,7 @@ function SetupScreen({
           {qrLoading ? (
              <div style={styles.qrPlaceholder}>
                <div style={styles.qrSpinner}>⏳</div>
-               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Generating code...</p>
+               <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>Generating code...</p>
              </div>
           ) : timeLeft === 0 ? (
              <div style={styles.qrPlaceholder}>
@@ -1289,14 +1287,14 @@ function SetupScreen({
             <>
               <div 
                 style={{
-                  background: "rgba(255,255,255,0.05)",
+                  background: "var(--line)",
                   padding: 16,
                   borderRadius: 12,
                   wordBreak: "break-all",
                   fontSize: 13,
                   fontFamily: "monospace",
-                  color: "#E5E5EA",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "var(--ink-muted)",
+                  border: "1px solid var(--line)",
                   marginBottom: 16
                 }}
               >
@@ -1316,7 +1314,7 @@ function SetupScreen({
               </div>
 
               <div style={styles.qrTimer}>
-                <span style={{ color: timeLeft < 60 ? "#FF3B30" : "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                <span style={{ color: timeLeft < 60 ? "#FF3B30" : "var(--ink-muted)", fontSize: 12 }}>
                   Expires in {formatDuration(timeLeft)}
                 </span>
               </div>
@@ -1342,9 +1340,9 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
     height: "100vh",
-    background: "linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%, #0a0a1a 100%)",
+    background: "var(--paper) 0%, var(--paper) 25%, var(--paper) 50%, var(--paper) 75%, var(--paper) 100%)",
     backgroundSize: "400% 400%",
-    color: "#fff",
+    color: "var(--ink)",
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     display: "flex",
     flexDirection: "column",
@@ -1359,8 +1357,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "16px 24px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(10,10,26,0.95)",
+    borderBottom: "1px solid var(--line)",
+    background: "var(--paper)",
     backdropFilter: "blur(24px)",
     flexWrap: "nowrap" as const,
     gap: 16,
@@ -1369,10 +1367,10 @@ const styles: Record<string, React.CSSProperties> = {
   statusLeft: { display: "flex", alignItems: "center", gap: 12 },
   statusRight: { display: "flex", alignItems: "center", gap: 12 },
   statusDot: { width: 10, height: 10, borderRadius: "50%", boxShadow: "0 0 12px currentColor", flexShrink: 0 },
-  statusText: { fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 600, whiteSpace: "nowrap" as const },
+  statusText: { fontSize: 14, color: "var(--ink)", fontWeight: 600, whiteSpace: "nowrap" as const },
   statusRefreshBtn: {
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.12)",
+    background: "var(--line)",
+    border: "1px solid var(--line)",
     cursor: "pointer",
     fontSize: 16,
     padding: "6px 10px",
@@ -1386,9 +1384,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     padding: "6px 14px",
     borderRadius: 20,
-    background: "linear-gradient(135deg, rgba(108,99,255,0.15), rgba(108,99,255,0.08))",
-    color: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(108,99,255,0.2)",
+    background: "var(--brass-soft)",
+    color: "var(--ink-muted)",
+    border: "1px solid var(--brass)",
     letterSpacing: 0.5,
     whiteSpace: "nowrap" as const,
   },
@@ -1396,9 +1394,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     padding: "6px 14px",
     borderRadius: 16,
-    background: "linear-gradient(135deg, rgba(0,122,255,0.2), rgba(0,122,255,0.1))",
-    color: "#0A84FF",
-    border: "1px solid rgba(0,122,255,0.3)",
+    background: "var(--brass-soft)",
+    color: "var(--brass)",
+    border: "1px solid var(--brass-soft)",
     fontWeight: 600,
     whiteSpace: "nowrap" as const,
   },
@@ -1407,8 +1405,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     gap: 8,
     padding: "12px 24px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(10,10,26,0.9)",
+    borderBottom: "1px solid var(--line)",
+    background: "var(--paper)",
     backdropFilter: "blur(24px)",
     minHeight: 56,
     alignItems: "center",
@@ -1420,17 +1418,17 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     borderRadius: 12,
     background: "transparent",
-    color: "rgba(255,255,255,0.5)",
+    color: "var(--ink-muted)",
     fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
   tabActive: {
-    background: "linear-gradient(135deg, rgba(108,99,255,0.2), rgba(90,82,213,0.2))",
-    color: "#fff",
-    boxShadow: "0 4px 16px rgba(108,99,255,0.3)",
-    border: "1px solid rgba(108,99,255,0.3)",
+    background: "var(--brass-soft)",
+    color: "var(--ink)",
+    boxShadow: "0 4px 16px var(--brass)",
+    border: "1px solid var(--brass)",
   },
   content: { flex: 1, padding: "24px 20px" },
   // Setup
@@ -1443,14 +1441,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   setupIcon: { fontSize: 48, marginBottom: 16 },
   setupTitle: { fontSize: 22, fontWeight: 600, marginBottom: 8 },
-  setupDesc: { fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 24, lineHeight: 1.5 },
+  setupDesc: { fontSize: 14, color: "var(--ink-muted)", marginBottom: 24, lineHeight: 1.5 },
   input: {
     width: "100%",
     padding: "14px 16px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
+    border: "1px solid var(--line)",
+    background: "var(--line)",
+    color: "var(--ink)",
     fontSize: 14,
     outline: "none",
     marginBottom: 16,
@@ -1461,8 +1459,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "14px",
     borderRadius: 12,
     border: "none",
-    background: "linear-gradient(135deg, #6C63FF, #5A52D5)",
-    color: "#fff",
+    background: "var(--brass)",
+    color: "var(--ink)",
     fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",
@@ -1472,7 +1470,7 @@ const styles: Record<string, React.CSSProperties> = {
   emptyState: { textAlign: "center" as const, padding: "60px 20px" },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontWeight: 600, marginBottom: 8 },
-  emptyDesc: { fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 },
+  emptyDesc: { fontSize: 14, color: "var(--ink-muted)", lineHeight: 1.5 },
   // Call panel
   callPanel: { display: "flex", flexDirection: "column" as const, alignItems: "center", paddingTop: 60 },
   callerInfo: { textAlign: "center" as const, marginBottom: 50 },
@@ -1480,18 +1478,18 @@ const styles: Record<string, React.CSSProperties> = {
     width: 100,
     height: 100,
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #6C63FF, #5A52D5)",
+    background: "var(--brass)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 40,
     fontWeight: 700,
     margin: "0 auto 20px",
-    boxShadow: "0 8px 32px rgba(108, 99, 255, 0.4)",
-    border: "3px solid rgba(108, 99, 255, 0.3)",
+    boxShadow: "0 8px 32px var(--brass)",
+    border: "3px solid var(--brass)",
   },
   callerName: { fontSize: 28, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.5px" },
-  callerNumber: { fontSize: 16, color: "rgba(255,255,255,0.6)" },
+  callerNumber: { fontSize: 16, color: "var(--ink-muted)" },
   callStatus: { fontSize: 15, marginTop: 10, fontWeight: 600 },
   callActions: {
     display: "flex",
@@ -1509,21 +1507,21 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     minWidth: 130,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
   },
-  acceptBtn: { background: "linear-gradient(135deg, #34C759, #30B350)", color: "#fff" },
-  rejectBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "#fff" },
-  endBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "#fff", width: "100%" },
+  acceptBtn: { background: "var(--signal)", color: "var(--ink)" },
+  rejectBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "var(--ink)" },
+  endBtn: { background: "linear-gradient(135deg, #FF3B30, #E6342A)", color: "var(--ink)", width: "100%" },
   controlBtn: {
-    background: "rgba(255,255,255,0.1)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,0.15)",
+    background: "var(--line)",
+    color: "var(--ink)",
+    border: "1px solid var(--line)",
     backdropFilter: "blur(10px)",
   },
   controlBtnActive: {
-    background: "linear-gradient(135deg, rgba(255,149,0,0.3), rgba(255,149,0,0.2))",
-    borderColor: "#FF9500",
-    color: "#FF9500",
+    background: "var(--brass-soft)",
+    borderColor: "var(--brass)",
+    color: "var(--brass)",
   },
   // Recent Calls
   recentCallsContainer: {
@@ -1537,7 +1535,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 22,
     fontWeight: 700,
     marginBottom: 20,
-    color: "#fff",
+    color: "var(--ink)",
     letterSpacing: "-0.5px",
   },
   recentCallsList: {
@@ -1551,9 +1549,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     padding: "16px",
-    background: "rgba(255,255,255,0.04)",
+    background: "var(--line)",
     borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid var(--line)",
     backdropFilter: "blur(10px)",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     cursor: "pointer",
@@ -1562,16 +1560,16 @@ const styles: Record<string, React.CSSProperties> = {
     width: 48,
     height: 48,
     borderRadius: 24,
-    background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(90,82,213,0.2))",
+    background: "var(--brass-soft)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 20,
     fontWeight: 700,
-    color: "#fff",
+    color: "var(--ink)",
     marginRight: 14,
     flexShrink: 0,
-    border: "2px solid rgba(108,99,255,0.3)",
+    border: "2px solid var(--brass)",
   },
   recentCallInfo: {
     flex: 1,
@@ -1583,7 +1581,7 @@ const styles: Record<string, React.CSSProperties> = {
   recentCallName: {
     fontSize: 17,
     fontWeight: 600,
-    color: "#fff",
+    color: "var(--ink)",
     whiteSpace: "nowrap" as const,
     overflow: "hidden" as const,
     textOverflow: "ellipsis" as const,
@@ -1596,9 +1594,9 @@ const styles: Record<string, React.CSSProperties> = {
     width: 48,
     height: 48,
     borderRadius: 24,
-    background: "linear-gradient(135deg, rgba(52, 199, 89, 0.25), rgba(52, 199, 89, 0.15))",
-    border: "1px solid rgba(52, 199, 89, 0.3)",
-    color: "#34C759",
+    background: "var(--signal)",
+    border: "1px solid var(--signal)",
+    color: "var(--signal)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1615,9 +1613,9 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 500,
     padding: "20px 24px",
     borderRadius: 18,
-    border: "2px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
+    border: "2px solid var(--line)",
+    background: "var(--line)",
+    color: "var(--ink)",
     fontSize: 28,
     textAlign: "center" as const,
     outline: "none",
@@ -1633,9 +1631,9 @@ const styles: Record<string, React.CSSProperties> = {
     width: 80,
     height: 64,
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.06)",
-    color: "#fff",
+    border: "1px solid var(--line)",
+    background: "var(--line)",
+    color: "var(--ink)",
     fontSize: 24,
     fontWeight: 600,
     cursor: "pointer",
@@ -1647,9 +1645,9 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     padding: "16px",
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
+    border: "1px solid var(--line)",
+    background: "var(--line)",
+    color: "var(--ink)",
     fontSize: 20,
     cursor: "pointer",
     transition: "all 0.2s",
@@ -1659,18 +1657,18 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "16px",
     borderRadius: 16,
     border: "none",
-    background: "linear-gradient(135deg, #34C759, #30B350)",
-    color: "#fff",
+    background: "var(--signal)",
+    color: "var(--ink)",
     fontSize: 17,
     fontWeight: 700,
     cursor: "pointer",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "0 4px 16px rgba(52, 199, 89, 0.4)",
+    boxShadow: "0 4px 16px var(--signal)",
   },
   // Settings
   settingsPanel: { display: "flex", flexDirection: "column" as const, gap: 24 },
   settingSection: {
-    background: "rgba(255,255,255,0.04)",
+    background: "var(--line)",
     borderRadius: 14,
     padding: 16,
   },
@@ -1681,11 +1679,11 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     padding: "8px 0",
     fontSize: 13,
-    borderBottom: "1px solid rgba(255,255,255,0.04)",
+    borderBottom: "1px solid var(--line)",
   },
   codeText: {
     fontSize: 11,
-    background: "rgba(255,255,255,0.06)",
+    background: "var(--line)",
     padding: "2px 8px",
     borderRadius: 6,
     fontFamily: "monospace",
@@ -1697,23 +1695,23 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "8px 0",
     fontSize: 13,
   },
-  loadingText: { fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center" as const },
+  loadingText: { fontSize: 13, color: "var(--ink-muted)", textAlign: "center" as const },
   logList: { maxHeight: 200, overflowY: "auto" as const },
   logRow: {
     display: "flex",
     justifyContent: "space-between",
     padding: "6px 0",
     fontSize: 12,
-    borderBottom: "1px solid rgba(255,255,255,0.03)",
+    borderBottom: "1px solid var(--line)",
   },
-  logAction: { color: "rgba(255,255,255,0.8)" },
-  logTime: { color: "rgba(255,255,255,0.4)" },
+  logAction: { color: "var(--ink)" },
+  logTime: { color: "var(--ink-muted)" },
   killBtn: {
     width: "100%",
     padding: "14px",
     borderRadius: 12,
     border: "1px solid #FF3B30",
-    background: "rgba(255,59,48,0.1)",
+    background: "rgba(255, 59, 48, 0.1)",
     color: "#FF3B30",
     fontSize: 14,
     fontWeight: 600,
@@ -1724,9 +1722,9 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     padding: "12px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "1px solid var(--line)",
     background: "transparent",
-    color: "rgba(255,255,255,0.6)",
+    color: "var(--ink-muted)",
     fontSize: 13,
     cursor: "pointer",
   },
@@ -1735,7 +1733,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     gap: 6,
     marginBottom: 4,
-    background: "rgba(255,255,255,0.04)",
+    background: "var(--line)",
     borderRadius: 12,
     padding: 4,
   },
@@ -1745,15 +1743,15 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     borderRadius: 10,
     background: "transparent",
-    color: "rgba(255,255,255,0.5)",
+    color: "var(--ink-muted)",
     fontSize: 13,
     fontWeight: 500 as const,
     cursor: "pointer",
     transition: "all 0.2s",
   },
   setupTabBtnActive: {
-    background: "rgba(108,99,255,0.2)",
-    color: "#fff",
+    background: "var(--brass)",
+    color: "var(--ink)",
   },
   // QR code
   qrContainer: {
@@ -1774,8 +1772,8 @@ const styles: Record<string, React.CSSProperties> = {
   qrBox: {
     padding: 16,
     borderRadius: 16,
-    background: "#ffffff",
-    boxShadow: "0 0 40px rgba(108,99,255,0.15), 0 0 80px rgba(108,99,255,0.05)",
+    background: "var(--ink)",
+    boxShadow: "0 0 40px var(--brass), 0 0 80px var(--brass)",
   },
   qrInfo: {
     marginTop: 20,
@@ -1783,7 +1781,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   qrInstruction: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
+    color: "var(--ink-muted)",
     lineHeight: 1.6,
     marginBottom: 12,
   },
@@ -1796,9 +1794,9 @@ const styles: Record<string, React.CSSProperties> = {
   refreshBtn: {
     padding: "6px 14px",
     borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "1px solid var(--line)",
     background: "transparent",
-    color: "rgba(255,255,255,0.6)",
+    color: "var(--ink-muted)",
     fontSize: 12,
     cursor: "pointer",
     transition: "all 0.2s",

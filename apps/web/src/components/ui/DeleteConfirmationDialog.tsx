@@ -44,7 +44,7 @@ export const DeleteConfirmationDialog = ({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-red-500/20 bg-slate-900 p-6 text-left align-middle shadow-xl transition-all">
+                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-red-500/20 bg-surface-2 p-6 text-left align-middle shadow-xl transition-all">
                                 <div className="flex items-start gap-4">
                                     <div className="flex-shrink-0 rounded-full bg-red-500/10 p-3">
                                         <svg
@@ -64,12 +64,12 @@ export const DeleteConfirmationDialog = ({
                                     <div className="mt-1">
                                         <Dialog.Title
                                             as="h3"
-                                            className="text-lg font-medium leading-6 text-slate-100"
+                                            className="text-lg font-medium leading-6 text-ink"
                                         >
                                             {title}
                                         </Dialog.Title>
                                         <div className="mt-2">
-                                            <p className="text-sm text-slate-400">{description}</p>
+                                            <p className="text-sm text-ink-muted">{description}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -77,7 +77,7 @@ export const DeleteConfirmationDialog = ({
                                 <div className="mt-6 flex justify-end gap-3">
                                     <button
                                         type="button"
-                                        className="inline-flex justify-center rounded-xl border border-slate-700 bg-transparent px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                                        className="inline-flex justify-center rounded-xl border border-line bg-transparent px-4 py-2 text-sm font-medium text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2"
                                         onClick={onClose}
                                         disabled={isDeleting}
                                     >

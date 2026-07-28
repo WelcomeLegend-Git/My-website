@@ -145,15 +145,15 @@ export const JeeDiagram = ({ diagram }: { diagram: JeeDiagramSpec }) => {
   return (
     <div className="space-y-3 font-sans">
       {(diagram.title || diagram.description) && (
-        <div className="bg-blue-50/50 border-l-4 border-blue-600 p-3 rounded-r-lg">
-          {diagram.title && <div className="font-bold text-blue-900 text-sm">{diagram.title}</div>}
-          {diagram.description && <div className="text-blue-800/80 text-xs mt-0.5">{diagram.description}</div>}
+        <div className="bg-surface-2 border-l-4 border-brass p-3 rounded-r-lg">
+          {diagram.title && <div className="font-bold text-ink text-sm font-display">{diagram.title}</div>}
+          {diagram.description && <div className="text-ink-muted text-xs mt-0.5">{diagram.description}</div>}
         </div>
       )}
 
       <div
         ref={containerRef}
-        className="relative w-full h-80 bg-white rounded-xl border border-slate-200 overflow-hidden select-none"
+        className="relative w-full h-80 bg-white rounded-xl border border-line overflow-hidden select-none"
       >
         {dimensions.width > 0 && (
           <svg

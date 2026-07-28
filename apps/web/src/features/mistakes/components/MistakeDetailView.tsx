@@ -68,22 +68,22 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
   const collapseAll = () => setExpandedSections(new Set());
 
   const getDifficultyColor = (d: string) => {
-    return d === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-           d === 'medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-           'bg-red-500/10 text-red-400 border-red-500/30';
+    return d === 'easy' ? 'bg-brass-soft text-brass border-brass/30' :
+           d === 'medium' ? 'bg-brass-soft text-brass border-brass/30' :
+           'bg-red-500/10 text-red-500 border-red-500/30';
   };
 
   const getErrorTypeColor = (e: string) => {
-    return e === 'conceptual' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
-           e === 'calculation' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
-           e === 'careless' ? 'bg-orange-500/10 text-orange-400 border-orange-500/30' :
-           'bg-slate-500/10 text-slate-400 border-slate-500/30';
+    return e === 'conceptual' ? 'bg-brass-soft text-brass border-brass/30' :
+           e === 'calculation' ? 'bg-brass-soft text-brass border-brass/30' :
+           e === 'careless' ? 'bg-brass-soft text-brass border-brass/30' :
+           'bg-surface-2 text-ink-muted border-line';
   };
 
   const getStatusColor = (s: string) => {
-    return s === 'new' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-           s === 'reviewing' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-           'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    return s === 'new' ? 'bg-red-500/10 text-red-500 border-red-500/30' :
+           s === 'reviewing' ? 'bg-brass-soft text-brass border-brass/30' :
+           'bg-signal/10 text-signal border-signal/30';
   };
 
   const imageAssets = mistake.assets.filter((a) => a.kind === 'image');
@@ -96,22 +96,22 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
         {/* Header */}
         <div
           className={
-            "mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl border bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur p-4 sm:p-6 lg:p-8 shadow-2xl " +
+            "mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl border bg-surface p-4 sm:p-6 lg:p-8 " +
             (highlightHeader
-              ? "border-red-400 shadow-[0_0_40px_rgba(248,113,113,0.45)] animate-pulse"
-              : "border-slate-800")
+              ? "border-red-500 shadow-[0_0_40px_rgba(248,113,113,0.45)]"
+              : "border-line")
           }
         >
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 shadow-lg shadow-red-500/25">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-2 sm:p-3 rounded-xl bg-red-500/20">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-100 leading-tight">{mistake.title}</h1>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-ink leading-tight">{mistake.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className={`px-2 py-1 rounded text-xs font-medium border ${getDifficultyColor(mistake.difficulty)}`}>
                       {mistake.difficulty}
@@ -125,21 +125,21 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-400 ml-0 sm:ml-14">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-muted ml-0 sm:ml-14">
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                   {mistake.subject.name}
                 </span>
-                <span className="text-slate-600 hidden sm:inline">•</span>
+                <span className="text-ink-muted hidden sm:inline">•</span>
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                   </svg>
                   {mistake.chapter.title}
                 </span>
-                <span className="text-slate-600 hidden sm:inline">•</span>
+                <span className="text-ink-muted hidden sm:inline">•</span>
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -151,10 +151,10 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
               </div>
             </div>
             <div className="flex sm:flex-col gap-2 sm:gap-2">
-              <button onClick={expandAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition-colors">
+              <button onClick={expandAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition-colors">
                 Expand All
               </button>
-              <button onClick={collapseAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-slate-700/50 border border-slate-600 text-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-700 transition-colors">
+              <button onClick={collapseAll} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-surface-2 border border-line text-ink-muted text-xs sm:text-sm font-medium hover:bg-surface transition-colors">
                 Collapse All
               </button>
             </div>
@@ -166,25 +166,18 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
                 onClick={onToggleBookmark}
                 className={`inline-flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-xl border text-xs sm:text-xs font-medium transition-all duration-300 ${
                   isBookmarked
-                    ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                    : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                    ? 'bg-surface-2 border-brass/30 text-brass'
+                    : 'bg-surface border-line text-ink hover:bg-surface-2'
                 }`}
                 title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
               >
                 <svg
                   className={`w-4 h-4 transition-transform duration-300 ${isBookmarked ? 'scale-110' : 'scale-90'}`}
-                  fill={isBookmarked ? 'url(#diamond-gradient-mistake-detail)' : 'none'}
+                  fill={isBookmarked ? 'currentColor' : 'none'}
                   stroke={isBookmarked ? 'none' : 'currentColor'}
                   strokeWidth={isBookmarked ? 0 : 2}
                   viewBox="0 0 24 24"
                 >
-                  <defs>
-                    <linearGradient id="diamond-gradient-mistake-detail" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#22d3ee" />
-                      <stop offset="50%" stopColor="#e879f9" />
-                      <stop offset="100%" stopColor="#818cf8" />
-                    </linearGradient>
-                  </defs>
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -198,22 +191,22 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
 
         {/* Image Gallery */}
         {imageAssets.length > 0 && (
-          <div className="mb-6 sm:mb-8 rounded-xl sm:rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-4 sm:p-6 shadow-xl">
-            <h3 className="text-base sm:text-lg font-semibold text-slate-100 mb-3 sm:mb-4 flex items-center gap-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="mb-6 sm:mb-8 rounded-xl sm:rounded-2xl border border-line bg-surface p-4 sm:p-6 shadow-xl">
+            <h3 className="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               Uploaded Images ({imageAssets.length})
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {imageAssets.map((asset, index) => (
-                <div key={asset.id} className="group relative rounded-lg sm:rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all cursor-pointer"
+                <div key={asset.id} className="group relative rounded-lg sm:rounded-xl overflow-hidden border border-line hover:border-brass/40 transition-all cursor-pointer"
                   onClick={() => onImageClick?.(asset.url, index, allImageUrls)}>
                   <img src={asset.url} alt={asset.caption || `Image ${index + 1}`} className="w-full h-32 sm:h-48 object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
                     <div className="p-3 w-full">
                       <p className="text-white text-sm font-medium">{asset.caption || `Image ${index + 1}`}</p>
-                      <p className="text-slate-400 text-xs mt-1">Click to view fullscreen</p>
+                      <p className="text-ink-muted text-xs mt-1">Click to view fullscreen</p>
                     </div>
                   </div>
                   <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-bold">{index + 1}</div>
@@ -225,21 +218,21 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
 
         {/* AI Summary */}
         {mistake.aiSummary && (
-          <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 overflow-hidden">
-            <button onClick={() => toggleSection('summary')} className="w-full px-4 py-3 flex items-center justify-between hover:bg-cyan-500/10 transition-colors">
-              <span className="flex items-center gap-2 text-cyan-400 font-medium">
+          <div className="mb-4 rounded-xl border border-brass/30 bg-brass-soft overflow-hidden">
+            <button onClick={() => toggleSection('summary')} className="w-full px-4 py-3 flex items-center justify-between hover:bg-brass-soft/80 transition-colors">
+              <span className="flex items-center gap-2 text-brass font-medium">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 AI Summary & Analysis
               </span>
-              <svg className={`w-5 h-5 text-cyan-400 transition-transform ${expandedSections.has('summary') ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 text-brass transition-transform ${expandedSections.has('summary') ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             {expandedSections.has('summary') && (
               <div className="px-4 pb-4">
-                <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]} className="prose prose-invert max-w-none text-slate-300 leading-relaxed">
+                <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]} className="prose prose-invert max-w-none text-ink leading-relaxed">
                   {ensureMathDelimiters(mistake.aiSummary)}
                 </ReactMarkdown>
               </div>
@@ -250,19 +243,19 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
         {/* Description/Analysis */}
         <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 overflow-hidden">
           <button onClick={() => toggleSection('description')} className="w-full px-4 py-3 flex items-center justify-between hover:bg-red-500/10 transition-colors">
-            <span className="flex items-center gap-2 text-red-400 font-medium">
+            <span className="flex items-center gap-2 text-red-500 font-medium">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Detailed Analysis
             </span>
-            <svg className={`w-5 h-5 text-red-400 transition-transform ${expandedSections.has('description') ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-5 h-5 text-red-500 transition-transform ${expandedSections.has('description') ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           {expandedSections.has('description') && (
             <div className="px-4 pb-4">
-              <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]} className="prose prose-invert max-w-none text-slate-300 leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]} className="prose prose-invert max-w-none text-ink leading-relaxed">
                 {ensureMathDelimiters(mistake.description)}
               </ReactMarkdown>
             </div>
@@ -270,27 +263,27 @@ export const MistakeDetailView = ({ mistake, onImageClick, highlightHeader, isBo
         </div>
 
         {/* Practice Shortcut */}
-        <div className="mt-6 sm:mt-8 glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-800/50">
+        <div className="mt-6 sm:mt-8 glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-line">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h3 className="text-base sm:text-lg font-semibold text-ink flex items-center gap-2">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 Practice & Learn
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-ink-muted mt-1">
                 Use AI mentor to practice similar problems or create a quiz from this mistake
               </p>
             </div>
-            <a href="/quiz-history" className="w-full sm:w-auto px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary font-medium hover:from-primary/30 hover:to-purple-500/30 transition-all flex items-center justify-center gap-2 text-sm">
+            <a href="/quiz-history" className="w-full sm:w-auto px-4 py-2 rounded-lg sm:rounded-xl bg-brass-soft border border-brass/30 text-brass font-medium hover:bg-brass-soft/80 transition-all flex items-center justify-center gap-2 text-sm">
               View Quiz History
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </a>
           </div>
-          <p className="text-slate-500 text-xs sm:text-sm">
+          <p className="text-ink-muted text-xs sm:text-sm">
             Ask the AI mentor (sidebar) to generate practice problems or create a quiz targeting this mistake type!
           </p>
         </div>

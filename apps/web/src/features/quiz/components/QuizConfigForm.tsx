@@ -53,31 +53,31 @@ export const QuizConfigForm = ({
   };
 
   return (
-    <div className="space-y-4 p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-purple-500/10 backdrop-blur-sm">
+    <div className="space-y-4 p-4 rounded-xl border border-brass/30 bg-brass-soft backdrop-blur-sm">
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-brass flex items-center justify-center">
           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
         <div>
-          <h3 className="text-sm font-bold text-primary">Practice Quiz Setup</h3>
-          <p className="text-xs text-slate-400">Configure your practice session</p>
+          <h3 className="text-sm font-bold text-brass font-mono">Practice Quiz Setup</h3>
+          <p className="text-xs text-ink-muted">Configure your practice session</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Exam Type */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">Exam Type</label>
+          <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">Exam Type</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setConfig({ ...config, examType: 'mains' })}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 config.examType === 'mains'
-                  ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  ? 'bg-brass text-white'
+                  : 'bg-surface-2 text-ink hover:bg-surface'
               }`}
             >
               JEE Mains
@@ -87,8 +87,8 @@ export const QuizConfigForm = ({
               onClick={() => setConfig({ ...config, examType: 'advanced' })}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 config.examType === 'advanced'
-                  ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  ? 'bg-brass text-white'
+                  : 'bg-surface-2 text-ink hover:bg-surface'
               }`}
             >
               JEE Advanced
@@ -98,7 +98,7 @@ export const QuizConfigForm = ({
 
         {/* Picture Questions % */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">
             Picture Questions (%)
           </label>
           <div className="flex items-center gap-3">
@@ -115,20 +115,20 @@ export const QuizConfigForm = ({
                   pictureQuestionRatio: Math.max(0, Math.min(1, value / 100)),
                 });
               }}
-              className="flex-1 accent-primary"
+              className="flex-1 accent-brass"
             />
-            <span className="text-xs font-semibold text-slate-200 w-10 text-right">
+            <span className="text-xs font-semibold text-ink w-10 text-right">
               {Math.round(currentPictureRatio * 100)}%
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-ink-muted">
             Higher values create more JEE-style diagram/graph questions. For very visual chapters, try 70–90%.
           </p>
         </div>
 
         {/* Question Count */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">
             Number of Questions (max 50)
           </label>
           <input
@@ -137,21 +137,21 @@ export const QuizConfigForm = ({
             max="50"
             value={config.questionCount}
             onChange={(e) => setConfig({ ...config, questionCount: Math.min(50, parseInt(e.target.value) || 1) })}
-            className="w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-ink text-sm focus:outline-none focus:ring-2 focus:ring-brass/50"
           />
         </div>
 
         {/* Answer Type */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">Answer Type</label>
+          <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">Answer Type</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setConfig({ ...config, answerType: 'single' })}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 config.answerType === 'single'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  ? 'bg-signal text-white'
+                  : 'bg-surface-2 text-ink hover:bg-surface'
               }`}
             >
               Single Correct
@@ -161,8 +161,8 @@ export const QuizConfigForm = ({
               onClick={() => setConfig({ ...config, answerType: 'multiple' })}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 config.answerType === 'multiple'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                  : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  ? 'bg-signal text-white'
+                  : 'bg-surface-2 text-ink hover:bg-surface'
               }`}
             >
               Multiple Correct
@@ -174,7 +174,7 @@ export const QuizConfigForm = ({
         <div>
           {section === 'study' && (onChangeStudyChapter || onChangeStudyDescription) ? (
             <>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">
                 Question Focus
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -184,7 +184,7 @@ export const QuizConfigForm = ({
                     value={studyChapter ?? ''}
                     onChange={(e) => onChangeStudyChapter?.(e.target.value)}
                     placeholder="Chapter or topic (e.g. Electrostatics)"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder-slate-500"
+                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-ink text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brass/50 placeholder-ink-muted"
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -193,25 +193,25 @@ export const QuizConfigForm = ({
                     onChange={(e) => onChangeStudyDescription?.(e.target.value)}
                     placeholder="Short description of what to focus on (weak areas, subtopics, error patterns)"
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder-slate-500 resize-none"
+                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-ink text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brass/50 placeholder-ink-muted resize-none"
                   />
                 </div>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 These details, plus your recent chat, help target the quiz to the right topics.
               </p>
             </>
           ) : (
             <>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Question Scope</label>
+              <label className="block text-xs font-semibold text-ink-muted font-mono mb-1.5">Question Scope</label>
               <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() => setConfig({ ...config, scope: 'current' })}
                   className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
                     config.scope === 'current'
-                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                      ? 'bg-brass text-white'
+                      : 'bg-surface-2 text-ink hover:bg-surface'
                   }`}
                 >
                   {section === 'mistakes' ? 'Current Mistake Only' : 'Current Collection Only'}
@@ -221,8 +221,8 @@ export const QuizConfigForm = ({
                   onClick={() => setConfig({ ...config, scope: 'all' })}
                   className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
                     config.scope === 'all'
-                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                      ? 'bg-brass text-white'
+                      : 'bg-surface-2 text-ink hover:bg-surface'
                   }`}
                 >
                   {section === 'mistakes' ? 'All Mistakes in This Chapter' : 'All Formulas in This Chapter'}
@@ -232,8 +232,8 @@ export const QuizConfigForm = ({
                   onClick={() => setConfig({ ...config, scope: 'cross-chapter' })}
                   className={`w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all ${
                     config.scope === 'cross-chapter'
-                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                      ? 'bg-brass text-white'
+                      : 'bg-surface-2 text-ink hover:bg-surface'
                   }`}
                 >
                   Cross-Chapter (Subject-wide)
@@ -250,9 +250,9 @@ export const QuizConfigForm = ({
               type="checkbox"
               checked={config.includeTimer}
               onChange={(e) => setConfig({ ...config, includeTimer: e.target.checked, timeMinutes: e.target.checked ? 30 : undefined })}
-              className="w-4 h-4 rounded border-slate-700 bg-slate-800/50 text-primary focus:ring-2 focus:ring-primary/50"
+              className="w-4 h-4 rounded border-line bg-surface-2 text-brass focus:ring-2 focus:ring-brass/50"
             />
-            <span className="text-xs font-semibold text-slate-300">Enable Timer</span>
+            <span className="text-xs font-semibold text-ink-muted">Enable Timer</span>
           </label>
           {config.includeTimer && (
             <div className="mt-2 relative">
@@ -263,9 +263,9 @@ export const QuizConfigForm = ({
                 value={config.timeMinutes || 30}
                 onChange={(e) => setConfig({ ...config, timeMinutes: parseInt(e.target.value) || 30 })}
                 placeholder="30"
-                className="w-full px-3 py-2 pr-20 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-3 py-2 pr-20 rounded-lg bg-surface-2 border border-line text-ink text-sm focus:outline-none focus:ring-2 focus:ring-brass/50"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs font-medium font-mono">
                 minutes
               </span>
             </div>
@@ -278,14 +278,14 @@ export const QuizConfigForm = ({
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 text-sm font-medium hover:bg-slate-700/50 transition-all disabled:opacity-50"
+            className="flex-1 px-4 py-2 rounded-lg bg-surface-2 border border-line text-ink text-sm font-medium hover:bg-surface transition-all disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-purple-600 text-white text-sm font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-2 rounded-lg bg-brass text-white text-sm font-semibold hover:bg-brass-strong transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>

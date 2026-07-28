@@ -178,16 +178,16 @@ export const MistakeFormDialog = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
+      <div className="w-full max-w-2xl rounded-2xl border border-line bg-paper p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-slate-100">
+          <h2 className="text-2xl font-display font-semibold text-ink">
             {mode === "create" ? "Log New Mistake" : "Edit Mistake"}
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            className="rounded-lg p-2 text-ink-muted hover:bg-surface-2 hover:text-ink"
           >
             ✕
           </button>
@@ -196,7 +196,7 @@ export const MistakeFormDialog = ({
         <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Subject</label>
+              <label className="text-sm font-medium text-ink-muted">Subject</label>
               <input type="hidden" {...register("subjectId")} />
               <GlowSelect
                 id="mistake-form-subject"
@@ -206,10 +206,10 @@ export const MistakeFormDialog = ({
                 placeholder={subjects?.length ? "Select subject" : "Add subjects"}
                 disabled={!subjects?.length}
               />
-              {errors.subjectId && <p className="text-xs text-red-400">{errors.subjectId.message}</p>}
+              {errors.subjectId && <p className="text-xs text-red-500">{errors.subjectId.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Chapter</label>
+              <label className="text-sm font-medium text-ink-muted">Chapter</label>
               <input type="hidden" {...register("chapterId")} />
               <GlowSelect
                 id="mistake-form-chapter"
@@ -233,38 +233,38 @@ export const MistakeFormDialog = ({
                 placeholder={selectedSubjectId ? (chapterOptions.length ? "Select chapter" : "Add chapters") : "Select subject first"}
                 disabled={!selectedSubjectId}
               />
-              {errors.chapterId && <p className="text-xs text-red-400">{errors.chapterId.message}</p>}
+              {errors.chapterId && <p className="text-xs text-red-500">{errors.chapterId.message}</p>}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Title</label>
+            <label className="text-sm font-medium text-ink-muted">Title</label>
             <input
               {...register("title")}
               type="text"
               placeholder="Brief summary of the mistake"
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-brass/50 focus:outline-none"
             />
-            {errors.title && <p className="text-xs text-red-400">{errors.title.message}</p>}
+            {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Description</label>
+            <label className="text-sm font-medium text-ink-muted">Description</label>
             <textarea
               {...register("description")}
               rows={5}
               placeholder="Describe what went wrong and what you learned..."
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder-ink-muted focus:border-brass/50 focus:outline-none"
             />
-            {errors.description && <p className="text-xs text-red-400">{errors.description.message}</p>}
+            {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Difficulty</label>
+              <label className="text-sm font-medium text-ink-muted">Difficulty</label>
               <select
                 {...register("difficulty")}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass/50 focus:outline-none"
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -273,10 +273,10 @@ export const MistakeFormDialog = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Status</label>
+              <label className="text-sm font-medium text-ink-muted">Status</label>
               <select
                 {...register("status")}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass/50 focus:outline-none"
               >
                 <option value="new">New</option>
                 <option value="reviewing">Reviewing</option>
@@ -285,10 +285,10 @@ export const MistakeFormDialog = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Error Type</label>
+              <label className="text-sm font-medium text-ink-muted">Error Type</label>
               <select
                 {...register("errorType")}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass/50 focus:outline-none"
               >
                 <option value="conceptual">Conceptual</option>
                 <option value="calculation">Calculation</option>
@@ -299,35 +299,35 @@ export const MistakeFormDialog = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Attachments</label>
+            <label className="text-sm font-medium text-ink-muted">Attachments</label>
             <input
               type="file"
               multiple
               accept="image/*,application/pdf"
               onChange={handleFileChange}
               disabled={uploadingFiles.length > 0}
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/80"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-brass file:px-3 file:py-1 file:text-sm file:font-semibold file:text-ink hover:file:bg-brass-strong"
             />
             {uploadingFiles.length > 0 && (
-              <p className="text-xs text-blue-400">Uploading {uploadingFiles.length} file(s)...</p>
+              <p className="text-xs text-brass">Uploading {uploadingFiles.length} file(s)...</p>
             )}
-            {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+            {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
             
             {attachments.length > 0 && (
               <div className="mt-3 space-y-2">
                 {attachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2"
+                    className="flex items-center justify-between rounded-lg border border-line bg-surface-2 p-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{attachment.kind}</span>
-                      <span className="text-xs text-slate-300">{attachment.url.split("/").pop()}</span>
+                      <span className="text-xs text-ink-muted">{attachment.kind}</span>
+                      <span className="text-xs text-ink">{attachment.url.split("/").pop()}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeAttachment(attachment.id)}
-                      className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/20"
+                      className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
                     >
                       Remove
                     </button>
@@ -338,7 +338,7 @@ export const MistakeFormDialog = ({
           </div>
 
           {errorMessage && (
-            <div className="rounded-xl border border-red-700/50 bg-red-900/20 p-3 text-sm text-red-300">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
               {errorMessage}
             </div>
           )}
@@ -348,14 +348,14 @@ export const MistakeFormDialog = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+              className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface-2"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || uploadingFiles.length > 0}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/80 disabled:opacity-50"
+              className="rounded-xl bg-brass px-4 py-2 text-sm font-semibold text-ink hover:bg-brass-strong disabled:opacity-50"
             >
               {isSubmitting ? "Saving..." : mode === "create" ? "Create" : "Update"}
             </button>

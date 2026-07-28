@@ -438,17 +438,17 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
   const containerClass =
     variant === "mobile"
       ? "relative flex h-full w-full flex-col glass-card p-4"
-      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-slate-800/50 glass-card px-4 py-4 lg:flex fade-in-right sticky top-20 lg:h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] self-start";
+      : "relative hidden w-96 xl:w-[420px] flex-shrink-0 flex-col border-l border-line glass-card px-4 py-4 lg:flex fade-in-right sticky top-20 lg:h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] self-start";
 
   return (
     <>
-      {showVerification && <AiAccessModal onVerified={handleVerified} />}
+      {showVerification && <AiAccessModal onVerified={handleVerified} onClose={() => setShowVerification(false)} />}
       
       <aside className={containerClass}>
       {/* Header with gradient accent - Fixed at top */}
       <div className="relative mb-3 flex-shrink-0">
-        <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl"></div>
-        <div className="relative glass-card rounded-2xl p-4 border border-emerald-500/20">
+        
+        <div className="relative glass-card rounded-2xl p-4 border border-line">
           {/* History trigger hidden visually (kept for future use) */}
           <button
             type="button"
@@ -462,17 +462,17 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
           </button>
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center float">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl bg-surface-2 border border-line flex items-center justify-center shadow-sm">
+                <svg className="w-6 h-6 text-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-emerald-400 font-bold">AI Mentor</p>
-                <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-brass font-bold font-mono">AI Mentor</p>
+                <h2 className="text-lg font-semibold text-ink flex items-center gap-2 font-display">
                   Gemini 2.5 Pro
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span className="w-2 h-2 bg-brass animate-pulse rounded-full shadow-[0_0_8px_rgba(217,164,65,0.6)]"></span>
                   </span>
                 </h2>
               </div>
@@ -481,18 +481,18 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
             <button
               type="button"
               onClick={handleNewChat}
-              className="p-2 rounded-lg hover:bg-emerald-500/10 transition-colors group"
+              className="p-2 rounded-lg hover:bg-surface-2 border border-transparent hover:border-line transition-colors group"
               title="New Chat"
             >
-              <svg className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-brass group-hover:text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </button>
           </div>
         </div>
         {variant === "mobile" && onRequestClose && (
-          <button onClick={onRequestClose} className="absolute -top-3 -right-3 p-3 rounded-full bg-slate-900/90 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all shadow-lg z-10">
-            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={onRequestClose} className="absolute -top-3 -right-3 p-3 rounded-full bg-surface border border-line hover:bg-surface-2 hover:border-line transition-all shadow-lg z-10">
+            <svg className="w-6 h-6 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -502,9 +502,9 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       {/* History drawer */}
       {historyOpen && (
         <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
-          <aside className="absolute left-0 top-0 h-full w-72 sm:w-80 glass-card border-r border-slate-800/60 bg-slate-950/80" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-200">History</h3>
+          <aside className="absolute left-0 top-0 h-full w-72 sm:w-80 glass-card border-r border-line bg-paper" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-line flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-ink">History</h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -514,20 +514,20 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                     pageHistory.current = [];
                     previousPageLabel.current = pageLabel;
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-red-500/50 hover:text-red-400 transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-line text-ink-muted hover:border-red-500/50 hover:text-red-500 transition"
                 >
                   Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => setHistoryOpen(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/60 text-slate-300 hover:border-primary/50 hover:text-primary transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-line text-ink-muted hover:border-brass/30 hover:text-brass transition"
                 >
                   Close
                 </button>
               </div>
             </div>
-            <div className="p-3 border-b border-slate-800/60">
+            <div className="p-3 border-b border-line">
               <button
                 type="button"
                 onClick={() => {
@@ -562,7 +562,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                   setHistoryOpen(false);
                   forceUpdate(n => n + 1);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-line text-brass hover:bg-brass-soft transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
                 New chat
@@ -584,17 +584,17 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                       return (
                         <div 
                           key={conv.id} 
-                          className="px-3 py-2 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/60 cursor-pointer transition"
+                          className="px-3 py-2 rounded-lg bg-surface-2 border border-line hover:bg-surface-2 cursor-pointer transition"
                           onClick={() => {
                             setMessages(conv.messages);
                             pageHistory.current = conv.pageHistory || [];
                             setHistoryOpen(false);
                           }}
                         >
-                          <p className="text-xs text-slate-300 line-clamp-2 mb-1">
+                          <p className="text-xs text-ink-muted line-clamp-2 mb-1">
                             {firstUserMsg?.content || 'Empty conversation'}
                           </p>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <div className="flex items-center justify-between text-[10px] text-ink-muted">
                             <span>{msgCount} message{msgCount !== 1 ? 's' : ''}</span>
                             <span>{timeStr}</span>
                           </div>
@@ -602,10 +602,10 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                       );
                     })
                   ) : (
-                    <p className="text-xs text-slate-500 text-center py-4">No conversation history yet</p>
+                    <p className="text-xs text-ink-muted text-center py-4">No conversation history yet</p>
                   );
                 } catch {
-                  return <p className="text-xs text-slate-500 text-center py-4">Failed to load history</p>;
+                  return <p className="text-xs text-ink-muted text-center py-4">Failed to load history</p>;
                 }
               })()}
             </div>
@@ -614,16 +614,16 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 min-h-0 space-y-3 overflow-y-auto rounded-2xl border border-slate-800/50 glass p-4 text-sm custom-scrollbar">
+      <div className="flex-1 min-h-0 space-y-3 overflow-y-auto rounded-2xl border border-line bg-surface-2 p-4 text-sm custom-scrollbar">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12 fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 rounded-2xl bg-brass-soft flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
             </div>
-            <p className="text-slate-300 font-medium mb-2">Start a conversation</p>
-            <p className="text-slate-400 text-xs max-w-xs">Ask anything about your current topic, mistakes, or practice plan.</p>
+            <p className="text-ink-muted font-medium mb-2">Start a conversation</p>
+            <p className="text-ink-muted text-xs max-w-xs">Ask anything about your current topic, mistakes, or practice plan.</p>
           </div>
         ) : (
           messages.map((message, index) => (
@@ -631,31 +631,31 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
               key={message.id}
               className={`rounded-xl border p-4 transition-all duration-300 stagger-item ${
                 message.isPageSwitch
-                  ? "bg-cyan-500/10 border-cyan-500/30 backdrop-blur-sm"
+                  ? "bg-brass-soft border-line backdrop-blur-sm"
                   : message.role === "assistant"
-                  ? "bg-slate-950/80 border-emerald-500/25 shadow-[0_12px_40px_-20px_rgba(16,185,129,0.6)] backdrop-blur-sm hover-lift"
-                  : "bg-slate-800/40 border-slate-700/50 hover-lift"
+                  ? "bg-paper border-line  backdrop-blur-sm hover-lift"
+                  : "bg-surface-2 border-line hover-lift"
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="flex items-center gap-2 mb-2">
                 {message.role === "assistant" ? (
                   <>
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-lg bg-brass flex items-center justify-center">
                       <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
-                    <p className="text-xs uppercase tracking-wide text-emerald-400 font-semibold">Mentor</p>
+                    <p className="text-xs uppercase tracking-wide text-brass font-semibold font-mono">Mentor</p>
                   </>
                 ) : (
                   <>
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
-                      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-6 h-6 rounded-lg bg-surface-2 border border-line flex items-center justify-center">
+                      <svg className="w-3.5 h-3.5 text-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <p className="text-xs uppercase tracking-wide text-primary font-semibold">You</p>
+                    <p className="text-xs uppercase tracking-wide text-brass font-semibold font-mono">You</p>
                   </>
                 )}
               </div>
@@ -663,49 +663,49 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
                   rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
-                  className="text-slate-200 leading-relaxed"
+                  className="text-ink leading-relaxed"
                   components={{
                     // Style headings
-                    h1: ({node, ...props}) => <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />,
-                    h2: ({node, ...props}) => <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />,
+                    h1: ({node, ...props}) => <h1 className="text-lg font-bold text-brass mt-4 mb-2" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-base font-bold text-brass mt-3 mb-2 font-display" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-sm font-bold text-brass mt-2 mb-1" {...props} />,
                     // Style lists
                     ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
                     ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                    li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
+                    li: ({node, ...props}) => <li className="text-ink" {...props} />,
                     // Style code
                     code: (props: any) => {
                       const { inline, ...rest } = props || {};
                       return inline
-                        ? <code className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono" {...rest} />
-                        : <code className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto" {...rest} />;
+                        ? <code className="px-1.5 py-0.5 rounded bg-surface-2 text-brass text-xs font-mono" {...rest} />
+                        : <code className="block px-3 py-2 rounded-lg bg-surface-2 text-brass text-xs font-mono overflow-x-auto" {...rest} />;
                     },
                     // Style paragraphs
-                    p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
+                    p: ({node, ...props}) => <p className="text-ink my-2" {...props} />,
                     // Style strong/bold
-                    strong: ({node, ...props}) => <strong className="font-bold text-emerald-300" {...props} />,
+                    strong: ({node, ...props}) => <strong className="font-bold text-brass" {...props} />,
                     // Style emphasis/italic
-                    em: ({node, ...props}) => <em className="italic text-slate-300" {...props} />,
+                    em: ({node, ...props}) => <em className="italic text-ink-muted" {...props} />,
                     // Style horizontal rules
-                    hr: ({node, ...props}) => <hr className="my-4 border-slate-700" {...props} />,
+                    hr: ({node, ...props}) => <hr className="my-4 border-line" {...props} />,
                     // Tables
                     table: ({node, ...props}) => (
-                      <div className="my-4 w-full overflow-x-auto rounded-xl border border-emerald-500/30 bg-slate-950/70">
+                      <div className="my-4 w-full overflow-x-auto rounded-xl border border-line bg-paper">
                         <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
                       </div>
                     ),
                     thead: ({node, ...props}) => (
-                      <thead className="bg-emerald-900/40" {...props} />
+                      <thead className="bg-brass-soft" {...props} />
                     ),
                     tbody: ({node, ...props}) => <tbody {...props} />,
                     tr: ({node, ...props}) => (
-                      <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                      <tr className="border-b border-line last:border-0" {...props} />
                     ),
                     th: ({node, ...props}) => (
                       <th className="px-3 py-2 font-semibold text-emerald-100" {...props} />
                     ),
                     td: ({node, ...props}) => (
-                      <td className="px-3 py-2 align-top text-slate-100" {...props} />
+                      <td className="px-3 py-2 align-top text-ink" {...props} />
                     ),
                   }}
                 >
@@ -718,14 +718,14 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
         {isGenerating && (
           <div className="mt-3 flex justify-start">
             <div className="relative group w-full">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 animate-pulse" />
-              <div className="relative flex items-center gap-3 px-4 py-3 bg-slate-950/95 rounded-2xl border border-slate-800/70 shadow-2xl backdrop-blur-xl">
+              <div className="absolute -inset-0.5 bg-brass rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 animate-pulse" />
+              <div className="relative flex items-center gap-3 px-4 py-3 bg-paper rounded-2xl border border-line shadow-2xl backdrop-blur-xl">
                 <div className="relative flex items-center justify-center w-5 h-5">
                   <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-400 border-r-cyan-400 animate-spin [animation-duration:1.5s]" />
                   <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-blue-500 border-b-emerald-500 animate-spin [animation-duration:1.1s] [animation-direction:reverse]" />
-                  <div className="absolute inset-1 rounded-full bg-emerald-400/25 animate-pulse" />
+                  <div className="absolute inset-1 rounded-full bg-brass-soft animate-pulse" />
                 </div>
-                <span className="text-xs font-medium bg-gradient-to-r from-emerald-200 via-cyan-200 to-blue-200 bg-clip-text text-transparent animate-pulse">
+                <span className="text-xs font-medium text-ink font-mono animate-pulse">
                   Mentor is thinking...
                 </span>
               </div>
@@ -750,9 +750,9 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
       {/* Input Form - Fixed at bottom */}
       <form onSubmit={handleSubmit} className="mt-3 space-y-2 flex-shrink-0">
         {pageLabel && (
-          <div className="flex items-center justify-between text-[11px] text-emerald-300/80">
-            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 max-w-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="flex items-center justify-between text-[11px] text-brass/80">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-line bg-surface-2 max-w-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-brass animate-pulse" />
               <span className="font-medium truncate max-w-[14rem] sm:max-w-[18rem]">
                 {pageLabel}
               </span>
@@ -765,10 +765,10 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
             onChange={(event) => setInput(event.target.value)}
             rows={2}
             disabled={!isVerified || quizMutation.isPending}
-            className="w-full resize-none rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full resize-none rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink placeholder-slate-500 focus:border-brass/30 focus:outline-none focus:ring-2 focus:ring-brass/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder={isVerified ? "Ask the mentor anything..." : "Verify access to use AI Mentor..."}
           />
-          <div className="absolute bottom-3 right-3 text-xs text-slate-500">
+          <div className="absolute bottom-3 right-3 text-xs text-ink-muted">
             {input.length}/500
           </div>
         </div>
@@ -776,7 +776,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
           <button
             type="button"
             onClick={handleStopGeneration}
-            className="w-full rounded-xl bg-slate-900/90 border border-emerald-500/60 px-5 py-3 text-sm font-semibold text-emerald-300 shadow-lg shadow-emerald-500/20 hover:bg-slate-800/90 flex items-center justify-center gap-2"
+            className="w-full rounded-xl bg-surface border border-line px-5 py-3 text-sm font-semibold text-brass shadow-lg shadow-emerald-500/20 hover:bg-surface-2 flex items-center justify-center gap-2"
             disabled={quizMutation.isPending}
           >
             <span className="w-4 h-4 border-2 border-emerald-400/80 border-t-transparent rounded-full animate-spin" />
@@ -785,7 +785,7 @@ export const AiSidebar = ({ open, section, context, routePath, variant = "deskto
         ) : (
           <button
             type="submit"
-            className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
+            className="w-full rounded-xl bg-brass hover:bg-brass-strong px-5 py-3 text-sm font-semibold text-white shadow-lg hover: disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
             disabled={!isVerified || quizMutation.isPending}
           >
             {quizMutation.isPending ? (

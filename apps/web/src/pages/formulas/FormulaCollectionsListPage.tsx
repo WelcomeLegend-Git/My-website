@@ -228,10 +228,10 @@ export const FormulaCollectionsListPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-slate-400 text-lg">Loading collections...</p>
+          <div className="inline-block w-16 h-16 border-4 border-brass-soft border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-ink-muted text-lg">Loading collections...</p>
         </div>
       </div>
     );
@@ -244,23 +244,23 @@ export const FormulaCollectionsListPage = () => {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Formula Studio</p>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Archive your derivations</h1>
-              <p className="text-xs sm:text-sm text-slate-400">Filter by subject, dissect with AI, and keep every insight searchable.</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-ink-muted font-mono">Formula Studio</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display text-ink mb-1 sm:mb-2">Archive your derivations</h1>
+              <p className="text-xs sm:text-sm text-ink-muted">Filter by subject, dissect with AI, and keep every insight searchable.</p>
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors flex-shrink-0"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-brass text-white font-medium hover:bg-brass-strong transition-colors flex-shrink-0"
             >
               Add Formula
             </button>
           </div>
 
           {/* Filters */}
-          <div className="rounded-2xl sm:rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-4 sm:p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)] mb-6">
+          <div className="rounded-2xl sm:rounded-3xl border border-line bg-surface glass-card p-4 sm:p-6 mb-6">
             <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end">
               <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
+                <label className="text-xs uppercase tracking-wide font-mono text-ink-muted">Subject</label>
                 <GlowSelect
                   value={subjectId ?? ''}
                   onChange={(value) => {
@@ -276,7 +276,7 @@ export const FormulaCollectionsListPage = () => {
               </div>
 
               <div className="flex-1 space-y-1.5 sm:space-y-2 md:flex-none md:w-48 lg:w-56">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
+                <label className="text-xs uppercase tracking-wide font-mono text-ink-muted">Chapter</label>
                 <GlowSelect
                   value={chapterId ?? ''}
                   onChange={(value) => setChapterId(value || undefined)}
@@ -290,13 +290,13 @@ export const FormulaCollectionsListPage = () => {
               </div>
 
               <div className="flex-1 space-y-1.5 sm:space-y-2">
-                <label className="text-xs uppercase tracking-wide text-slate-400">Search</label>
+                <label className="text-xs uppercase tracking-wide font-mono text-ink-muted">Search</label>
                 <input
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Title, subject, chapter"
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 backdrop-blur focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:outline-none transition"
+                  className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink backdrop-blur focus:border-brass/50 focus:ring-2 focus:ring-brass/20 focus:outline-none transition"
                 />
               </div>
 
@@ -308,7 +308,7 @@ export const FormulaCollectionsListPage = () => {
                     setChapterId(undefined);
                     setSearchTerm('');
                   }}
-                  className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-2 text-sm font-medium text-slate-300 hover:border-primary/40 hover:text-primary transition"
+                  className="rounded-xl border border-line bg-surface-2 px-4 py-2 text-sm font-medium text-ink hover:border-brass/40 hover:text-brass transition"
                 >
                   Reset filters
                 </button>
@@ -318,7 +318,7 @@ export const FormulaCollectionsListPage = () => {
 
           {/* Sort Options */}
           <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
-            <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
+            <span className="text-xs sm:text-sm text-ink-muted font-medium flex-shrink-0">Sort by:</span>
             {[
               { value: 'recent', label: 'Most Recent' },
               { value: 'oldest', label: 'Oldest First' },
@@ -330,8 +330,8 @@ export const FormulaCollectionsListPage = () => {
                 key={option.value}
                 onClick={() => setSortBy(option.value as SortOption)}
                 className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${sortBy === option.value
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                  ? 'bg-brass text-white'
+                  : 'bg-surface-2 text-ink-muted hover:bg-surface hover:text-ink'
                   }`}
               >
                 {option.label}
@@ -343,16 +343,16 @@ export const FormulaCollectionsListPage = () => {
         {/* Collections Grid */}
         {!sortedCollections || sortedCollections.length === 0 ? (
           <div className="text-center py-16">
-            <div className="mb-4 p-4 rounded-full bg-slate-800/50 inline-block">
-              <svg className="w-12 h-12 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mb-4 p-4 rounded-full bg-surface-2 inline-block">
+              <svg className="w-12 h-12 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-400 mb-2">No Formulas Yet</h2>
-            <p className="text-slate-500 mb-6">Add your first formula or use "Bulk Extract with AI" to get started!</p>
+            <h2 className="text-2xl font-bold font-display text-ink-muted mb-2">No Formulas Yet</h2>
+            <p className="text-ink-muted mb-6">Add your first formula or use "Bulk Extract with AI" to get started!</p>
             <button
               onClick={() => navigate('/formulas/add')}
-              className="px-6 py-3 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 rounded-xl bg-brass text-white font-medium hover:bg-brass-strong transition-colors"
             >
               Add Formula
             </button>
@@ -366,7 +366,7 @@ export const FormulaCollectionsListPage = () => {
                 <button
                   key={collection.id}
                   onClick={() => navigate(`/formulas/collections/${collection.id}`)}
-                  className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all"
+                  className="group relative rounded-2xl border border-line bg-surface p-6 text-left hover:border-brass/50 hover:shadow-xl transition-all"
                 >
                   {/* Bookmark + Delete Buttons */}
                   <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -375,8 +375,8 @@ export const FormulaCollectionsListPage = () => {
                       onClick={(e) => handleToggleCollectionBookmark(e, collection)}
                       className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border text-xs transition-all duration-300 ${
                         isBookmarked
-                          ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                          : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                          ? 'bg-surface-2 border-brass/30'
+                          : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-surface-2'
                       }`}
                       title={isBookmarked ? 'Remove bookmark' : 'Bookmark collection'}
                     >
@@ -407,7 +407,7 @@ export const FormulaCollectionsListPage = () => {
                         e.stopPropagation();
                         setCollectionToDelete(collection);
                       }}
-                      className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
+                      className="p-2 rounded-lg bg-surface-2 text-ink-muted hover:bg-red-500/10 hover:text-red-500 transition-colors border border-line hover:border-red-500/30"
                       title="Delete collection"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,7 +418,7 @@ export const FormulaCollectionsListPage = () => {
 
                   {/* Collection Header */}
                   <div className="flex items-start mb-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
+                    <div className="p-3 rounded-xl bg-brass">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                       </svg>
@@ -426,11 +426,11 @@ export const FormulaCollectionsListPage = () => {
                   </div>
 
                   {/* Collection Info */}
-                  <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
+                  <h3 className="text-lg font-semibold text-ink mb-2 group-hover:text-brass transition-colors">
                     {collection.title}
                   </h3>
 
-                  <div className="space-y-1 text-sm text-slate-400 mb-3">
+                  <div className="space-y-1 text-sm text-ink-muted mb-3">
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -459,18 +459,18 @@ export const FormulaCollectionsListPage = () => {
                   </div>
 
                   {collection.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2">{collection.description}</p>
+                    <p className="text-xs text-ink-muted line-clamp-2">{collection.description}</p>
                   )}
 
                   {/* Bottom row: arrow + formulas count */}
                   <div className="mt-4 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2 text-brass opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-sm font-medium">View Collection</span>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
-                    <span className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold">
+                    <span className="px-3 py-1 rounded-lg bg-brass-soft border border-brass/30 text-brass text-sm font-bold font-mono">
                       {collection._count.formulas}
                     </span>
                   </div>

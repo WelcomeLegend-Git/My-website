@@ -73,7 +73,7 @@ class QuizResultsSectionBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-200">
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-600">
           We couldn't render the detailed question analysis for this attempt. You can still review the
           score summary above or go back to Quiz History.
         </div>
@@ -281,10 +281,10 @@ export const QuizResultsPage = () => {
   // Keep hooks above, and branch on loading / missing data after hooks
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-paper">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading results...</p>
+          <div className="w-16 h-16 border-4 border-brass border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-ink-muted">Loading results...</p>
         </div>
       </div>
     );
@@ -292,12 +292,12 @@ export const QuizResultsPage = () => {
 
   if (!quiz) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-paper">
         <div className="text-center">
-          <p className="text-red-400 text-lg">Results not found</p>
+          <p className="text-red-500 text-lg">Results not found</p>
           <button
             onClick={() => navigate('/formulas')}
-            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
+            className="mt-4 px-6 py-2 bg-brass text-white rounded-lg hover:bg-brass-strong transition"
           >
             Go Back
           </button>
@@ -313,9 +313,9 @@ export const QuizResultsPage = () => {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-400';
-    if (score >= 60) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 80) return 'text-signal';
+    if (score >= 60) return 'text-amber-500';
+    return 'text-red-500';
   };
 
   const getScoreGrade = (score: number) => {
@@ -334,42 +334,31 @@ export const QuizResultsPage = () => {
           className={
             "glass-card rounded-2xl p-8 border mb-6 relative overflow-hidden " +
             (highlightHeader
-              ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)] animate-pulse"
-              : "border-primary/20")
+              ? "border-brass/70"
+              : "border-line")
           }
         >
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-600/10"></div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl"></div>
-          
           <div className="relative">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-semibold mb-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brass-soft text-signal font-mono rounded-full text-sm font-semibold mb-4">
                 <span>Quiz Completed!</span>
                 <button
                   type="button"
                   onClick={handleToggleQuizBookmark}
                   className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${
                     isQuizBookmarked
-                      ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                      : 'bg-slate-900/60 border-emerald-400/40 text-emerald-100 hover:bg-slate-800/80'
+                      ? 'bg-surface-2 border-brass/30 text-brass'
+                      : 'bg-surface-2 border-line text-ink-muted hover:text-ink hover:bg-surface'
                   }`}
                   title={isQuizBookmarked ? 'Remove bookmark' : 'Bookmark quiz'}
                 >
                   <svg
                     className={`w-4 h-4 transition-transform duration-300 ${isQuizBookmarked ? 'scale-110' : 'scale-90'}`}
-                    fill={isQuizBookmarked ? 'url(#diamond-gradient-quiz-results)' : 'none'}
+                    fill={isQuizBookmarked ? 'currentColor' : 'none'}
                     stroke={isQuizBookmarked ? 'none' : 'currentColor'}
                     strokeWidth={isQuizBookmarked ? 0 : 2}
                     viewBox="0 0 24 24"
                   >
-                    <defs>
-                      <linearGradient id="diamond-gradient-quiz-results" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#22d3ee" />
-                        <stop offset="50%" stopColor="#e879f9" />
-                        <stop offset="100%" stopColor="#818cf8" />
-                      </linearGradient>
-                    </defs>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -378,39 +367,39 @@ export const QuizResultsPage = () => {
                   </svg>
                 </button>
               </div>
-              <h1 className="text-3xl font-bold text-white mb-2">{quiz.title}</h1>
-              <p className="text-slate-400">
+              <h1 className="text-3xl font-bold text-ink font-display mb-2">{quiz.title}</h1>
+              <p className="text-ink-muted font-mono">
                 {quiz.examType === 'mains' ? 'JEE Mains' : 'JEE Advanced'} Practice
               </p>
             </div>
 
             {/* Score Display */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="glass-card rounded-xl p-6 border border-slate-800/50 text-center">
-                <p className="text-slate-400 text-sm mb-2">Your Score</p>
-                <p className={`text-5xl font-bold ${getScoreColor(score)}`}>
+              <div className="glass-card rounded-xl p-6 border border-line text-center">
+                <p className="text-ink-muted text-sm mb-2">Your Score</p>
+                <p className={`text-5xl font-bold font-mono ${getScoreColor(score)}`}>
                   {score.toFixed(1)}%
                 </p>
-                <p className="text-slate-300 text-sm mt-2">{getScoreGrade(score)}</p>
+                <p className="text-ink-muted text-sm mt-2">{getScoreGrade(score)}</p>
               </div>
 
-              <div className="glass-card rounded-xl p-6 border border-slate-800/50 text-center">
-                <p className="text-slate-400 text-sm mb-2">Correct Answers</p>
-                <p className="text-5xl font-bold text-primary">
+              <div className="glass-card rounded-xl p-6 border border-line text-center">
+                <p className="text-ink-muted text-sm mb-2">Correct Answers</p>
+                <p className="text-5xl font-bold text-brass font-mono">
                   {accuracy}
                 </p>
-                <p className="text-slate-300 text-sm mt-2">
+                <p className="text-ink-muted text-sm mt-2">
                   out of {quiz.questions.length}
                 </p>
               </div>
 
-              <div className="glass-card rounded-xl p-6 border border-slate-800/50 text-center">
-                <p className="text-slate-400 text-sm mb-2">Time Spent</p>
-                <p className="text-5xl font-bold text-purple-400">
+              <div className="glass-card rounded-xl p-6 border border-line text-center">
+                <p className="text-ink-muted text-sm mb-2">Time Spent</p>
+                <p className="text-5xl font-bold text-brass font-mono">
                   {formatTime(timeSpent)}
                 </p>
                 {quiz.includeTimer && quiz.timeMinutes && (
-                  <p className="text-slate-300 text-sm mt-2">
+                  <p className="text-ink-muted text-sm mt-2 font-mono">
                     Limit: {quiz.timeMinutes} min
                   </p>
                 )}
@@ -421,13 +410,13 @@ export const QuizResultsPage = () => {
             <div className="flex flex-wrap gap-3 justify-center">
               <button
                 onClick={() => navigate('/formulas')}
-                className="px-6 py-2.5 rounded-lg bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition-all"
+                className="px-6 py-2.5 rounded-lg bg-surface-2 text-ink font-medium hover:bg-surface transition-all"
               >
                 Back to Formulas
               </button>
               <button
                 onClick={() => navigate(`/quiz/${id}`)}
-                className="px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-all flex items-center gap-2"
+                className="px-6 py-2.5 rounded-lg bg-brass text-white font-medium hover:bg-brass-strong transition-all flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -441,7 +430,7 @@ export const QuizResultsPage = () => {
         {/* Detailed Question Analysis */}
         <QuizResultsSectionBoundary>
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Question Analysis</h2>
+            <h2 className="text-2xl font-bold font-display text-ink mb-4">Question Analysis</h2>
             
             {quiz.questions.map((question: any, index: number) => {
             const insight = questionInsights[index];
@@ -460,36 +449,36 @@ export const QuizResultsPage = () => {
                 className={
                   "glass-card rounded-xl p-6 border transition-shadow " +
                   (isQuestionHighlighted
-                    ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)] animate-pulse"
-                    : "border-slate-800/50")
+                    ? "border-brass/70"
+                    : "border-line")
                 }
               >
                 {/* Question Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold">
+                    <span className="px-3 py-1 bg-surface-2 text-ink-muted font-mono rounded-lg text-sm font-semibold">
                       Q{index + 1}
                     </span>
                     {isUnanswered ? (
-                      <span className="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                      <span className="px-3 py-1 bg-surface-2 text-ink-muted rounded-lg text-sm font-medium flex items-center gap-1.5">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
                         </svg>
                         Not Answered
                       </span>
                     ) : isCorrect ? (
-                      <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                      <span className="px-3 py-1 bg-brass-soft text-signal rounded-lg text-sm font-medium flex items-center gap-1.5">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                         Correct
                       </span>
                     ) : hasPartial ? (
-                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium">
+                      <span className="px-3 py-1 bg-surface-2 text-amber-500 rounded-lg text-sm font-medium">
                         Partial
                       </span>
                     ) : (
-                      <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                      <span className="px-3 py-1 bg-surface-2 text-red-500 rounded-lg text-sm font-medium flex items-center gap-1.5">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
@@ -503,8 +492,8 @@ export const QuizResultsPage = () => {
                       onClick={() => handleToggleQuestionBookmark(question.id, index)}
                       className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border text-xs transition-all duration-300 ${
                         isQuestionBookmarked
-                          ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                          : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                          ? 'bg-surface-2 border-brass/30 text-brass'
+                          : 'bg-surface-2 border-line text-ink-muted hover:text-ink hover:bg-surface'
                       }`}
                       title={isQuestionBookmarked ? 'Remove bookmark' : 'Bookmark question'}
                     >
@@ -512,18 +501,11 @@ export const QuizResultsPage = () => {
                         className={`w-4 h-4 transition-transform duration-300 ${
                           isQuestionBookmarked ? 'scale-110' : 'scale-90'
                         }`}
-                        fill={isQuestionBookmarked ? 'url(#diamond-gradient-quiz-question)' : 'none'}
+                        fill={isQuestionBookmarked ? 'currentColor' : 'none'}
                         stroke={isQuestionBookmarked ? 'none' : 'currentColor'}
                         strokeWidth={isQuestionBookmarked ? 0 : 2}
                         viewBox="0 0 24 24"
                       >
-                        <defs>
-                          <linearGradient id="diamond-gradient-quiz-question" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#22d3ee" />
-                            <stop offset="50%" stopColor="#e879f9" />
-                            <stop offset="100%" stopColor="#818cf8" />
-                          </linearGradient>
-                        </defs>
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -531,7 +513,7 @@ export const QuizResultsPage = () => {
                         />
                       </svg>
                     </button>
-                    <span className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">
+                    <span className="text-xs text-ink-muted bg-surface-2 font-mono px-2 py-1 rounded">
                       {question.topic}
                     </span>
                   </div>
@@ -560,11 +542,11 @@ export const QuizResultsPage = () => {
                     const isCorrectOption = correctAnswers.includes(optionIndex);
                     const optionLabel = String.fromCharCode(65 + optionIndex);
 
-                    let optionClass = 'border-slate-700/50 bg-slate-800/30';
+                    let optionClass = 'border-line bg-surface-2';
                     if (isCorrectOption) {
-                      optionClass = 'border-emerald-500/50 bg-emerald-500/10';
+                      optionClass = 'border-brass/30 bg-brass-soft';
                     } else if (isUserSelected && !isCorrectOption) {
-                      optionClass = 'border-red-500/50 bg-red-500/10';
+                      optionClass = 'border-red-500/30 bg-red-500/10';
                     }
 
                     return (
@@ -574,23 +556,23 @@ export const QuizResultsPage = () => {
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-slate-400 font-semibold text-sm">
+                            <span className="text-ink-muted font-semibold text-sm font-mono">
                               {optionLabel}
                             </span>
                             {isCorrectOption && (
                               <div className="flex items-center gap-1">
-                                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-signal" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
-                                <span className="text-xs text-emerald-400 font-medium">Correct</span>
+                                <span className="text-xs text-signal font-medium">Correct</span>
                               </div>
                             )}
                             {isUserSelected && !isCorrectOption && (
                               <div className="flex items-center gap-1">
-                                <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                 </svg>
-                                <span className="text-xs text-red-400 font-medium">Your Answer</span>
+                                <span className="text-xs text-red-500 font-medium">Your Answer</span>
                               </div>
                             )}
                           </div>
@@ -610,8 +592,8 @@ export const QuizResultsPage = () => {
 
                 {/* Explanation */}
                 {!isCorrect && (
-                  <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <p className="text-blue-400 font-semibold text-sm mb-2 flex items-center gap-2">
+                  <div className="p-4 rounded-lg bg-brass-soft border border-brass/30">
+                    <p className="text-brass font-semibold text-sm mb-2 flex items-center gap-2">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>

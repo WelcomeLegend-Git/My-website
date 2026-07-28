@@ -269,12 +269,12 @@ export const StudyGuruInterface = () => {
   };
 
   const suggestions = [
-    { icon: "🎨", label: "Explain concept", color: "text-emerald-400" },
-    { icon: "💻", label: "Solve problem", color: "text-cyan-400" },
-    { icon: "💡", label: "Study tips", color: "text-yellow-400" },
-    { icon: "📝", label: "Practice quiz", color: "text-orange-400" },
-    { icon: "✍️", label: "Help me write", color: "text-pink-400" },
-    { icon: "➕", label: "More", color: "text-slate-400" },
+    { icon: "🎨", label: "Explain concept", color: "text-signal" },
+    { icon: "💻", label: "Solve problem", color: "text-brass" },
+    { icon: "💡", label: "Study tips", color: "text-brass" },
+    { icon: "📝", label: "Practice quiz", color: "text-brass" },
+    { icon: "✍️", label: "Help me write", color: "text-brass" },
+    { icon: "➕", label: "More", color: "text-ink-muted" },
   ];
 
   const isEmptyChat = messages.length === 0;
@@ -293,12 +293,12 @@ export const StudyGuruInterface = () => {
     "fixed lg:relative inset-y-0 left-0 z-50 h-full",
     sidebarOpen ? "translate-x-0 lg:translate-x-0" : "-translate-x-full lg:-translate-x-full",
     "transition-transform duration-300 ease-in-out",
-    "w-64 lg:w-72 xl:w-80 bg-slate-900 border-r border-slate-800 flex flex-col",
+    "w-64 lg:w-72 xl:w-80 bg-paper border-r border-line flex flex-col",
   ].join(" ");
 
   return (
     <div className="min-w-0 h-full">
-      <div className="relative flex h-full w-full text-slate-100 rounded-3xl border border-slate-800/60 bg-slate-950/80 overflow-hidden">
+      <div className="relative flex h-full w-full text-ink rounded-3xl border border-line bg-surface-2 overflow-hidden">
         {/* Sidebar Overlay for mobile */}
         {sidebarOpen && (
           <div
@@ -312,14 +312,14 @@ export const StudyGuruInterface = () => {
           className={sidebarClasses}
         >
           {/* Sidebar Header with Hamburger and New Chat */}
-          <div className="flex items-center gap-3 p-4 border-b border-slate-800">
+          <div className="flex items-center gap-3 p-4 border-b border-line">
             {/* Hamburger Menu Button */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
               aria-label="Close sidebar"
             >
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -327,9 +327,9 @@ export const StudyGuruInterface = () => {
             {/* New Chat Button */}
             <button
               onClick={handleNewChat}
-              className="flex-1 flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+              className="flex-1 flex items-center gap-3 px-4 py-3 bg-surface-2 hover:bg-surface-2 rounded-xl transition-colors"
             >
-              <span className="w-6 h-6 rounded-full border border-slate-500 flex items-center justify-center text-slate-300 text-base leading-none">+</span>
+              <span className="w-6 h-6 rounded-full border border-line flex items-center justify-center text-ink-muted text-base leading-none">+</span>
               <span className="text-sm font-medium">New Chat</span>
             </button>
           </div>
@@ -338,7 +338,7 @@ export const StudyGuruInterface = () => {
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto py-2">
           <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recent Chats</p>
+            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Recent Chats</p>
           </div>
           {chatHistory.length > 0 ? (
             chatHistory.map((conv) => {
@@ -349,29 +349,29 @@ export const StudyGuruInterface = () => {
                 <div
                   key={conv.id}
                   onClick={() => loadArchivedConversation(conv)}
-                  className="group mx-2 px-4 py-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all duration-200"
+                  className="group mx-2 px-4 py-3 rounded-lg hover:bg-surface-2 cursor-pointer transition-all duration-200"
                 >
-                  <p className="text-sm truncate text-slate-300 group-hover:text-slate-100">
+                  <p className="text-sm truncate text-ink-muted group-hover:text-ink">
                     {firstUserMsg?.content || 'Empty conversation'}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">{msgCount} messages</p>
+                  <p className="text-xs text-ink-muted mt-1">{msgCount} messages</p>
                 </div>
               );
             })
           ) : (
-            <p className="text-xs text-slate-500 text-center py-4">No recent chats</p>
+            <p className="text-xs text-ink-muted text-center py-4">No recent chats</p>
           )}
         </div>
 
         {/* Bottom Section - User Profile */}
-        <div className="border-t border-slate-800 p-4">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">
+        <div className="border-t border-line p-4">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-2 cursor-pointer transition-colors">
+            <div className="w-8 h-8 bg-brass hover:bg-brass-strong rounded-full flex items-center justify-center">
               <span className="text-xs font-bold text-white">{getUserInitials()}</span>
             </div>
             <div className="flex-1">
-              <span className="text-sm font-medium text-slate-200">{user?.name || 'User'}</span>
-              <p className="text-xs text-slate-400">{user?.isGuest ? 'Guest' : 'Student'}</p>
+              <span className="text-sm font-medium text-ink">{user?.name || 'User'}</span>
+              <p className="text-xs text-ink-muted">{user?.isGuest ? 'Guest' : 'Student'}</p>
             </div>
           </div>
         </div>
@@ -380,20 +380,20 @@ export const StudyGuruInterface = () => {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col relative">
         {/* Header */}
-        <div className="h-16 border-b border-slate-800 flex items-center px-6 bg-slate-900">
+        <div className="h-16 border-b border-line flex items-center px-6 bg-paper">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors mr-4"
+              className="p-2 hover:bg-surface-2 rounded-lg transition-colors mr-4"
               aria-label="Open sidebar"
             >
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           )}
           <div className="flex-1 flex items-center justify-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-brass hover:bg-brass-strong flex items-center justify-center">
               <span className="text-xs font-bold text-white">SG</span>
             </div>
             <h1 className="text-xl font-semibold">Study Guru</h1>
@@ -406,18 +406,18 @@ export const StudyGuruInterface = () => {
             {isEmptyChat ? (
               // Empty State
               <div className="flex flex-col items-center justify-center min-h-[400px] py-12">
-                <h1 className="text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-ink font-mono">
                   Hello, {user?.name?.split(' ')[0] || 'legend'}
                 </h1>
-                <p className="text-slate-400 mb-12 text-lg">How can I help you today?</p>
+                <p className="text-ink-muted mb-12 text-lg">How can I help you today?</p>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-3xl">
                   {suggestions.slice(0, 4).map((suggestion, index) => (
                     <button
                       key={index}
-                      className="group p-5 bg-slate-800/30 hover:bg-slate-800/50 backdrop-blur-sm rounded-2xl transition-all duration-300 text-left border border-slate-700/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transform hover:-translate-y-1"
+                      className="group p-5 bg-surface-2 hover:bg-surface-2 backdrop-blur-sm rounded-2xl transition-all duration-300 text-left border border-line hover:border-brass/40 hover:shadow-lg  transform hover:-translate-y-1"
                     >
                       <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{suggestion.icon}</div>
-                      <div className="text-sm font-medium text-slate-300 group-hover:text-slate-100">{suggestion.label}</div>
+                      <div className="text-sm font-medium text-ink-muted group-hover:text-ink">{suggestion.label}</div>
                     </button>
                   ))}
                 </div>
@@ -431,18 +431,18 @@ export const StudyGuruInterface = () => {
                     <div key={message.id} className="flex gap-4">
                       <div className="flex-shrink-0">
                         {message.role === "assistant" ? (
-                          <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                          <div className="w-10 h-10 bg-brass hover:bg-brass-strong rounded-full flex items-center justify-center shadow-lg">
                             <span className="text-sm font-bold text-white">SG</span>
                           </div>
                         ) : (
-                          <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-bold text-slate-200">{getUserInitials()}</span>
+                          <div className="w-10 h-10 bg-surface-2 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-ink">{getUserInitials()}</span>
                           </div>
                         )}
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="font-semibold text-sm mb-2">
-                          <span className={message.role === "assistant" ? "text-primary" : "text-slate-300"}>
+                          <span className={message.role === "assistant" ? "text-brass" : "text-ink-muted"}>
                             {message.role === "assistant" ? "Study Guru" : (user?.name || "You")}
                           </span>
                         </div>
@@ -451,31 +451,31 @@ export const StudyGuruInterface = () => {
                           <ReactMarkdown
                             remarkPlugins={[[remarkMath, { singleDollarTextMath: true }]]}
                             rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
-                            className="text-slate-100"
+                            className="text-ink"
                             components={{
                               h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
                               h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
                               h3: ({node, ...props}) => <h3 className="text-base font-bold mt-2 mb-1" {...props} />,
                               ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
                               ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                              li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
+                              li: ({node, ...props}) => <li className="text-ink" {...props} />,
                               code: (props: any) => {
                                 const { inline, ...rest } = props || {};
                                 return inline
-                                  ? <code className="px-1.5 py-0.5 rounded bg-slate-800/70 text-primary text-xs font-mono" {...rest} />
-                                  : <code className="block px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-700/50 text-primary text-xs font-mono overflow-x-auto" {...rest} />;
+                                  ? <code className="px-1.5 py-0.5 rounded bg-surface-2 text-brass text-xs font-mono" {...rest} />
+                                  : <code className="block px-3 py-2 rounded-lg bg-paper/50 border border-line text-brass text-xs font-mono overflow-x-auto" {...rest} />;
                               },
-                              p: ({node, ...props}) => <p className="text-slate-200 my-2" {...props} />,
+                              p: ({node, ...props}) => <p className="text-ink my-2" {...props} />,
                               strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
                               em: ({node, ...props}) => <em className="italic" {...props} />,
-                              hr: ({node, ...props}) => <hr className="my-4 border-slate-700" {...props} />,
+                              hr: ({node, ...props}) => <hr className="my-4 border-line" {...props} />,
                             }}
                           >
                             {ensureMathDelimiters(message.content)}
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-slate-200">{message.content}</p>
+                        <p className="text-ink">{message.content}</p>
                       )}
                       </div>
                     </div>
@@ -501,7 +501,7 @@ export const StudyGuruInterface = () => {
         </div>
 
         {/* Input Area - Fixed at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-sm border-t border-slate-800/50 pt-4 pb-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-surface-2 backdrop-blur-sm border-t border-line pt-4 pb-4">
           <div className="max-w-3xl mx-auto px-4 sm:px-6">
             <div className="relative">
               <div className="flex gap-2 items-end">
@@ -518,7 +518,7 @@ export const StudyGuruInterface = () => {
                     placeholder="Message Study Guru..."
                     disabled={mutation.isPending || quizMutation.isPending}
                     rows={1}
-                    className="w-full resize-none bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl px-4 py-3 pr-12 text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 disabled:opacity-50 transition-all"
+                    className="w-full resize-none bg-surface-2 backdrop-blur-sm border border-line rounded-2xl px-4 py-3 pr-12 text-ink placeholder-ink-muted focus:outline-none focus:border-brass/40 focus:ring-1 focus:ring-brass/20 disabled:opacity-50 transition-all"
                     style={{ minHeight: '52px', maxHeight: '200px' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
@@ -529,7 +529,7 @@ export const StudyGuruInterface = () => {
                   <button
                     onClick={handleSend}
                     disabled={!inputValue.trim() || mutation.isPending || quizMutation.isPending}
-                    className="absolute right-2 bottom-2 p-2 rounded-lg bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    className="absolute right-2 bottom-2 p-2 rounded-lg bg-brass hover:bg-brass-strong disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
                   >
                     {mutation.isPending || quizMutation.isPending ? (
                       <svg className="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
@@ -544,14 +544,14 @@ export const StudyGuruInterface = () => {
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 text-center mt-2">
+              <p className="text-xs text-ink-muted text-center mt-2">
                 Study Guru can make mistakes. Check important info.
               </p>
             </div>
           </div>
         </div>
         {/* Version marker for deployment verification */}
-        <div className="absolute bottom-1 right-3 text-[10px] text-slate-500/70 pointer-events-none select-none">
+        <div className="absolute bottom-1 right-3 text-[10px] text-ink-muted/70 pointer-events-none select-none">
           SG v1
         </div>
       </div>
@@ -559,3 +559,5 @@ export const StudyGuruInterface = () => {
   </div>
   );
 };
+
+

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { GlowSelect } from "../../../components/ui/GlowSelect";
 import { getApiBaseUrl } from "../../../lib/env";
 import { trpc } from "../../../lib/trpc";
+import { AiAccessModal } from "../../ai/components/AiAccessModal";
 import type { RouterOutputs } from "../../../types/trpc";
 
 type Subject = RouterOutputs["subjects"]["list"][number];
@@ -135,6 +136,7 @@ export const FormulaFormDialog = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<string>('');
+  const [showAccessGate, setShowAccessGate] = useState(false);
   
   // Enhanced fields from AI extraction
 
@@ -342,39 +344,46 @@ export const FormulaFormDialog = ({
   const renderModeSelection = () => (
     <div className="px-6 py-8 space-y-6">
       <div className="text-center mb-6">
-        <p className="text-sm text-slate-400 mb-2">Choose how you&apos;d like to add this formula:</p>
+        <p className="text-sm text-ink-muted mb-2">Choose how you&apos;d like to add this formula:</p>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
           onClick={() => setEntryMode('manual')}
-          className="group relative rounded-2xl border-2 border-slate-700 bg-slate-900/60 p-6 text-center transition-all hover:border-primary hover:bg-slate-800/80 hover:shadow-lg hover:shadow-primary/20"
+          className="group relative rounded-2xl border-2 border-line bg-surface-2 p-6 text-center transition-all hover:border-brass hover:bg-surface"
         >
           <div className="mb-3 flex justify-center">
-            <div className="rounded-xl bg-primary/10 p-3">
-              <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-xl bg-brass-soft p-3">
+              <svg className="h-8 w-8 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-slate-100 mb-2">Add Manually</h3>
-          <p className="text-sm text-slate-400">Fill in all the formula details yourself with optional photo upload</p>
+          <h3 className="text-lg font-semibold text-ink mb-2">Add Manually</h3>
+          <p className="text-sm text-ink-muted">Fill in all the formula details yourself with optional photo upload</p>
         </button>
 
         <button
           type="button"
-          onClick={() => setEntryMode('ai')}
-          className="group relative rounded-2xl border-2 border-slate-700 bg-slate-900/60 p-6 text-center transition-all hover:border-emerald-500 hover:bg-slate-800/80 hover:shadow-lg hover:shadow-emerald-500/20"
+          onClick={() => {
+            const verified = localStorage.getItem("ai_access_verified") === "true";
+            if (verified) {
+              setEntryMode('ai');
+            } else {
+              setShowAccessGate(true);
+            }
+          }}
+          className="group relative rounded-2xl border-2 border-line bg-surface-2 p-6 text-center transition-all hover:border-brass hover:bg-surface"
         >
           <div className="mb-3 flex justify-center">
-            <div className="rounded-xl bg-emerald-500/10 p-3">
-              <svg className="h-8 w-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-xl bg-brass-soft p-3">
+              <svg className="h-8 w-8 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-slate-100 mb-2">Bulk Extract with AI</h3>
-          <p className="text-sm text-slate-400">Upload formula sheet image - AI extracts ALL formulas and saves them automatically</p>
+          <h3 className="text-lg font-semibold text-ink mb-2">Bulk Extract with AI</h3>
+          <p className="text-sm text-ink-muted">Upload formula sheet image - AI extracts ALL formulas and saves them automatically</p>
         </button>
       </div>
     </div>
@@ -387,21 +396,21 @@ export const FormulaFormDialog = ({
         <button
           type="button"
           onClick={() => setEntryMode(null)}
-          className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
+          className="text-sm text-ink-muted hover:text-ink flex items-center gap-1"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
         </button>
-        <span className="text-sm text-slate-500">→</span>
-        <span className="text-sm font-medium text-emerald-400">AI Bulk Extraction</span>
+        <span className="text-sm text-ink-muted">→</span>
+        <span className="text-sm font-medium text-brass">AI Bulk Extraction</span>
       </div>
 
       {/* Subject and Chapter Selection First */}
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Subject *</label>
+          <label className="text-sm font-medium text-ink">Subject *</label>
           <GlowSelect
             id="ai-subject"
             value={selectedSubjectId}
@@ -412,7 +421,7 @@ export const FormulaFormDialog = ({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Chapter *</label>
+          <label className="text-sm font-medium text-ink">Chapter *</label>
           <GlowSelect
             id="ai-chapter"
             value={selectedChapterId}
@@ -435,27 +444,27 @@ export const FormulaFormDialog = ({
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Upload Formula Sheet or Describe (Optional)</label>
+          <label className="text-sm font-medium text-ink">Upload Formula Sheet or Describe (Optional)</label>
           <textarea
             value={aiDescription}
             onChange={(e) => setAiDescription(e.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+            className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-brass focus:outline-none"
             placeholder="E.g., 'Physics formulas from chapter 5' or leave blank if uploading image..."
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-200">Upload Formula Sheet Image *</label>
+          <label className="text-sm font-medium text-ink">Upload Formula Sheet Image *</label>
           <input
             type="file"
             accept="image/*"
             onChange={handleFileUpload}
             disabled={uploadingFiles.length > 0 || isExtracting}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-emerald-600"
+            className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-brass file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-brass-strong"
           />
           {uploadingFiles.length > 0 && (
-            <p className="text-xs text-blue-400">Uploading {uploadingFiles.length} file(s)...</p>
+            <p className="text-xs text-brass">Uploading {uploadingFiles.length} file(s)...</p>
           )}
 
           {attachments.length > 0 && (
@@ -463,16 +472,16 @@ export const FormulaFormDialog = ({
               {attachments.map((attachment) => (
                 <div
                   key={attachment.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">{attachment.kind}</span>
-                    <span className="text-xs text-slate-300">{attachment.title || attachment.url.split('/').pop()}</span>
+                    <span className="text-xs text-ink-muted">{attachment.kind}</span>
+                    <span className="text-xs text-ink">{attachment.title || attachment.url.split('/').pop()}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeAttachment(attachment.id)}
-                    className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/20"
+                    className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
                   >
                     Remove
                   </button>
@@ -484,13 +493,13 @@ export const FormulaFormDialog = ({
 
         {uploadError && (
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-200 whitespace-pre-wrap">{uploadError}</p>
+            <p className="text-sm text-red-500 whitespace-pre-wrap">{uploadError}</p>
           </div>
         )}
 
         {isExtracting && extractionProgress && (
-          <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-3">
-            <p className="text-sm text-blue-200">{extractionProgress}</p>
+          <div className="rounded-xl border border-brass/40 bg-brass-soft px-4 py-3">
+            <p className="text-sm text-brass">{extractionProgress}</p>
           </div>
         )}
 
@@ -498,7 +507,7 @@ export const FormulaFormDialog = ({
           type="button"
           onClick={handleAiBulkExtract}
           disabled={isExtracting || !selectedSubjectId || !selectedChapterId || (!aiDescription.trim() && attachments.length === 0)}
-          className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
+          className="w-full rounded-xl bg-brass px-5 py-3 text-sm font-semibold text-white hover:bg-brass-strong disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
         >
           {isExtracting ? (
             <>
@@ -518,7 +527,7 @@ export const FormulaFormDialog = ({
           )}
         </button>
 
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-ink-muted text-center">
           🎯 AI will extract ALL formulas from the image/description and save them automatically to the selected chapter.
         </p>
       </div>
@@ -533,20 +542,20 @@ export const FormulaFormDialog = ({
           <button
             type="button"
             onClick={() => setEntryMode(null)}
-            className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
+            className="text-sm text-ink-muted hover:text-ink flex items-center gap-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back
           </button>
-          <span className="text-sm text-slate-500">→</span>
-          <span className="text-sm font-medium text-primary">Manual Entry</span>
+          <span className="text-sm text-ink-muted">→</span>
+          <span className="text-sm font-medium text-brass">Manual Entry</span>
         </div>
       )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Subject</label>
+              <label className="text-sm font-medium text-ink">Subject</label>
               <input type="hidden" {...register("subjectId")} />
               <GlowSelect
                 id="formula-form-subject"
@@ -556,10 +565,10 @@ export const FormulaFormDialog = ({
                 placeholder={hasSubjects ? "Select subject" : "Add subjects"}
                 disabled={!hasSubjects}
               />
-              {errors.subjectId && <p className="text-xs text-red-400">{errors.subjectId.message}</p>}
+              {errors.subjectId && <p className="text-xs text-red-500">{errors.subjectId.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Chapter</label>
+              <label className="text-sm font-medium text-ink">Chapter</label>
               <input type="hidden" {...register("chapterId")} />
               <GlowSelect
                 id="formula-form-chapter"
@@ -583,55 +592,55 @@ export const FormulaFormDialog = ({
                 placeholder={canSelectChapter ? (hasChapters ? "Select chapter" : "Add chapters") : "Select subject first"}
                 disabled={!canSelectChapter}
               />
-              {errors.chapterId && <p className="text-xs text-red-400">{errors.chapterId.message}</p>}
+              {errors.chapterId && <p className="text-xs text-red-500">{errors.chapterId.message}</p>}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium text-slate-200">
+            <label htmlFor="title" className="text-sm font-medium text-ink">
               Title
             </label>
             <input
               id="title"
               type="text"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none"
               placeholder="Acceleration due to gravity near Earth"
               {...register("title")}
             />
-            {errors.title && <p className="text-xs text-red-400">{errors.title.message}</p>}
+            {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="expression" className="text-sm font-medium text-slate-200">
+            <label htmlFor="expression" className="text-sm font-medium text-ink">
               Key expression
             </label>
             <textarea
               id="expression"
               rows={3}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none"
               placeholder="g = \frac{GM}{(R+h)^2}"
               {...register("expression")}
             />
-            {errors.expression && <p className="text-xs text-red-400">{errors.expression.message}</p>}
+            {errors.expression && <p className="text-xs text-red-500">{errors.expression.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="explanation" className="text-sm font-medium text-slate-200">
+            <label htmlFor="explanation" className="text-sm font-medium text-ink">
               Explanation / intuition
             </label>
             <textarea
               id="explanation"
               rows={3}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none"
               placeholder="Relate to inverse square law and gravitational field variations"
               {...register("explanation")}
             />
-            {errors.explanation && <p className="text-xs text-red-400">{errors.explanation.message}</p>}
+            {errors.explanation && <p className="text-xs text-red-500">{errors.explanation.message}</p>}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <span className="text-sm font-medium text-slate-200">Difficulty</span>
+              <span className="text-sm font-medium text-ink">Difficulty</span>
               <div className="flex gap-2">
                 {["easy", "medium", "hard"].map((level) => {
                   const isActive = difficultyValue === level;
@@ -640,8 +649,8 @@ export const FormulaFormDialog = ({
                       key={level}
                       className={`flex flex-1 cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-sm capitalize transition-colors ${
                         isActive
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-slate-800 bg-slate-950/40 text-slate-300 hover:border-primary/60"
+                          ? "border-brass bg-brass-soft text-brass"
+                          : "border-line bg-surface-2 text-ink-muted hover:border-brass/60"
                       }`}
                     >
                       <input
@@ -655,67 +664,67 @@ export const FormulaFormDialog = ({
                   );
                 })}
               </div>
-              {errors.difficulty && <p className="text-xs text-red-400">{errors.difficulty.message}</p>}
+              {errors.difficulty && <p className="text-xs text-red-500">{errors.difficulty.message}</p>}
             </div>
             <div className="space-y-2">
-              <label htmlFor="tagsText" className="text-sm font-medium text-slate-200">
+              <label htmlFor="tagsText" className="text-sm font-medium text-ink">
                 Tags (comma separated)
               </label>
               <input
                 id="tagsText"
                 type="text"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none"
                 placeholder="gravitation, orbital, inverse square"
                 {...register("tagsText")}
               />
-              {errors.tagsText && <p className="text-xs text-red-400">{errors.tagsText.message}</p>}
+              {errors.tagsText && <p className="text-xs text-red-500">{errors.tagsText.message}</p>}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="stepsText" className="text-sm font-medium text-slate-200">
+            <label htmlFor="stepsText" className="text-sm font-medium text-ink">
               Derivation breadcrumbs (one per line)
             </label>
             <textarea
               id="stepsText"
               rows={4}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none"
               placeholder={`1. Start with gravitational force F = GMm/r^2\n2. Relate weight mg to gravitational force\n3. Substitute radius r = R + h`}
               {...register("stepsText")}
             />
-            {errors.stepsText && <p className="text-xs text-red-400">{errors.stepsText.message}</p>}
+            {errors.stepsText && <p className="text-xs text-red-500">{errors.stepsText.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Attachments / Photos</label>
+            <label className="text-sm font-medium text-ink">Attachments / Photos</label>
             <input
               type="file"
               multiple
               accept="image/*,application/pdf"
               onChange={handleFileUpload}
               disabled={uploadingFiles.length > 0}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/80"
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-brass file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-brass-strong"
             />
             {uploadingFiles.length > 0 && (
-              <p className="text-xs text-blue-400">Uploading {uploadingFiles.length} file(s)...</p>
+              <p className="text-xs text-brass">Uploading {uploadingFiles.length} file(s)...</p>
             )}
-            {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+            {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
             
             {attachments.length > 0 && (
               <div className="mt-3 space-y-2">
                 {attachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2"
+                    className="flex items-center justify-between rounded-lg border border-line bg-surface p-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{attachment.kind}</span>
-                      <span className="text-xs text-slate-300">{attachment.title || attachment.url.split('/').pop()}</span>
+                      <span className="text-xs text-ink-muted">{attachment.kind}</span>
+                      <span className="text-xs text-ink">{attachment.title || attachment.url.split('/').pop()}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeAttachment(attachment.id)}
-                      className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/20"
+                      className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
                     >
                       Remove
                     </button>
@@ -726,20 +735,20 @@ export const FormulaFormDialog = ({
           </div>
 
           {errorMessage && (
-            <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{errorMessage}</p>
+            <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-500">{errorMessage}</p>
           )}
 
-          <div className="flex justify-end gap-3 border-t border-slate-800 pt-4">
+          <div className="flex justify-end gap-3 border-t border-line pt-4">
             <button
               type="button"
               onClick={closeAndReset}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+              className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-muted hover:border-line hover:text-ink"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-xl bg-brass px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70 hover:bg-brass-strong"
               disabled={isSubmitting || !hasSubjects || !hasChapters}
             >
               {isSubmitting ? "Saving..." : mode === "create" ? "Save formula" : "Update formula"}
@@ -749,37 +758,37 @@ export const FormulaFormDialog = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8">
-      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur shadow-2xl">
-        <div className="border-b border-slate-800 px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/80 px-4 py-8">
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-line bg-surface/90 backdrop-blur shadow-2xl">
+        <div className="border-b border-line px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{mode === "create" ? "New" : "Edit"} formula</p>
-              <h2 className="text-2xl font-semibold text-slate-100">
+              <p className="text-xs uppercase font-mono tracking-[0.3em] text-ink-muted">{mode === "create" ? "New" : "Edit"} formula</p>
+              <h2 className="text-2xl font-display font-semibold text-ink">
                 {mode === "create" ? "Capture a concept" : "Update formula"}
               </h2>
             </div>
             <button
               type="button"
               onClick={closeAndReset}
-              className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-400 hover:border-slate-500 hover:text-slate-100"
+              className="rounded-full border border-line px-3 py-1 text-sm text-ink-muted hover:border-line hover:text-ink"
             >
               Close
             </button>
           </div>
           {entryMode === null && (
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-ink-muted">
               Choose your preferred method to add formula details.
             </p>
           )}
           {entryMode === 'manual' && (
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-ink-muted">
               Fill the essentials, add derivation breadcrumbs, and tag usage contexts. You can enrich this later with mind maps
               and assets.
             </p>
           )}
           {entryMode === 'ai' && (
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-ink-muted">
               Upload a formula sheet image or describe formulas - AI will extract and save ALL of them automatically with complete details.
             </p>
           )}
@@ -789,6 +798,16 @@ export const FormulaFormDialog = ({
         {entryMode === 'ai' && renderAiMode()}
         {entryMode === 'manual' && renderManualForm()}
       </div>
+      {showAccessGate && (
+        <AiAccessModal
+          onVerified={() => {
+            localStorage.setItem("ai_access_verified", "true");
+            setShowAccessGate(false);
+            setEntryMode('ai');
+          }}
+          onClose={() => setShowAccessGate(false)}
+        />
+      )}
     </div>
   );
 };

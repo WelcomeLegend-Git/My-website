@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AiSidebar } from "../../features/ai/components/AiSidebar";
 import { InstallPrompt } from "../../features/pwa/InstallPrompt";
@@ -51,6 +51,30 @@ const resolveSection = (pathname: string): AiSection => {
   return "study";
 };
 
+/* ── Theme helper ─────────────────────────────────── */
+function getInitialTheme(): "light" | "dark" | "system" {
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  } catch { }
+  return "dark";
+}
+
+function applyTheme(choice: "light" | "dark" | "system") {
+  const html = document.documentElement;
+  if (choice === "system") {
+    html.removeAttribute("data-theme");
+  } else {
+    html.setAttribute("data-theme", choice);
+  }
+}
+
+function resolvedIsDark(choice: "light" | "dark" | "system"): boolean {
+  if (choice === "dark") return true;
+  if (choice === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 export const ShellLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -62,6 +86,29 @@ export const ShellLayout = () => {
   const clearChatSignal = useRef(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  /* ── Theme state ──────────────────────────── */
+  const [themeChoice, setThemeChoice] = useState<"light" | "dark" | "system">(getInitialTheme);
+  const [isDark, setIsDark] = useState(() => resolvedIsDark(getInitialTheme()));
+
+  const cycleTheme = useCallback(() => {
+    setThemeChoice((prev) => {
+      const next = prev === "system" ? "light" : prev === "light" ? "dark" : "system";
+      try { localStorage.setItem("theme", next); } catch { }
+      applyTheme(next);
+      setIsDark(resolvedIsDark(next));
+      return next;
+    });
+  }, []);
+
+  // Apply on mount + listen for OS changes
+  useEffect(() => {
+    applyTheme(themeChoice);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => { if (themeChoice === "system") setIsDark(mq.matches); };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [themeChoice]);
 
   useEffect(() => {
     if (!showMentor) {
@@ -170,21 +217,14 @@ export const ShellLayout = () => {
   return (
     <div
       className={
-        "relative flex bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 " +
+        "relative flex bg-paper text-ink " +
         (isStudyCoach ? "h-screen overflow-hidden" : "min-h-screen")
       }
     >
-      {/* Background decorative elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-      </div>
-
       {/* Mobile/Tablet AI Sidebar Overlay */}
       {aiOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm fade-in" onClick={() => setAiOpen(false)}>
-          <div className="w-full sm:max-w-lg sm:mx-4 mt-14 mb-14 h-[calc(100dvh-7rem)] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full sm:max-w-lg sm:mx-4 mt-14 mb-14 h-[calc(100dvh-7rem)] bg-surface border border-line rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="h-full overflow-hidden p-4 pb-[env(safe-area-inset-bottom)]">
               <AiSidebar open={aiOpen} section={aiSection} context={aiContext} routePath={location.pathname} variant="mobile" onRequestClose={() => setAiOpen(false)} clearSignal={clearChatSignal.current} />
             </div>
@@ -195,17 +235,16 @@ export const ShellLayout = () => {
       <InstallPrompt />
 
       <div className="relative flex flex-1 flex-col min-h-0 z-10">
-        {/* Modern Header with Glassmorphism */}
-        <header className="sticky top-0 z-40 border-b border-slate-800/50 glass backdrop-blur-xl fade-in-down">
+        {/* Header */}
+        <header className="sticky top-0 z-40 border-b border-line bg-surface/80 backdrop-blur-xl fade-in-down">
           <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16 sm:h-16 lg:h-20">
               {/* Logo & Brand */}
               <div className="flex items-center gap-3 sm:gap-6 lg:gap-8">
-                <Link to="/" className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
-                  <div className="relative px-4 sm:px-4 py-2 sm:py-2 bg-slate-900 rounded-lg min-w-0">
-                    <p className="text-[14px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-primary font-bold">JEE Companion</p>
-                    <h1 className="text-[14px] sm:text-xs font-medium text-slate-300">Daily Mastery</h1>
+                <Link to="/" className="group">
+                  <div className="px-4 sm:px-4 py-2 sm:py-2 bg-surface-2 border border-line rounded-lg min-w-0 transition-colors group-hover:border-brass/40">
+                    <p className="text-[14px] sm:text-xs uppercase tracking-[0.2em] text-brass font-mono font-bold">JEE Companion</p>
+                    <h1 className="text-[14px] sm:text-xs font-medium text-ink-muted">Daily Mastery</h1>
                   </div>
                 </Link>
 
@@ -217,24 +256,24 @@ export const ShellLayout = () => {
                       to={item.to}
                       className={({ isActive }) =>
                         `group relative px-4 py-2.5 rounded-xl transition-all duration-300 hover-lift ${isActive
-                          ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
-                          : "border border-transparent hover:border-slate-700/50"
+                          ? "bg-surface border border-line shadow-sm"
+                          : "border border-transparent hover:border-line"
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <div className="relative">
                           <div className="flex flex-col">
-                            <span className={`text-sm font-semibold transition-colors ${isActive ? "text-primary" : "text-slate-300 group-hover:text-slate-100"
+                            <span className={`text-sm font-semibold transition-colors ${isActive ? "text-brass" : "text-ink-muted group-hover:text-ink"
                               }`}>
                               {item.label}
                             </span>
-                            <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
+                            <span className="text-xs text-ink-muted group-hover:text-ink-muted transition-colors">
                               {item.description}
                             </span>
                           </div>
                           {isActive && (
-                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full"></div>
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brass rounded-full"></div>
                           )}
                         </div>
                       )}
@@ -243,18 +282,40 @@ export const ShellLayout = () => {
                 </nav>
               </div>
 
-              {/* Right Section: User & Actions */}
+              {/* Right Section: Theme toggle, User & Actions */}
               <div className="flex items-center gap-1.5 sm:gap-3 relative">
+                {/* Theme Toggle */}
+                <button
+                  type="button"
+                  onClick={cycleTheme}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg border border-line text-ink-muted hover:text-brass hover:border-brass/40 transition-all duration-200"
+                  title={`Theme: ${themeChoice}`}
+                >
+                  {themeChoice === "system" ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  ) : isDark ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  )}
+                </button>
+
                 {/* AI Toggle - Desktop */}
                 <button
                   type="button"
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
                   className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover-lift ${!showMentor
-                    ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                    ? "opacity-50 cursor-not-allowed border border-line text-ink-muted"
                     : aiOpen
-                      ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
-                      : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
+                      ? "bg-surface border border-line shadow-sm text-brass"
+                      : "border border-line text-ink-muted hover:border-brass/40 hover:text-brass"
                     }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,22 +331,22 @@ export const ShellLayout = () => {
                     setProfileOpen((prev) => !prev);
                     setShowLogoutConfirm(false);
                   }}
-                  className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-900/60 px-2 sm:px-3 py-1.5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 hover-lift"
+                  className="flex items-center gap-2 rounded-xl border border-line bg-surface px-2 sm:px-3 py-1.5 text-left hover:border-brass/40 transition-all duration-300 hover-lift"
                 >
                   <div className="hidden md:flex flex-col items-end text-right mr-1">
-                    <span className="text-sm font-medium text-slate-100 leading-tight max-w-[160px] truncate">
+                    <span className="text-sm font-medium text-ink leading-tight max-w-[160px] truncate">
                       {user?.name}
                     </span>
-                    <span className="text-xs text-slate-400 max-w-[180px] truncate">
+                    <span className="text-xs text-ink-muted max-w-[180px] truncate">
                       {user?.email}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center font-bold text-sm shadow-lg shadow-primary/30">
+                    <div className="w-9 h-9 rounded-full bg-surface-2 border border-line flex items-center justify-center font-bold text-sm text-ink font-mono">
                       {user?.name?.charAt(0).toUpperCase()}
                     </div>
                     <svg
-                      className="w-4 h-4 text-slate-400 hidden md:block"
+                      className="w-4 h-4 text-ink-muted hidden md:block"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -296,11 +357,11 @@ export const ShellLayout = () => {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-72 rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-800/80 bg-gradient-to-r from-slate-900/90 to-slate-900/40">
-                      <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold mb-1">Profile</p>
-                      <p className="text-sm font-semibold text-slate-100 truncate">{user?.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-72 rounded-2xl border border-line bg-surface shadow-2xl shadow-black/10 backdrop-blur-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-line bg-surface-2">
+                      <p className="text-xs uppercase tracking-[0.2em] text-brass font-mono font-semibold mb-1">Profile</p>
+                      <p className="text-sm font-semibold text-ink truncate">{user?.name}</p>
+                      <p className="text-xs text-ink-muted truncate">{user?.email}</p>
                     </div>
 
                     <div className="p-2 space-y-1 text-sm">
@@ -310,22 +371,22 @@ export const ShellLayout = () => {
                           setProfileOpen(false);
                           setShowLogoutConfirm(false);
                         }}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-900/80 hover:text-primary transition-colors cursor-pointer"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-ink hover:bg-surface-2 hover:text-brass transition-colors cursor-pointer"
                       >
-                        <span className="material-icons text-base text-slate-300">settings</span>
+                        <span className="material-icons text-base text-ink-muted">settings</span>
                         <div className="flex flex-col">
                           <span className="font-medium">Settings</span>
-                          <span className="text-[11px] text-slate-500">Manage backups and account</span>
+                          <span className="text-[11px] text-ink-muted">Manage backups and account</span>
                         </div>
                       </Link>
 
-                      <div className="h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent my-1" />
+                      <div className="h-px bg-line my-1" />
 
                       {!showLogoutConfirm && (
                         <button
                           type="button"
                           onClick={() => setShowLogoutConfirm(true)}
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -336,7 +397,7 @@ export const ShellLayout = () => {
 
                       {showLogoutConfirm && (
                         <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 space-y-2">
-                          <p className="text-xs text-red-200">
+                          <p className="text-xs text-red-600">
                             Log out from this device? You&apos;ll need to enter your email and password again to sign
                             back in.
                           </p>
@@ -344,7 +405,7 @@ export const ShellLayout = () => {
                             <button
                               type="button"
                               onClick={() => setShowLogoutConfirm(false)}
-                              className="px-3 py-1.5 rounded-lg border border-slate-700/70 text-slate-300 hover:bg-slate-800/80 transition-colors"
+                              className="px-3 py-1.5 rounded-lg border border-line text-ink-muted hover:bg-surface-2 transition-colors"
                             >
                               Cancel
                             </button>
@@ -372,10 +433,10 @@ export const ShellLayout = () => {
                   onClick={() => setAiOpen((prev) => !prev)}
                   disabled={!showMentor}
                   className={`lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-base transition-all duration-300 hover-lift ${!showMentor
-                    ? "opacity-50 cursor-not-allowed border border-slate-700/50 text-slate-500"
+                    ? "opacity-50 cursor-not-allowed border border-line text-ink-muted"
                     : aiOpen
-                      ? "bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 text-primary glow-sm"
-                      : "border border-slate-700/50 text-slate-300 hover:border-primary/50 hover:text-primary"
+                      ? "bg-surface border border-line shadow-sm text-brass"
+                      : "border border-line text-ink-muted hover:border-brass/40 hover:text-brass"
                     }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -388,7 +449,7 @@ export const ShellLayout = () => {
 
             {/* Mobile Navigation */}
             {!isStudyCoach && (
-              <nav className="lg:hidden border-t border-slate-800/50 py-2 overflow-x-auto scrollbar-hide">
+              <nav className="lg:hidden border-t border-line py-2 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
                   {navItems.map((item) => (
                     <NavLink
@@ -396,14 +457,14 @@ export const ShellLayout = () => {
                       to={item.to}
                       className={({ isActive }) =>
                         `flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all ${isActive
-                          ? "bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30"
-                          : "border border-transparent hover:border-slate-700/50"
+                          ? "bg-brass-soft border border-brass/30"
+                          : "border border-transparent hover:border-line"
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <div>
-                          <span className={`text-xs sm:text-sm font-semibold ${isActive ? "text-primary" : "text-slate-300"
+                          <span className={`text-xs sm:text-sm font-semibold ${isActive ? "text-brass" : "text-ink-muted"
                             }`}>
                             {item.label}
                           </span>

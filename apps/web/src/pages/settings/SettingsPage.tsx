@@ -203,77 +203,77 @@ export const SettingsPage = () => {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-100">Settings</h1>
-        <p className="text-sm text-slate-400 max-w-2xl">
+        <h1 className="text-3xl font-bold text-ink">Settings</h1>
+        <p className="text-sm text-ink-muted max-w-2xl">
           Manage your account and backup options. Google Drive sync and automatic backups will
           appear here so you can keep your JEE Companion data safe across devices.
         </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(0,3fr)]">
-        <section className="glass-card rounded-2xl border border-slate-800/60 p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-slate-100">Account</h2>
+        <section className="glass-card rounded-2xl border border-line p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-ink font-display">Account</h2>
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Name</span>
-              <span className="font-medium text-slate-100">{user?.name}</span>
+              <span className="text-ink-muted">Name</span>
+              <span className="font-medium text-ink">{user?.name}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Email</span>
-              <span className="font-medium text-slate-100">{user?.email}</span>
+              <span className="text-ink-muted">Email</span>
+              <span className="font-medium text-ink">{user?.email}</span>
             </div>
           </div>
         </section>
 
-        <section className="glass-card rounded-2xl border border-slate-800/60 p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-slate-100">Developer Journey</h2>
-          <p className="text-xs text-slate-400">
+        <section className="glass-card rounded-2xl border border-line p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-ink font-display">Developer Journey</h2>
+          <p className="text-xs text-ink-muted">
             Read about the story behind this project, the technical challenges, and the 17-day sprint to build it.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link
               to="/journey"
-              className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
+              className="group relative overflow-hidden rounded-xl border border-line bg-surface px-4 py-3 transition-colors hover:bg-surface-2"
             >
               <div className="relative z-10">
-                <h3 className="text-sm font-semibold text-emerald-400 mb-1 group-hover:text-emerald-300">The Journey</h3>
-                <p className="text-[11px] text-slate-400">My personal story, schedule, and struggles.</p>
+                <h3 className="text-sm font-semibold text-brass mb-1 group-hover:text-brass">The Journey</h3>
+                <p className="text-[11px] text-ink-muted">My personal story, schedule, and struggles.</p>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-brass-soft opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
 
             <Link
               to="/deep-dive"
-              className="group relative overflow-hidden rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 transition-colors hover:bg-slate-800/60"
+              className="group relative overflow-hidden rounded-xl border border-line bg-surface px-4 py-3 transition-colors hover:bg-surface-2"
             >
               <div className="relative z-10">
-                <h3 className="text-sm font-semibold text-blue-400 mb-1 group-hover:text-blue-300">Tech Deep Dive</h3>
-                <p className="text-[11px] text-slate-400">Architecture, stack, and deployment wars.</p>
+                <h3 className="text-sm font-semibold text-brass mb-1 group-hover:text-brass">Tech Deep Dive</h3>
+                <p className="text-[11px] text-ink-muted">Architecture, stack, and deployment wars.</p>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-brass-soft opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
           </div>
         </section>
 
-        <section className="glass-card rounded-2xl border border-slate-800/60 p-6 space-y-5">
+        <section className="glass-card rounded-2xl border border-line p-6 space-y-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Backup &amp; Sync</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-lg font-semibold text-ink font-display">Backup &amp; Sync</h2>
+              <p className="text-xs text-ink-muted">
                 Connect Google Drive to store backups of your formulas, mistakes, quiz history, Study Guru chats, and bookmarks.
                 You&apos;ll be able to restore everything even if you switch accounts or devices.
               </p>
             </div>
-            <span className="inline-flex items-center rounded-full bg-slate-900/60 px-3 py-1 text-[11px] font-medium text-slate-400 border border-slate-700/60">
+            <span className="inline-flex items-center rounded-full bg-surface px-3 py-1 text-[11px] font-medium text-ink-muted border border-line">
               {cloudStatusLabel}
             </span>
           </div>
 
-          <div className="space-y-4 text-sm text-slate-300">
-            <div className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3">
+          <div className="space-y-4 text-sm text-ink-muted">
+            <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
               <div>
-                <p className="font-medium text-slate-100">Google Drive</p>
-                <p className="text-xs text-slate-400">
+                <p className="font-medium text-ink">Google Drive</p>
+                <p className="text-xs text-ink-muted">
                   You&apos;ll be able to link your Google account here to upload and restore backups
                   directly to your Drive.
                 </p>
@@ -282,9 +282,9 @@ export const SettingsPage = () => {
                 type="button"
                 onClick={handleConnectDrive}
                 disabled={connectDisabled}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border border-slate-700/70 transition-colors ${connectDisabled
-                  ? "bg-slate-800/80 text-slate-500 cursor-not-allowed"
-                  : "bg-emerald-500/90 text-slate-950 hover:bg-emerald-400"
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border border-line transition-colors ${connectDisabled
+                  ? "bg-surface-2 text-ink-muted cursor-not-allowed"
+                  : "bg-brass-soft text-ink hover:bg-brass-soft"
                   }`}
               >
                 {googleAuthUrlQuery.isFetching ? "Connecting..." : "Connect"}
@@ -296,10 +296,10 @@ export const SettingsPage = () => {
                 type="button"
                 onClick={handleBackupToDrive}
                 disabled={backupDriveDisabled}
-                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                className="rounded-xl border border-line bg-surface px-4 py-3 text-left text-xs font-semibold text-ink disabled:text-ink-muted disabled:cursor-not-allowed"
               >
                 {backupDriveMutation.isPending ? "Backing up..." : "Backup to Google Drive"}
-                <p className="mt-1 text-[11px] font-normal text-slate-500">
+                <p className="mt-1 text-[11px] font-normal text-ink-muted">
                   One-click backup of your current data to your Google Drive account.
                 </p>
               </button>
@@ -307,23 +307,23 @@ export const SettingsPage = () => {
                 type="button"
                 onClick={handleRestoreFromDrive}
                 disabled={restoreDriveDisabled}
-                className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                className="rounded-xl border border-line bg-surface px-4 py-3 text-left text-xs font-semibold text-ink disabled:text-ink-muted disabled:cursor-not-allowed"
               >
                 {restoreDriveMutation.isPending ? "Restoring..." : "Restore from Drive"}
-                <p className="mt-1 text-[11px] font-normal text-slate-500">
+                <p className="mt-1 text-[11px] font-normal text-ink-muted">
                   Restore everything from a previous backup stored in Google Drive.
                 </p>
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-ink-muted">
               {lastBackupLabel}
             </p>
 
-            <div className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3">
+            <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
               <div>
-                <p className="font-medium text-slate-100 text-sm">Auto backup</p>
-                <p className="text-xs text-slate-400">
+                <p className="font-medium text-ink text-sm">Auto backup</p>
+                <p className="text-xs text-ink-muted">
                   When enabled, your data will be backed up automatically to Google Drive.
                 </p>
               </div>
@@ -336,9 +336,9 @@ export const SettingsPage = () => {
                   statusQuery.isLoading ||
                   autoBackupMutation.isPending
                 }
-                className={`relative inline-flex h-7 w-12 items-center rounded-full border border-slate-700/70 px-1 transition-colors ${statusQuery.data?.autoBackupEnabled
-                  ? "bg-emerald-500/80"
-                  : "bg-slate-900/80"
+                className={`relative inline-flex h-7 w-12 items-center rounded-full border border-line px-1 transition-colors ${statusQuery.data?.autoBackupEnabled
+                  ? "bg-brass-soft"
+                  : "bg-surface"
                   } ${!statusQuery.data?.isConfigured ||
                     !statusQuery.data?.isConnected ||
                     statusQuery.isLoading ||
@@ -348,17 +348,17 @@ export const SettingsPage = () => {
                   }`}
               >
                 <span
-                  className={`inline-block h-5 w-5 rounded-full bg-slate-600 shadow-sm transition-transform ${statusQuery.data?.autoBackupEnabled ? "translate-x-5 bg-slate-950" : ""
+                  className={`inline-block h-5 w-5 rounded-full bg-ink-muted shadow-sm transition-transform ${statusQuery.data?.autoBackupEnabled ? "translate-x-5 bg-paper" : ""
                     }`}
                 />
               </button>
             </div>
 
-            <div className="rounded-xl border border-slate-800/70 bg-slate-900/60 px-4 py-4 space-y-3">
+            <div className="rounded-xl border border-line bg-surface px-4 py-4 space-y-3">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-medium text-slate-100 text-sm">Local backup (JSON)</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="font-medium text-ink text-sm">Local backup (JSON)</p>
+                  <p className="text-xs text-ink-muted">
                     Download a snapshot of all your data as a JSON file. You can keep it in your own
                     storage or later import it into a new account.
                   </p>
@@ -367,7 +367,7 @@ export const SettingsPage = () => {
                   type="button"
                   onClick={handleDownloadBackup}
                   disabled={exportMutation.isPending}
-                  className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/30 hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center rounded-lg bg-brass-soft px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-brass-soft disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
                 >
                   {exportMutation.isPending ? "Preparing..." : "Download backup"}
                 </button>
@@ -375,12 +375,12 @@ export const SettingsPage = () => {
 
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-medium text-slate-100 text-sm">Restore from local backup</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="font-medium text-ink text-sm">Restore from local backup</p>
+                  <p className="text-xs text-ink-muted">
                     Upload a JSON backup file you previously downloaded to restore your data.
                   </p>
                 </div>
-                <label className="inline-flex items-center rounded-lg border border-slate-700/70 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-100 shadow-sm hover:border-primary/60 hover:text-primary cursor-pointer">
+                <label className="inline-flex items-center rounded-lg border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink shadow-sm hover:border-brass/30 hover:text-brass cursor-pointer">
                   <input
                     type="file"
                     accept="application/json"
@@ -393,7 +393,7 @@ export const SettingsPage = () => {
               </div>
 
               {(message || error) && (
-                <div className={`rounded-lg border px-3 py-2 text-xs ${error ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"}`}>
+                <div className={`rounded-lg border px-3 py-2 text-xs ${error ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-line bg-brass-soft text-emerald-200"}`}>
                   {error || message}
                 </div>
               )}

@@ -150,9 +150,9 @@ export const GlowSelect = ({
         id={id}
         type="button"
         className={clsx(
-          "flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-left text-sm text-slate-100 backdrop-blur transition-all duration-300",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-          disabled ? "cursor-not-allowed opacity-60" : "hover:border-primary/50 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.45)]",
+          "flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 px-3 py-2 text-left text-sm text-ink backdrop-blur transition-all duration-300",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/30",
+          disabled ? "cursor-not-allowed opacity-60" : "hover:border-brass/40",
           buttonClassName,
         )}
         aria-haspopup="listbox"
@@ -168,16 +168,16 @@ export const GlowSelect = ({
         disabled={disabled}
       >
         <span className="flex flex-col">
-          <span className="text-sm font-medium text-slate-200">
+          <span className="text-sm font-medium text-ink">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           {selectedOption?.description ? (
-            <span className="text-xs text-slate-500">{selectedOption.description}</span>
+            <span className="text-xs text-ink-muted">{selectedOption.description}</span>
           ) : null}
         </span>
         <svg
           className={clsx(
-            "h-4 w-4 text-slate-400 transition-transform duration-200",
+            "h-4 w-4 text-ink-muted transition-transform duration-200",
             isRightPlacement
               ? "rotate-0"
               : isCenterPlacement
@@ -207,7 +207,7 @@ export const GlowSelect = ({
 
       <div
         className={clsx(
-          "absolute z-[9999] overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/95 backdrop-blur-xl shadow-[0_28px_60px_-30px_rgba(56,189,248,0.45)] transition-all duration-200",
+          "absolute z-[9999] overflow-hidden rounded-2xl border border-line bg-surface-2 backdrop-blur-xl transition-all duration-200",
           isRightPlacement
             ? "left-full ml-2 top-1/2 -translate-y-1/2 min-w-[16rem] w-auto origin-left"
             : isTopPlacement
@@ -236,7 +236,7 @@ export const GlowSelect = ({
         <ul
           role="listbox"
           aria-activedescendant={highlighted >= 0 ? `${id}-option-${highlighted}` : undefined}
-          className="max-h-60 overflow-y-auto py-2 text-sm text-slate-200 custom-scrollbar"
+          className="max-h-60 overflow-y-auto py-2 text-sm text-ink custom-scrollbar"
         >
           {options.map((option, index) => {
             const isSelected = option.value === normalizedValue;
@@ -253,10 +253,10 @@ export const GlowSelect = ({
                 className={clsx(
                   "mx-1 flex cursor-pointer items-center justify-between gap-4 rounded-xl px-3 py-2",
                   option.disabled
-                    ? "cursor-not-allowed text-slate-500"
-                    : "hover:bg-primary/10 hover:text-primary",
-                  isHighlighted ? "bg-primary/10 text-primary" : null,
-                  isSelected ? "border border-primary/40 bg-primary/15" : "border border-transparent",
+                    ? "cursor-not-allowed text-ink-muted"
+                    : "hover:bg-brass-soft hover:text-brass",
+                  isHighlighted ? "bg-brass-soft text-brass" : null,
+                  isSelected ? "border border-brass/40 bg-brass-soft" : "border border-transparent",
                 )}
                 onMouseEnter={() => {
                   if (!option.disabled) {
@@ -268,12 +268,12 @@ export const GlowSelect = ({
                 <span className="flex flex-col">
                   <span className="font-medium">{option.label}</span>
                   {option.description ? (
-                    <span className="text-xs text-slate-500">{option.description}</span>
+                    <span className="text-xs text-ink-muted">{option.description}</span>
                   ) : null}
                 </span>
                 {isSelected ? (
                   <svg
-                    className="h-4 w-4 text-primary"
+                    className="h-4 w-4 text-brass"
                     viewBox="0 0 20 20"
                     fill="none"
                     stroke="currentColor"

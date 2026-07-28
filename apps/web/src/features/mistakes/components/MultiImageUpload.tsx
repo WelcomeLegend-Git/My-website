@@ -86,8 +86,8 @@ export const MultiImageUpload = ({
         <div
           className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-200 ${
             dragActive
-              ? 'border-primary bg-primary/5'
-              : 'border-slate-700 hover:border-slate-600'
+              ? 'border-brass bg-brass-soft'
+              : 'border-line hover:border-brass/40'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -96,9 +96,9 @@ export const MultiImageUpload = ({
           onClick={() => !disabled && fileInputRef.current?.click()}
         >
           <div className="p-8 text-center">
-            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-brass-soft">
               <svg
-                className="h-8 w-8 text-purple-400"
+                className="h-8 w-8 text-brass"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -111,13 +111,13 @@ export const MultiImageUpload = ({
                 />
               </svg>
             </div>
-            <p className="text-lg font-semibold text-slate-200 mb-1">
+            <p className="text-lg font-semibold text-ink mb-1">
               {dragActive ? 'Drop images here' : 'Upload mistake photos'}
             </p>
-            <p className="text-sm text-slate-400 mb-2">
+            <p className="text-sm text-ink-muted mb-2">
               Drag and drop or click to browse
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-muted">
               {images.length} / {maxImages} images • PNG, JPG up to 10MB each
             </p>
           </div>
@@ -140,10 +140,10 @@ export const MultiImageUpload = ({
           {images.map((image, index) => (
             <div
               key={image.id}
-              className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50"
+              className="group relative overflow-hidden rounded-xl border border-line bg-surface-2"
             >
               {/* Image Preview */}
-              <div className="aspect-square overflow-hidden bg-slate-950">
+              <div className="aspect-square overflow-hidden bg-paper">
                 <img
                   src={image.preview}
                   alt={`Upload ${index + 1}`}
@@ -152,7 +152,7 @@ export const MultiImageUpload = ({
               </div>
 
               {/* Image Number Badge */}
-              <div className="absolute top-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+              <div className="absolute top-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-brass text-xs font-bold text-ink">
                 {index + 1}
               </div>
 
@@ -174,7 +174,7 @@ export const MultiImageUpload = ({
                   placeholder="Add caption (optional)"
                   value={image.caption || ''}
                   onChange={(e) => updateCaption(image.id, e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-line bg-surface px-2 py-1 text-xs text-ink placeholder:text-ink-muted focus:border-brass/50 focus:outline-none focus:ring-1 focus:ring-brass/20"
                   disabled={disabled}
                 />
               </div>
@@ -184,7 +184,7 @@ export const MultiImageUpload = ({
       )}
 
       {!canAddMore && (
-        <p className="text-center text-sm text-slate-500">
+        <p className="text-center text-sm text-ink-muted">
           Maximum {maxImages} images reached
         </p>
       )}

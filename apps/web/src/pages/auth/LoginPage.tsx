@@ -44,10 +44,10 @@ const GoogleSignInButton = ({
         setGoogleLoading(true);
         login();
       }}
-      className="w-full flex items-center justify-center gap-3 rounded-xl border border-slate-600/60 bg-slate-800/60 px-5 py-3.5 text-sm font-semibold text-slate-100 hover:bg-slate-700/70 hover:border-slate-500/70 disabled:cursor-not-allowed disabled:opacity-60 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shadow-sm"
+      className="w-full flex items-center justify-center gap-3 rounded-xl border border-line bg-surface-2 px-5 py-3.5 text-sm font-semibold text-ink hover:bg-surface hover:border-brass/40 disabled:cursor-not-allowed disabled:opacity-60 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
     >
       {googleLoading ? (
-        <svg className="w-5 h-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 animate-spin text-ink-muted" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
@@ -105,37 +105,26 @@ export const LoginPage = () => {
   const isLoading = mutation.isPending || googleMutation.isPending;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8 sm:px-6 sm:py-12 text-slate-100 overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-64 h-64 sm:w-80 sm:h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute top-1/2 -left-40 w-80 h-80 sm:w-96 sm:h-96 bg-purple-500/10 rounded-full blur-3xl float" />
-        <div className="absolute -bottom-40 right-1/3 w-64 h-64 sm:w-80 sm:h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-      </div>
-
+    <div className="relative flex min-h-screen items-center justify-center bg-paper px-4 py-8 sm:px-6 sm:py-12 text-ink overflow-hidden">
       <div className="relative w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 scale-in">
         {/* Header */}
         <header className="space-y-3 sm:space-y-4 text-center fade-in-down">
           <div className="inline-flex items-center justify-center">
-            <div className="relative group">
-              <div className="absolute -inset-2 bg-gradient-to-r from-primary to-purple-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition duration-300" />
-              <div className="relative px-5 py-2.5 sm:px-6 sm:py-3 glass-card rounded-2xl border border-primary/20">
-                <p className="text-xs uppercase tracking-[0.3em] text-primary font-bold">JEE Companion</p>
-              </div>
+            <div className="px-5 py-2.5 sm:px-6 sm:py-3 bg-surface border border-line rounded-2xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-brass font-mono font-bold">JEE Companion</p>
             </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-ink font-display">
             Welcome back
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-xs sm:max-w-sm mx-auto px-2">
+          <p className="text-xs sm:text-sm text-ink-muted max-w-xs sm:max-w-sm mx-auto px-2">
             Log in to continue your mastery streak and access your personalized study dashboard.
           </p>
         </header>
 
         {/* Form Card */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary via-purple-600 to-blue-600 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition duration-500" />
-          <div className="relative space-y-4 sm:space-y-5 rounded-3xl glass-card border border-slate-800/50 p-5 sm:p-8 fade-in-up">
+        <div className="relative">
+          <div className="relative space-y-4 sm:space-y-5 rounded-2xl bg-surface border border-line p-5 sm:p-8 shadow-sm fade-in-up">
 
             {/* Google Button */}
             <GoogleSignInButton
@@ -146,16 +135,16 @@ export const LoginPage = () => {
 
             {/* Divider */}
             <div className="relative flex items-center gap-3">
-              <div className="flex-1 border-t border-slate-700/60" />
-              <span className="text-xs text-slate-500 font-medium uppercase tracking-wider whitespace-nowrap">or sign in with email</span>
-              <div className="flex-1 border-t border-slate-700/60" />
+              <div className="flex-1 border-t border-line" />
+              <span className="text-xs text-ink-muted font-mono font-medium uppercase tracking-wider whitespace-nowrap">or sign in with email</span>
+              <div className="flex-1 border-t border-line" />
             </div>
 
             {/* Email */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
               <div className="space-y-1.5">
-                <label htmlFor="email" className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <label htmlFor="email" className="text-sm font-semibold text-ink flex items-center gap-2">
+                  <svg className="w-4 h-4 text-brass flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                   </svg>
                   Email
@@ -165,11 +154,11 @@ export const LoginPage = () => {
                   type="email"
                   autoComplete="email"
                   {...register("email")}
-                  className="w-full rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink placeholder-ink-muted focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20 transition-all"
                   placeholder="your.email@example.com"
                 />
                 {errors.email && (
-                  <p className="text-xs text-red-400 flex items-center gap-1">
+                  <p className="text-xs text-red-500 flex items-center gap-1">
                     <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -180,8 +169,8 @@ export const LoginPage = () => {
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <label htmlFor="password" className="text-sm font-semibold text-ink flex items-center gap-2">
+                  <svg className="w-4 h-4 text-brass flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                   Password
@@ -191,11 +180,11 @@ export const LoginPage = () => {
                   type="password"
                   autoComplete="current-password"
                   {...register("password")}
-                  className="w-full rounded-xl border border-slate-800/50 glass px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink placeholder-ink-muted focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20 transition-all"
                   placeholder="Enter your password"
                 />
                 {errors.password && (
-                  <p className="text-xs text-red-400 flex items-center gap-1">
+                  <p className="text-xs text-red-500 flex items-center gap-1">
                     <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -203,7 +192,7 @@ export const LoginPage = () => {
                   </p>
                 )}
                 <div className="flex justify-end pt-0.5">
-                  <Link to="/auth/forgot-password" className="text-xs text-primary hover:text-purple-400 font-medium transition-colors">
+                  <Link to="/auth/forgot-password" className="text-xs text-brass hover:text-brass-strong font-medium transition-colors">
                     Forgot password?
                   </Link>
                 </div>
@@ -212,10 +201,10 @@ export const LoginPage = () => {
               {/* Error */}
               {activeError && (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 sm:p-4 flex items-start gap-3 fade-in">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <p className="text-xs sm:text-sm text-red-300">{activeError.message ?? "Invalid credentials"}</p>
+                  <p className="text-xs sm:text-sm text-red-600">{activeError.message ?? "Invalid credentials"}</p>
                 </div>
               )}
 
@@ -223,7 +212,7 @@ export const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full rounded-xl bg-gradient-to-r from-primary to-purple-600 px-5 py-3 sm:py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
+                className="w-full rounded-xl bg-brass hover:bg-brass-strong px-5 py-3 sm:py-3.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-300 hover-lift disabled:hover:transform-none flex items-center justify-center gap-2"
               >
                 {mutation.isPending ? (
                   <>
@@ -234,26 +223,21 @@ export const LoginPage = () => {
                     Signing in...
                   </>
                 ) : (
-                  <>
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                    </svg>
-                    Sign in
-                  </>
+                  <>Sign in &rarr;</>
                 )}
               </button>
 
               {/* Guest */}
               <div className="relative flex items-center gap-3">
-                <div className="flex-1 border-t border-slate-700/60" />
-                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">or</span>
-                <div className="flex-1 border-t border-slate-700/60" />
+                <div className="flex-1 border-t border-line" />
+                <span className="text-xs text-ink-muted font-medium uppercase tracking-wider">or</span>
+                <div className="flex-1 border-t border-line" />
               </div>
 
               <button
                 type="button"
                 onClick={() => { authStorage.setGuestMode(); navigate(from, { replace: true }); }}
-                className="w-full rounded-xl border border-slate-700/50 glass px-5 py-3 sm:py-3.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 hover:border-slate-600/50 transition-all duration-300 flex items-center justify-center gap-2"
+                className="w-full rounded-xl border border-line bg-surface px-5 py-3 sm:py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 hover:border-brass/40 transition-all duration-300 flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -261,7 +245,7 @@ export const LoginPage = () => {
                 Continue as Guest
               </button>
 
-              <p className="text-xs text-slate-500 text-center">
+              <p className="text-xs text-ink-muted text-center">
                 Guest mode: Your data will be cleared when you close the browser
               </p>
             </form>
@@ -270,9 +254,9 @@ export const LoginPage = () => {
 
         {/* Footer */}
         <div className="text-center space-y-2 fade-in">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-muted">
             No account yet?{" "}
-            <Link to="/auth/register" className="text-primary hover:text-purple-400 font-semibold transition-colors">
+            <Link to="/auth/register" className="text-brass hover:text-brass-strong font-semibold transition-colors">
               Create one now
             </Link>
           </p>
@@ -280,7 +264,7 @@ export const LoginPage = () => {
             <button
               type="button"
               onClick={() => navigate(from, { replace: true })}
-              className="text-sm text-slate-400 hover:text-slate-300 underline transition-colors"
+              className="text-sm text-ink-muted hover:text-ink underline transition-colors"
             >
               Continue to app →
             </button>

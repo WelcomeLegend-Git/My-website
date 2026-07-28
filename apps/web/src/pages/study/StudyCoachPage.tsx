@@ -171,20 +171,20 @@ export const StudyCoachPage = () => {
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="text-3xl font-semibold text-slate-100">Study Coach</h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <h2 className="text-3xl font-semibold text-ink">Study Coach</h2>
+        <p className="mt-1 text-sm text-ink-muted">
           Generate AI-powered quizzes from your formulas and track your progress.
         </p>
       </header>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center">
-        <h3 className="text-xl font-semibold text-slate-100">Ready to test your knowledge?</h3>
-        <p className="mt-2 text-sm text-slate-400">
+      <div className="rounded-2xl border border-line bg-paper/60 p-8 text-center">
+        <h3 className="text-xl font-semibold text-ink">Ready to test your knowledge?</h3>
+        <p className="mt-2 text-sm text-ink-muted">
           Create a custom quiz based on your saved formulas and let AI generate challenging questions.
         </p>
         <button
           type="button"
-          className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          className="mt-6 rounded-xl bg-brass px-6 py-3 text-sm font-semibold text-paper hover:bg-brass-soft"
           onClick={startQuizCreation}
         >
           Create New Quiz
@@ -193,7 +193,7 @@ export const StudyCoachPage = () => {
 
       {history && history.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-slate-100">Recent Quizzes</h3>
+          <h3 className="text-lg font-semibold text-ink">Recent Quizzes</h3>
           <div className="space-y-3">
             {history.map((session: any) => (
               <QuizHistoryCard
@@ -246,41 +246,41 @@ const QuizCreationView = ({ subjects, isCreating, onCancel, onCreate }: QuizCrea
     <section className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-semibold text-slate-100">Create Quiz</h2>
-          <p className="mt-1 text-sm text-slate-400">Configure your AI-generated quiz</p>
+          <h2 className="text-3xl font-semibold text-ink">Create Quiz</h2>
+          <p className="mt-1 text-sm text-ink-muted">Configure your AI-generated quiz</p>
         </div>
         <button
           type="button"
-          className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-slate-600"
+          className="rounded-xl border border-line px-4 py-2 text-sm text-ink-muted hover:border-brass/40"
           onClick={onCancel}
         >
           Cancel
         </button>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-line bg-paper/60 p-6">
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Quiz Title</label>
+          <label className="mb-2 block text-sm font-medium text-ink-muted">Quiz Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="E.g., Physics - Kinematics Practice"
-            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-100"
+            className="w-full rounded-xl border border-line bg-paper px-4 py-2 text-sm text-ink"
             required
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Subject</label>
+            <label className="mb-2 block text-sm font-medium text-ink-muted">Subject</label>
             <select
               value={subjectId}
               onChange={(e) => {
                 setSubjectId(e.target.value);
                 setChapterId("");
               }}
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-100"
+              className="w-full rounded-xl border border-line bg-paper px-4 py-2 text-sm text-ink"
               required
             >
               <option value="">Select subject</option>
@@ -293,13 +293,13 @@ const QuizCreationView = ({ subjects, isCreating, onCancel, onCreate }: QuizCrea
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Chapter <span className="text-slate-500">(optional)</span>
+            <label className="mb-2 block text-sm font-medium text-ink-muted">
+              Chapter <span className="text-ink-muted">(optional)</span>
             </label>
             <select
               value={chapterId}
               onChange={(e) => setChapterId(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-100"
+              className="w-full rounded-xl border border-line bg-paper px-4 py-2 text-sm text-ink"
               disabled={!subjectId}
             >
               <option value="">All chapters</option>
@@ -313,7 +313,7 @@ const QuizCreationView = ({ subjects, isCreating, onCancel, onCreate }: QuizCrea
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">
+          <label className="mb-2 block text-sm font-medium text-ink-muted">
             Number of Questions: {questionCount}
           </label>
           <input
@@ -324,13 +324,13 @@ const QuizCreationView = ({ subjects, isCreating, onCancel, onCreate }: QuizCrea
             onChange={(e) => setQuestionCount(Number(e.target.value))}
             className="w-full"
           />
-          <p className="mt-1 text-xs text-slate-500">Generates 3-15 AI-powered questions</p>
+          <p className="mt-1 text-xs text-ink-muted">Generates 3-15 AI-powered questions</p>
         </div>
 
         <button
           type="submit"
           disabled={isCreating || !title || !subjectId}
-          className="w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="w-full rounded-xl bg-brass px-6 py-3 text-sm font-semibold text-paper hover:bg-brass-soft disabled:opacity-50"
         >
           {isCreating ? "Generating Quiz..." : "Generate Quiz with AI"}
         </button>
@@ -365,24 +365,24 @@ const QuizTakingView = ({
     <section className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-semibold text-slate-100">
+          <h2 className="text-3xl font-semibold text-ink">
             Question {questionNumber} of {totalQuestions}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-ink-muted">
             Score: {score.correct} / {score.total}
           </p>
         </div>
         <button
           type="button"
-          className="rounded-xl border border-red-500/40 px-4 py-2 text-sm text-red-400 hover:border-red-500"
+          className="rounded-xl border border-red-500/40 px-4 py-2 text-sm text-red-500 hover:border-red-500"
           onClick={onQuit}
         >
           Quit Quiz
         </button>
       </header>
 
-      <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
-        <div className="text-lg text-slate-100">{question.questionText}</div>
+      <div className="space-y-6 rounded-2xl border border-line bg-paper/60 p-8">
+        <div className="text-lg text-ink">{question.questionText}</div>
         {/* Render diagram if available */}
         {question.diagram && (
           <div className="my-6">
@@ -403,13 +403,13 @@ const QuizTakingView = ({
               if (isCorrect) {
                 buttonClass += " border-green-500 bg-green-500/10 text-green-300";
               } else if (isSelected) {
-                buttonClass += " border-red-500 bg-red-500/10 text-red-300";
+                buttonClass += " border-red-500 bg-red-500/10 text-red-500";
               } else {
-                buttonClass += " border-slate-800 bg-slate-900/40 text-slate-400";
+                buttonClass += " border-line bg-paper/40 text-ink-muted";
               }
             } else {
               buttonClass +=
-                " border-slate-800 bg-slate-900 text-slate-100 hover:border-primary hover:bg-primary/5";
+                " border-line bg-paper text-ink hover:border-brass/40 hover:bg-brass-soft";
             }
 
             return (
@@ -434,7 +434,7 @@ const QuizTakingView = ({
         {hasAnswered && question.explanation && (
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
             <h4 className="text-sm font-semibold text-blue-300">Explanation</h4>
-            <p className="mt-2 text-sm text-slate-300">{question.explanation}</p>
+            <p className="mt-2 text-sm text-ink-muted">{question.explanation}</p>
           </div>
         )}
       </div>
@@ -455,17 +455,17 @@ const QuizResultView = ({ session, score, onRestart }: QuizResultViewProps) => {
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="text-3xl font-semibold text-slate-100">Quiz Completed!</h2>
-        <p className="mt-1 text-sm text-slate-400">{session.title}</p>
+        <h2 className="text-3xl font-semibold text-ink">Quiz Completed!</h2>
+        <p className="mt-1 text-sm text-ink-muted">{session.title}</p>
       </header>
 
-      <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center">
-        <div className={`text-6xl font-bold ${passed ? "text-green-400" : "text-red-400"}`}>
+      <div className="space-y-6 rounded-2xl border border-line bg-paper/60 p-8 text-center">
+        <div className={`text-6xl font-bold ${passed ? "text-green-400" : "text-red-500"}`}>
           {score.correct}/{score.total}
         </div>
-        <div className="text-xl text-slate-300">{percentage.toFixed(0)}% Correct</div>
+        <div className="text-xl text-ink-muted">{percentage.toFixed(0)}% Correct</div>
 
-        <div className="mx-auto max-w-md space-y-3 text-sm text-slate-400">
+        <div className="mx-auto max-w-md space-y-3 text-sm text-ink-muted">
           <p>
             {passed
               ? "Great job! You're making excellent progress."
@@ -475,15 +475,15 @@ const QuizResultView = ({ session, score, onRestart }: QuizResultViewProps) => {
 
         <button
           type="button"
-          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          className="rounded-xl bg-brass px-6 py-3 text-sm font-semibold text-paper hover:bg-brass-soft"
           onClick={onRestart}
         >
           Back to Study Coach
         </button>
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Question Review</h3>
+      <div className="space-y-4 rounded-2xl border border-line bg-paper/60 p-6">
+        <h3 className="text-lg font-semibold text-ink">Question Review</h3>
         <div className="space-y-3">
           {session.questions.map((q: any, index: number) => (
             <div
@@ -503,8 +503,8 @@ const QuizResultView = ({ session, score, onRestart }: QuizResultViewProps) => {
                   {index + 1}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm text-slate-100">{q.questionText}</p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="text-sm text-ink">{q.questionText}</p>
+                  <p className="mt-1 text-xs text-ink-muted">
                     Your answer: {(q.options as string[])[q.userAnswer!]} •{" "}
                     Correct: {(q.options as string[])[q.correctAnswer]}
                   </p>
@@ -529,10 +529,10 @@ const QuizHistoryCard = ({ session, onDelete }: QuizHistoryCardProps) => {
   const percentage = answeredCount > 0 ? (correctCount / answeredCount) * 100 : 0;
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="flex items-center justify-between rounded-xl border border-line bg-paper/60 p-4">
       <div>
-        <h4 className="font-medium text-slate-100">{session.title}</h4>
-        <p className="mt-1 text-xs text-slate-400">
+        <h4 className="font-medium text-ink">{session.title}</h4>
+        <p className="mt-1 text-xs text-ink-muted">
           {session.completedAt
             ? `Completed • ${percentage.toFixed(0)}% • ${correctCount}/${answeredCount}`
             : "In progress"}
@@ -540,7 +540,7 @@ const QuizHistoryCard = ({ session, onDelete }: QuizHistoryCardProps) => {
       </div>
       <button
         type="button"
-        className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-400 hover:border-red-500"
+        className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-500 hover:border-red-500"
         onClick={onDelete}
       >
         Delete

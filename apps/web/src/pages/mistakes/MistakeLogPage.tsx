@@ -423,13 +423,13 @@ export const MistakeLogPage = () => {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mistake archive</p>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 mb-1 sm:mb-2">Learn from every slip</h1>
-            <p className="text-xs sm:text-sm text-slate-400">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
+            <p className="text-xs uppercase font-mono tracking-wide text-ink-muted">Mistake archive</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-ink mb-1 sm:mb-2">Learn from every slip</h1>
+            <p className="text-xs sm:text-sm text-ink-muted">Capture slips quickly, attach working photos, and let AI distill lessons.</p>
           </div>
           <button
             type="button"
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors flex-shrink-0"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-brass text-ink font-medium hover:bg-brass-strong transition-colors flex-shrink-0"
             onClick={() => setChoiceModalOpen(true)}
           >
             Log mistake
@@ -437,10 +437,10 @@ export const MistakeLogPage = () => {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/80 via-slate-900/70 to-slate-950/80 glass-card p-6 shadow-[0_24px_60px_-40px_rgba(15,118,230,0.45)]">
+      <div className="rounded-3xl border border-line bg-surface glass-card p-6">
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
           <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
-            <label className="text-xs uppercase tracking-wide text-slate-400">Subject</label>
+            <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Subject</label>
             <GlowSelect
               id="mistake-subject"
               value={subjectId ?? ""}
@@ -454,7 +454,7 @@ export const MistakeLogPage = () => {
           </div>
 
           <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
-            <label className="text-xs uppercase tracking-wide text-slate-400">Chapter</label>
+            <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Chapter</label>
             <GlowSelect
               id="mistake-chapter"
               value={chapterId ?? ""}
@@ -469,7 +469,7 @@ export const MistakeLogPage = () => {
           </div>
 
           <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
-            <label className="text-xs uppercase tracking-wide text-slate-400">Status</label>
+            <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Status</label>
             <GlowSelect
               id="mistake-status"
               value={statusFilter ?? ""}
@@ -485,7 +485,7 @@ export const MistakeLogPage = () => {
           </div>
 
           <div className="flex-1 space-y-2 md:flex-[1_1_14rem]">
-            <label className="text-xs uppercase tracking-wide text-slate-400">Difficulty</label>
+            <label className="text-xs uppercase font-mono tracking-wide text-ink-muted">Difficulty</label>
             <GlowSelect
               id="mistake-difficulty"
               value={difficultyFilter ?? ""}
@@ -502,7 +502,7 @@ export const MistakeLogPage = () => {
 
       {/* Sort Options */}
       <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2">
-        <span className="text-xs sm:text-sm text-slate-400 font-medium flex-shrink-0">Sort by:</span>
+        <span className="text-xs sm:text-sm text-ink-muted font-medium flex-shrink-0">Sort by:</span>
         {[
           { value: 'recent', label: 'Most Recent' },
           { value: 'oldest', label: 'Oldest First' },
@@ -513,8 +513,8 @@ export const MistakeLogPage = () => {
             key={option.value}
             onClick={() => setSortBy(option.value as any)}
             className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${sortBy === option.value
-              ? 'bg-blue-500 text-white'
-              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+              ? 'bg-brass text-ink'
+              : 'bg-surface-2 text-ink-muted hover:bg-surface-2 hover:text-ink'
               }`}
           >
             {option.label}
@@ -523,14 +523,14 @@ export const MistakeLogPage = () => {
       </div>
 
       {mistakesLoading && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border border-line bg-surface-2 p-6 text-center text-sm text-ink-muted">
           Loading mistakes...
         </div>
       )}
 
       {isEmpty && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center">
-          <p className="text-sm text-slate-400">
+        <div className="rounded-2xl border border-line bg-surface-2 p-6 text-center">
+          <p className="text-sm text-ink-muted">
             {filters ? "No mistakes match your filters." : "No mistakes logged yet. Click 'Log mistake' to add your first one."}
           </p>
         </div>
@@ -541,14 +541,14 @@ export const MistakeLogPage = () => {
           {mistakes.map((mistake) => {
             const imageCount = mistake.assets.filter((a) => a.kind === 'image').length;
             const difficultyColors = {
-              easy: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10',
-              medium: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
-              hard: 'text-rose-300 border-rose-500/40 bg-rose-500/10',
+              easy: 'text-brass border-brass/30 bg-brass-soft',
+              medium: 'text-brass border-brass/30 bg-brass-soft',
+              hard: 'text-red-500 border-red-500/30 bg-red-500/10',
             };
             const statusColors = {
-              new: 'text-red-400 bg-red-500/10 border-red-500/30',
-              reviewing: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-              resolved: 'text-green-400 bg-green-500/10 border-green-500/30',
+              new: 'text-red-500 bg-red-500/10 border-red-500/30',
+              reviewing: 'text-brass bg-brass-soft border-brass/30',
+              resolved: 'text-signal bg-brass-soft border-brass/30',
             };
             const isBookmarked = bookmarkedMistakeIds.has(mistake.id);
 
@@ -556,7 +556,7 @@ export const MistakeLogPage = () => {
               <button
                 key={mistake.id}
                 onClick={() => navigate(`/mistakes/${mistake.id}`)}
-                className="group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-800/30 backdrop-blur p-6 text-left hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all"
+                className="group relative rounded-2xl border border-line bg-surface p-6 text-left hover:border-red-500/50 transition-all"
               >
                 {/* Bookmark + Delete Buttons */}
                 <div className="absolute top-4 right-4 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -565,25 +565,18 @@ export const MistakeLogPage = () => {
                     onClick={(e) => handleToggleMistakeBookmark(e, mistake)}
                     className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border text-xs transition-all duration-300 ${
                       isBookmarked
-                        ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                        : 'bg-slate-900/80 border-slate-700 text-slate-200 hover:bg-slate-800/80'
+                        ? 'bg-surface-2 border-brass/30 text-brass'
+                        : 'bg-surface border-line text-ink hover:bg-surface-2'
                     }`}
                     title={isBookmarked ? 'Remove bookmark' : 'Bookmark mistake'}
                   >
                     <svg
                       className={`w-4 h-4 transition-transform duration-300 ${isBookmarked ? 'scale-110' : 'scale-90'}`}
-                      fill={isBookmarked ? 'url(#diamond-gradient-mistake-card)' : 'none'}
+                      fill={isBookmarked ? 'currentColor' : 'none'}
                       stroke={isBookmarked ? 'none' : 'currentColor'}
                       strokeWidth={isBookmarked ? 0 : 2}
                       viewBox="0 0 24 24"
                     >
-                      <defs>
-                        <linearGradient id="diamond-gradient-mistake-card" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#22d3ee" />
-                          <stop offset="50%" stopColor="#e879f9" />
-                          <stop offset="100%" stopColor="#818cf8" />
-                        </linearGradient>
-                      </defs>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -598,7 +591,7 @@ export const MistakeLogPage = () => {
                       e.stopPropagation();
                       setMistakeToDelete(mistake);
                     }}
-                    className="p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors border border-slate-700 hover:border-red-500/30"
+                    className="p-2 rounded-lg bg-surface-2 text-ink-muted hover:bg-red-500/20 hover:text-red-500 transition-colors border border-line hover:border-red-500/30"
                     title="Delete mistake"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -607,21 +600,20 @@ export const MistakeLogPage = () => {
                   </button>
                 </div>
 
-                {/* Card Header */}
                 <div className="flex items-start mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/25">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-3 rounded-xl bg-red-500/20">
+                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
                 </div>
 
                 {/* Card Content */}
-                <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-red-400 transition-colors line-clamp-2 pr-8">
+                <h3 className="text-lg font-semibold text-ink mb-2 group-hover:text-red-500 transition-colors line-clamp-2 pr-8">
                   {mistake.title}
                 </h3>
 
-                <div className="space-y-1 text-sm text-slate-400 mb-3">
+                <div className="space-y-1 text-sm text-ink-muted mb-3">
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -649,21 +641,20 @@ export const MistakeLogPage = () => {
                   </div>
                 </div>
 
-                {/* Badges */}
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${difficultyColors[mistake.difficulty]}`}>
                     {mistake.difficulty}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-300 text-[11px] font-semibold">
+                  <span className="px-2 py-0.5 rounded-full border border-brass/30 bg-brass-soft text-brass text-[11px] font-semibold">
                     {mistake.errorType}
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{mistake.description}</p>
+                <p className="text-xs text-ink-muted line-clamp-2 mb-3">{mistake.description}</p>
 
                 {/* Hover Arrow */}
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-sm font-medium">View Details</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -674,7 +665,7 @@ export const MistakeLogPage = () => {
                       {mistake.status}
                     </span>
                     {imageCount > 0 && (
-                      <span className="px-2 py-1 rounded-lg bg-slate-500/10 border border-slate-500/30 text-slate-400 text-xs font-bold flex items-center gap-1">
+                      <span className="px-2 py-1 rounded-lg bg-surface-2 border border-line text-ink-muted text-xs font-bold flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>

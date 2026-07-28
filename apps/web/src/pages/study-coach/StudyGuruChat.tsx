@@ -9,6 +9,7 @@ import { trpc } from "../../lib/trpc";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { QuizConfigForm, type QuizConfig } from "../../features/quiz/components/QuizConfigForm";
 import { GlowSelect } from "../../components/ui/GlowSelect";
+import { AiAccessModal } from "../../features/ai/components/AiAccessModal";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -390,6 +391,9 @@ export const StudyGuruChat = () => {
   const [selectedModel, setSelectedModel] = useState<ModelId>("gemini-2.5-flash");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isQuizPanelOpen, setIsQuizPanelOpen] = useState(false);
+  const [aiAccessVerified, setAiAccessVerified] = useState(
+    () => localStorage.getItem("ai_access_verified") === "true"
+  );
   const [quizChapter, setQuizChapter] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
   const saveDebounceRef = useRef<number | null>(null);
@@ -1532,7 +1536,17 @@ export const StudyGuruChat = () => {
   };
 
   return (
-    <div className="relative flex h-full min-h-0 w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+    <div className="relative flex h-full min-h-0 w-full bg-paper text-ink">
+      {/* AI Access Gate */}
+      {!aiAccessVerified && (
+        <AiAccessModal
+          onVerified={() => {
+            localStorage.setItem("ai_access_verified", "true");
+            setAiAccessVerified(true);
+          }}
+          onClose={() => navigate(-1)}
+        />
+      )}
       {/* Mobile Sidebar Backdrop */}
       {sidebarOpen && (
         <div
@@ -1546,14 +1560,14 @@ export const StudyGuruChat = () => {
         className={`${sidebarOpen
           ? "translate-x-0 w-72"
           : "-translate-x-full w-72 md:w-0 md:translate-x-0"
-          } absolute md:relative z-50 h-full bg-gradient-to-b from-slate-950/95 via-slate-900/95 to-slate-950/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
+          } absolute md:relative z-50 h-full bg-surface-2 border-r border-line flex flex-col transition-all duration-300 overflow-hidden shadow-2xl md:shadow-none`}
       >
         {/* Sidebar Header */}
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-800 rounded-lg transition mr-4"
+              className="p-2 hover:bg-surface-2 rounded-lg transition mr-4"
             >
               <Menu className="w-6 h-6" />
             </button>
@@ -1567,7 +1581,7 @@ export const StudyGuruChat = () => {
                   return next;
                 })
               }
-              className="p-2 hover:bg-slate-800 rounded-lg transition"
+              className="p-2 hover:bg-surface-2 rounded-lg transition"
             >
               <Search className="w-6 h-6" />
             </button>
@@ -1581,14 +1595,14 @@ export const StudyGuruChat = () => {
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
                   placeholder="Search history"
-                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40 transition"
+                  className="w-full bg-paper/80 border border-line rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-muted focus:outline-none focus:border-brass/40 focus:ring-1 focus:ring-brass/20 transition"
                 />
               </div>
 
               {/* New Chat Button */}
               <button
                 onClick={handleNewChat}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-surface hover:bg-surface-2 border border-line shadow-md "
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm font-medium">New chat</span>
@@ -1597,7 +1611,7 @@ export const StudyGuruChat = () => {
           ) : (
             <button
               onClick={handleNewChat}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 hover:from-primary/30 hover:via-blue-500/30 hover:to-purple-500/30 border border-primary/40 shadow-md shadow-primary/30"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full transition bg-surface hover:bg-surface-2 border border-line shadow-md "
             >
               <Plus className="w-4 h-4" />
               <span className="text-sm font-medium">New chat</span>
@@ -1609,7 +1623,7 @@ export const StudyGuruChat = () => {
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {/* Recent Section */}
           <div className="p-4">
-            <h3 className="text-sm font-semibold text-slate-400 mb-3">Recent</h3>
+            <h3 className="text-sm font-semibold text-ink-muted mb-3">Recent</h3>
             <div className="space-y-1">
               {[...chats]
                 .filter((chat) => chat.recent)
@@ -1623,13 +1637,13 @@ export const StudyGuruChat = () => {
                   <div
                     key={chat.id}
                     className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
-                      ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
-                      : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                      ? "bg-surface border-line shadow-sm"
+                      : "border-transparent hover:bg-surface-2 hover:border-line"
                       }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-slate-200"
+                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-ink"
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -1645,7 +1659,7 @@ export const StudyGuruChat = () => {
                         );
                       }}
                       data-history-menu-trigger="true"
-                      className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
+                      className="mr-1 text-xs text-ink-muted opacity-0 group-hover:opacity-100 hover:text-ink transition"
                       aria-label="Chat options"
                     >
                       ...
@@ -1654,7 +1668,7 @@ export const StudyGuruChat = () => {
                     {openMenuChatId === chat.id && (
                       <div
                         data-history-menu="true"
-                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20"
+                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-paper/95 border border-line shadow-lg  py-1 text-xs sm:text-sm z-20"
                       >
                         <button
                           type="button"
@@ -1663,7 +1677,7 @@ export const StudyGuruChat = () => {
                             handleShareChat(chat);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>🔗</span>
                           <span>Share</span>
@@ -1675,7 +1689,7 @@ export const StudyGuruChat = () => {
                             togglePinChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>📌</span>
                           <span>{chat.pinned ? "Unpin" : "Pin"}</span>
@@ -1687,7 +1701,7 @@ export const StudyGuruChat = () => {
                             handleRenameChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>✏️</span>
                           <span>Rename</span>
@@ -1699,7 +1713,7 @@ export const StudyGuruChat = () => {
                             handleDeleteChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-500 hover:bg-red-900/40 transition"
                         >
                           <span>🗑️</span>
                           <span>Delete</span>
@@ -1725,13 +1739,13 @@ export const StudyGuruChat = () => {
                   <div
                     key={chat.id}
                     className={`group relative flex items-center rounded-full px-1 border transition-colors ${activeChatId === chat.id
-                      ? "bg-gradient-to-r from-primary/20 via-blue-500/15 to-purple-500/25 border-primary/50"
-                      : "border-transparent hover:bg-gradient-to-r hover:from-primary/10 hover:via-blue-500/5 hover:to-purple-500/10 hover:border-primary/40"
+                      ? "bg-surface border-line shadow-sm"
+                      : "border-transparent hover:bg-surface-2 hover:border-line"
                       }`}
                   >
                     <button
                       onClick={() => setActiveChatId(chat.id)}
-                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-slate-200"
+                      className="flex-1 flex items-center py-1.5 pl-3 pr-1 text-left text-sm rounded-full text-ink"
                     >
                       <span className="inline-flex items-center gap-1 min-w-0">
                         {chat.pinned && <span className="text-xs">📌</span>}
@@ -1747,7 +1761,7 @@ export const StudyGuruChat = () => {
                         );
                       }}
                       data-history-menu-trigger="true"
-                      className="mr-1 text-xs text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-100 transition"
+                      className="mr-1 text-xs text-ink-muted opacity-0 group-hover:opacity-100 hover:text-ink transition"
                       aria-label="Chat options"
                     >
                       ...
@@ -1756,7 +1770,7 @@ export const StudyGuruChat = () => {
                     {openMenuChatId === chat.id && (
                       <div
                         data-history-menu="true"
-                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-lg shadow-slate-900/80 py-1 text-xs sm:text-sm z-20"
+                        className="absolute right-0 top-full mt-1 w-40 rounded-xl bg-paper/95 border border-line shadow-lg  py-1 text-xs sm:text-sm z-20"
                       >
                         <button
                           type="button"
@@ -1765,7 +1779,7 @@ export const StudyGuruChat = () => {
                             handleShareChat(chat);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>🔗</span>
                           <span>Share</span>
@@ -1777,7 +1791,7 @@ export const StudyGuruChat = () => {
                             togglePinChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>📌</span>
                           <span>{chat.pinned ? "Unpin" : "Pin"}</span>
@@ -1789,7 +1803,7 @@ export const StudyGuruChat = () => {
                             handleRenameChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800/90 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-ink hover:bg-surface-2 transition"
                         >
                           <span>✏️</span>
                           <span>Rename</span>
@@ -1801,7 +1815,7 @@ export const StudyGuruChat = () => {
                             handleDeleteChat(chat.id);
                             setOpenMenuChatId(null);
                           }}
-                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-400 hover:bg-red-900/40 transition"
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-red-500 hover:bg-red-900/40 transition"
                         >
                           <span>🗑️</span>
                           <span>Delete</span>
@@ -1816,7 +1830,7 @@ export const StudyGuruChat = () => {
 
         <div className="px-4 pt-1 pb-0 flex-shrink-0">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-slate-400">Model</label>
+            <label className="text-xs uppercase tracking-wide text-ink-muted">Model</label>
             <GlowSelect
               id="study-guru-model"
               value={selectedModel}
@@ -1846,8 +1860,8 @@ export const StudyGuruChat = () => {
 
         {/* User Profile */}
         <div className="p-4 flex-shrink-0">
-          <button className="w-full px-4 py-3 hover:bg-zinc-800 rounded-lg transition flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+          <button className="w-full px-4 py-3 hover:bg-surface-2 rounded-lg transition flex items-center gap-3">
+            <div className="w-8 h-8 bg-surface-2 border border-line hover:border-brass/40 rounded-full flex items-center justify-center text-sm font-semibold text-ink">
               {initials}
             </div>
             <span className="font-medium truncate">{displayName}</span>
@@ -1862,13 +1876,13 @@ export const StudyGuruChat = () => {
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition mr-4"
+              className="p-2 hover:bg-surface-2 rounded-lg transition mr-4"
             >
               <Menu className="w-6 h-6" />
             </button>
           )}
-          <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 shadow-lg shadow-slate-900/60">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 leading-tight">Study guru</h1>
+          <div className="inline-flex items-center px-6 py-1.5 rounded-full bg-paper/80 border border-line shadow-lg ">
+            <h1 className="text-xl sm:text-2xl font-bold text-ink leading-tight">Study guru</h1>
           </div>
         </div>
 
@@ -1880,11 +1894,11 @@ export const StudyGuruChat = () => {
                 <div className="text-center space-y-6">
                   <div>
                     <h2 className="text-3xl sm:text-4xl font-bold">
-                      <span className="bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                      <span className="text-ink font-mono">
                         Hello, {firstName}
                       </span>
                     </h2>
-                    <p className="mt-2 text-slate-400 text-sm sm:text-base">How can I help you today?</p>
+                    <p className="mt-2 text-ink-muted text-sm sm:text-base">How can I help you today?</p>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
@@ -1893,12 +1907,12 @@ export const StudyGuruChat = () => {
                       onClick={() =>
                         handleQuickPrompt("Explain this concept in simple terms: ")
                       }
-                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                      className="group rounded-2xl bg-paper/80 border border-line px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-brass/40 hover:bg-paper transition flex flex-col items-start gap-2"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                      <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-lg">
                         <span className="group-hover:scale-110 transition-transform">🎨</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-100">Explain concept</span>
+                      <span className="text-sm font-medium text-ink">Explain concept</span>
                     </button>
 
                     <button
@@ -1906,12 +1920,12 @@ export const StudyGuruChat = () => {
                       onClick={() =>
                         handleQuickPrompt("Help me solve this problem step by step: ")
                       }
-                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                      className="group rounded-2xl bg-paper/80 border border-line px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-brass/40 hover:bg-paper transition flex flex-col items-start gap-2"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                      <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-lg">
                         <span className="group-hover:scale-110 transition-transform">💻</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-100">Solve problem</span>
+                      <span className="text-sm font-medium text-ink">Solve problem</span>
                     </button>
 
                     <button
@@ -1919,12 +1933,12 @@ export const StudyGuruChat = () => {
                       onClick={() =>
                         handleQuickPrompt("Give me study tips for: ")
                       }
-                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                      className="group rounded-2xl bg-paper/80 border border-line px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-brass/40 hover:bg-paper transition flex flex-col items-start gap-2"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                      <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-lg">
                         <span className="group-hover:scale-110 transition-transform">💡</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-100">Study tips</span>
+                      <span className="text-sm font-medium text-ink">Study tips</span>
                     </button>
 
                     <button
@@ -1932,12 +1946,12 @@ export const StudyGuruChat = () => {
                       onClick={() =>
                         handleQuickPrompt("Create a practice quiz with answers on: ")
                       }
-                      className="group rounded-2xl bg-slate-900/80 border border-slate-700/80 px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-primary/60 hover:bg-slate-900 transition flex flex-col items-start gap-2"
+                      className="group rounded-2xl bg-paper/80 border border-line px-3 py-4 sm:px-4 sm:py-5 text-left hover:border-brass/40 hover:bg-paper transition flex flex-col items-start gap-2"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-lg">
+                      <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-lg">
                         <span className="group-hover:scale-110 transition-transform">📝</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-100">Practice quiz</span>
+                      <span className="text-sm font-medium text-ink">Practice quiz</span>
                     </button>
                   </div>
                 </div>
@@ -1966,13 +1980,13 @@ export const StudyGuruChat = () => {
                               navigate(`/quiz/${msg.mention.id}/results`);
                             }
                           }}
-                          className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1 text-[11px] text-slate-100 hover:border-primary hover:bg-slate-800 transition"
+                          className="mb-2 inline-flex items-center gap-2 rounded-full bg-paper/90 border border-brass/40 px-3 py-1 text-[11px] text-ink hover:border-brass/40 hover:bg-surface-2 transition"
                         >
                           <span
                             className={`px-2 py-0.5 rounded-full font-semibold border ${msg.mention.kind === "formulaCollection"
                               ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                               : msg.mention.kind === "mistake"
-                                ? "text-red-300 bg-red-500/10 border-red-500/40"
+                                ? "text-red-500 bg-red-500/10 border-red-500/40"
                                 : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                               }`}
                           >
@@ -1991,7 +2005,7 @@ export const StudyGuruChat = () => {
                           {msg.images.map((imgSrc, idx) => (
                             <div
                               key={idx}
-                              className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-slate-700/50 cursor-pointer hover:opacity-90 transition"
+                              className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-line cursor-pointer hover:opacity-90 transition"
                               onClick={() => setViewingImage(imgSrc)}
                             >
                               <img src={imgSrc} alt="uploaded" className="w-full h-full object-cover" />
@@ -2003,21 +2017,21 @@ export const StudyGuruChat = () => {
                         <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 mr-1">
                           <button
                             onClick={() => handleCopyText(msg.content)}
-                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            className="p-1.5 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-lg transition"
                             title="Copy"
                           >
                             <Copy className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleEditMessage(index)}
-                            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+                            className="p-1.5 text-ink-muted hover:text-ink hover:bg-surface-2 rounded-lg transition"
                             title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                         </div>
-                        <div className="bg-gradient-to-r from-primary/80 via-blue-500/80 to-purple-500/80 rounded-2xl rounded-tr-sm px-6 py-4 border border-primary/60 shadow-md shadow-primary/40">
-                          <p className="text-slate-100">{msg.content}</p>
+                        <div className="bg-surface-2 rounded-2xl rounded-tr-sm px-6 py-4 border border-line shadow-sm ">
+                          <p className="text-ink">{msg.content}</p>
                         </div>
                       </div>
                     </div>
@@ -2032,24 +2046,28 @@ export const StudyGuruChat = () => {
                     onTouchMove={handleLongPressEnd}
                   >
                     <div
-                      className={`w-full bg-slate-900/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg shadow-slate-900/60 border ${highlightedMessageIndex === index
-                        ? "border-primary/70 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
-                        : "border-slate-700/80"
+                      className={`w-full bg-paper/80 rounded-2xl rounded-tl-sm px-6 py-4 max-w-2xl md:max-w-none shadow-lg  border ${highlightedMessageIndex === index
+                        ? "border-brass/40 shadow-[0_0_40px_rgba(56,189,248,0.45)]"
+                        : "border-line"
                         }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-full flex-shrink-0 mt-1" />
+                        <div className="w-6 h-6 bg-surface-2 border border-line rounded-full flex-shrink-0 mt-1 flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
                         <div>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
                             rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
-                            className="prose prose-invert prose-sm max-w-none text-slate-100 leading-relaxed"
+                            className="prose prose-invert prose-sm max-w-none text-ink leading-relaxed"
                             components={{
                               h1: ({ node, ...props }) => (
-                                <h1 className="text-lg font-bold text-emerald-400 mt-4 mb-2" {...props} />
+                                <h1 className="text-lg font-bold text-signal mt-4 mb-2" {...props} />
                               ),
                               h2: ({ node, ...props }) => (
-                                <h2 className="text-base font-bold text-emerald-400 mt-3 mb-2" {...props} />
+                                <h2 className="text-base font-bold text-signal mt-3 mb-2" {...props} />
                               ),
                               h3: ({ node, ...props }) => (
                                 <h3 className="text-sm font-bold text-emerald-300 mt-2 mb-1" {...props} />
@@ -2060,73 +2078,73 @@ export const StudyGuruChat = () => {
                               ol: ({ node, ...props }) => (
                                 <ol className="list-decimal list-inside space-y-1 my-2" {...props} />
                               ),
-                              li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
+                              li: ({ node, ...props }) => <li className="text-ink" {...props} />,
                               code: (props: any) => {
                                 const { inline, ...rest } = props || {};
                                 return inline ? (
                                   <code
-                                    className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono"
+                                    className="px-1.5 py-0.5 rounded bg-surface-2 text-emerald-300 text-xs font-mono"
                                     {...rest}
                                   />
                                 ) : (
                                   <code
-                                    className="block px-3 py-2 rounded-lg bg-slate-800 text-emerald-300 text-xs font-mono overflow-x-auto"
+                                    className="block px-3 py-2 rounded-lg bg-surface-2 text-emerald-300 text-xs font-mono overflow-x-auto"
                                     {...rest}
                                   />
                                 );
                               },
                               p: ({ node, ...props }) => (
-                                <p className="text-slate-200 my-2" {...props} />
+                                <p className="text-ink my-2" {...props} />
                               ),
                               strong: ({ node, ...props }) => (
                                 <strong className="font-bold text-emerald-300" {...props} />
                               ),
                               em: ({ node, ...props }) => (
-                                <em className="italic text-slate-300" {...props} />
+                                <em className="italic text-ink-muted" {...props} />
                               ),
                               hr: ({ node, ...props }) => (
-                                <hr className="my-4 border-slate-700" {...props} />
+                                <hr className="my-4 border-line" {...props} />
                               ),
                               table: ({ node, ...props }) => (
-                                <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
+                                <div className="my-4 w-full overflow-x-auto rounded-xl border border-line bg-surface-2">
                                   <table className="w-full border-collapse text-xs sm:text-sm text-left" {...props} />
                                 </div>
                               ),
                               thead: ({ node, ...props }) => (
-                                <thead className="bg-slate-900/80" {...props} />
+                                <thead className="bg-paper/80" {...props} />
                               ),
                               tbody: ({ node, ...props }) => <tbody {...props} />,
                               tr: ({ node, ...props }) => (
-                                <tr className="border-b border-slate-800/80 last:border-0" {...props} />
+                                <tr className="border-b border-line last:border-0" {...props} />
                               ),
                               th: ({ node, ...props }) => (
-                                <th className="px-3 py-2 font-semibold text-slate-100" {...props} />
+                                <th className="px-3 py-2 font-semibold text-ink" {...props} />
                               ),
                               td: ({ node, ...props }) => (
-                                <td className="px-3 py-2 align-top text-slate-200" {...props} />
+                                <td className="px-3 py-2 align-top text-ink" {...props} />
                               ),
                             }}
                           >
                             {ensureMathDelimiters(msg.content)}
                           </ReactMarkdown>
-                          <div className="mt-3 pt-3 border-t border-slate-800/60 flex flex-wrap items-center gap-2">
+                          <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => handleCopyText(msg.content)}
-                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface-2 text-ink-muted hover:bg-surface-2 hover:text-ink transition"
                               title="Copy"
                             >
                               <Copy className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => handleSpeak(msg.content)}
-                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface-2 text-ink-muted hover:bg-surface-2 hover:text-ink transition"
                               title="Read aloud"
                             >
                               <Volume2 className="w-3 h-3" />
                             </button>
                             <button
                               onClick={(e) => handleRegenerateClick(index, e.currentTarget)}
-                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface-2 text-ink-muted hover:bg-surface-2 hover:text-ink transition"
                               title="Regenerate"
                             >
                               <RefreshCw className="w-3 h-3" />
@@ -2134,8 +2152,8 @@ export const StudyGuruChat = () => {
                             <button
                               onClick={() => handleToggleAssistantBookmark(index)}
                               className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all duration-300 ${isMessageBookmarked(index)
-                                  ? 'bg-slate-800 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                                  : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                                  ? 'bg-surface-2 border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
+                                  : 'bg-surface-2 border-line text-ink-muted hover:text-ink hover:bg-surface-2'
                                 }`}
                               title={isMessageBookmarked(index) ? 'Remove bookmark' : 'Bookmark reply'}
                             >
@@ -2171,14 +2189,12 @@ export const StudyGuruChat = () => {
             {activeChat && isGenerating && (
               <div className="flex justify-start">
                 <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
-                  <div className="relative flex items-center gap-4 px-6 py-4 bg-slate-950/90 rounded-2xl border border-slate-800/50 shadow-2xl backdrop-blur-xl">
+                  <div className="relative flex items-center gap-4 px-6 py-4 bg-surface-2 rounded-2xl border border-line shadow-2xl backdrop-blur-xl">
                     <div className="relative flex items-center justify-center w-6 h-6">
-                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 border-r-blue-500 animate-spin [animation-duration:1.5s]" />
-                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-l-purple-500 border-b-pink-500 animate-spin [animation-duration:1s] [animation-direction:reverse]" />
-                      <div className="absolute inset-1.5 rounded-full bg-cyan-500/20 animate-pulse" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brass border-r-brass animate-spin [animation-duration:1.5s]" />
+                      <div className="absolute inset-1.5 rounded-full bg-brass animate-pulse shadow-[0_0_8px_rgba(217,164,65,0.6)]" />
                     </div>
-                    <span className="text-sm font-medium bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent animate-pulse">
+                    <span className="text-sm font-medium text-brass font-mono animate-pulse">
                       Study Guru is thinking...
                     </span>
                   </div>
@@ -2212,7 +2228,7 @@ export const StudyGuruChat = () => {
               <div className="mb-2 flex gap-2 overflow-x-auto py-2 px-1">
                 {attachedFiles.map((file, i) => (
                   <div key={i} className="relative group flex-shrink-0">
-                    <div className="w-16 h-16 rounded-lg border border-slate-700 overflow-hidden bg-slate-900">
+                    <div className="w-16 h-16 rounded-lg border border-line overflow-hidden bg-paper">
                       <img
                         src={URL.createObjectURL(file)}
                         alt="preview"
@@ -2234,13 +2250,13 @@ export const StudyGuruChat = () => {
                 <button
                   type="button"
                   onClick={handleClearMention}
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 border border-primary/40 px-3 py-1.5 text-xs text-slate-100 hover:border-primary hover:bg-slate-800 transition"
+                  className="inline-flex items-center gap-2 rounded-full bg-paper/90 border border-brass/40 px-3 py-1.5 text-xs text-ink hover:border-brass/40 hover:bg-surface-2 transition"
                 >
                   <span
                     className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
                       ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                       : activeMention.kind === "mistake"
-                        ? "text-red-300 bg-red-500/10 border-red-500/40"
+                        ? "text-red-500 bg-red-500/10 border-red-500/40"
                         : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                       }`}
                   >
@@ -2254,32 +2270,32 @@ export const StudyGuruChat = () => {
                     {activeMention.title}
                   </span>
                   {activeMention.subtitle && (
-                    <span className="hidden sm:inline text-[11px] text-slate-400 truncate max-w-[200px]">
+                    <span className="hidden sm:inline text-[11px] text-ink-muted truncate max-w-[200px]">
                       {activeMention.subtitle}
                     </span>
                   )}
-                  <span className="ml-1 text-slate-400 hover:text-slate-100 text-sm">
+                  <span className="ml-1 text-ink-muted hover:text-ink text-sm">
                     ×
                   </span>
                 </button>
               </div>
             )}
             {isMentionOpen && mentionSuggestions.length > 0 && (
-              <div className="mb-2 max-h-64 overflow-y-auto rounded-2xl border border-primary/40 bg-slate-950/95 shadow-xl shadow-primary/20 text-sm">
+              <div className="mb-2 max-h-64 overflow-y-auto rounded-2xl border border-brass/40 bg-surface-2 shadow-xl  text-sm">
                 {mentionSuggestions.map((item, index) => {
                   const isActive = index === mentionHighlightIndex;
                   const kindColor =
                     item.kind === "formulaCollection"
                       ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                       : item.kind === "mistake"
-                        ? "text-red-300 bg-red-500/10 border-red-500/40"
+                        ? "text-red-500 bg-red-500/10 border-red-500/40"
                         : "text-purple-300 bg-purple-500/10 border-purple-500/40";
                   return (
                     <button
                       key={`${item.kind}-${item.id}`}
                       type="button"
                       onClick={() => handleSelectMention(item)}
-                      className={`w-full px-3 py-2 flex items-start gap-2 text-left transition-colors ${isActive ? "bg-slate-800/80" : "hover:bg-slate-900/80"
+                      className={`w-full px-3 py-2 flex items-start gap-2 text-left transition-colors ${isActive ? "bg-surface-2" : "hover:bg-paper/80"
                         }`}
                     >
                       <span
@@ -2288,11 +2304,11 @@ export const StudyGuruChat = () => {
                         {item.typeLabel}
                       </span>
                       <div className="min-w-0">
-                        <div className="text-xs font-medium text-slate-100 truncate">
+                        <div className="text-xs font-medium text-ink truncate">
                           {item.title}
                         </div>
                         {item.subtitle && (
-                          <div className="text-[11px] text-slate-400 truncate">
+                          <div className="text-[11px] text-ink-muted truncate">
                             {item.subtitle}
                           </div>
                         )}
@@ -2302,13 +2318,13 @@ export const StudyGuruChat = () => {
                 })}
               </div>
             )}
-            <div className="rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
+            <div className="rounded-3xl bg-paper/90 border border-line shadow-[0_18px_45px_rgba(15,23,42,0.9)] px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3">
                 {/* Plus (attachments) */}
                 <button
                   type="button"
                   onClick={handleAttachmentClick}
-                  className="w-8 h-8 rounded-full border border-slate-700/80 flex items-center justify-center hover:bg-slate-800/80 hover:border-primary/60 transition flex-shrink-0"
+                  className="w-8 h-8 rounded-full border border-line flex items-center justify-center hover:bg-surface-2 hover:border-brass/40 transition flex-shrink-0"
                   title={
                     attachedFiles.length
                       ? `${attachedFiles.length} photo${attachedFiles.length > 1 ? "s" : ""} selected`
@@ -2319,13 +2335,13 @@ export const StudyGuruChat = () => {
                 </button>
 
                 {/* Message input with inline mention chip */}
-                <div className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-full px-3 py-1.5 flex items-center gap-2">
+                <div className="flex-1 bg-surface-2 border border-line rounded-full px-3 py-1.5 flex items-center gap-2">
                   {activeMention && (
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${activeMention.kind === "formulaCollection"
                         ? "text-blue-300 bg-blue-500/10 border-blue-500/40"
                         : activeMention.kind === "mistake"
-                          ? "text-red-300 bg-red-500/10 border-red-500/40"
+                          ? "text-red-500 bg-red-500/10 border-red-500/40"
                           : "text-purple-300 bg-purple-500/10 border-purple-500/40"
                         }`}
                     >
@@ -2413,7 +2429,7 @@ export const StudyGuruChat = () => {
                     }}
                     placeholder="Ask study guru"
                     disabled={quizMutation.isPending}
-                    className="flex-1 bg-transparent border-none outline-none text-sm text-slate-100 placeholder-slate-500 resize-none"
+                    className="flex-1 bg-transparent border-none outline-none text-sm text-ink placeholder-ink-muted resize-none"
                   />
                 </div>
 
@@ -2422,8 +2438,8 @@ export const StudyGuruChat = () => {
                   type="button"
                   onClick={toggleRecording}
                   className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 shadow-sm ${isRecording
-                    ? "border-red-500/80 bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/30"
-                    : "border-slate-400/80 bg-slate-900/90 text-slate-100 hover:border-primary/70 hover:bg-slate-800/90"
+                    ? "border-red-500/80 bg-red-500/10 text-red-500 animate-pulse ring-2 ring-red-500/30"
+                    : "border-line bg-paper/90 text-ink hover:border-brass/40 hover:bg-surface-2"
                     }`}
                   title="Voice input"
                 >
@@ -2435,9 +2451,9 @@ export const StudyGuruChat = () => {
                   <button
                     type="button"
                     onClick={handleStopGeneration}
-                    className="w-24 h-11 rounded-full bg-slate-900/90 border border-primary/70 flex items-center justify-center gap-2 text-xs font-medium text-primary hover:bg-slate-800 transition flex-shrink-0"
+                    className="w-24 h-11 rounded-full bg-paper/90 border border-brass/40 flex items-center justify-center gap-2 text-xs font-medium text-brass hover:bg-surface-2 transition flex-shrink-0"
                   >
-                    <span className="w-4 h-4 border-2 border-primary/70 border-t-transparent rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-brass/40 border-t-transparent rounded-full animate-spin" />
                     <span>Stop</span>
                   </button>
                 ) : (
@@ -2445,7 +2461,7 @@ export const StudyGuruChat = () => {
                     type="button"
                     onClick={handleSend}
                     disabled={quizMutation.isPending}
-                    className="w-11 h-11 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 rounded-full flex items-center justify-center transition shadow-lg shadow-primary/30 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-11 h-11 bg-brass hover:bg-brass-strong rounded-full flex items-center justify-center transition shadow-lg  flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <Send className="w-5 h-5 text-white" />
                   </button>
@@ -2475,7 +2491,7 @@ export const StudyGuruChat = () => {
               onClick={() => setRegeneratePopover(null)}
             />
             <div
-              className="fixed z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[180px]"
+              className="fixed z-50 bg-paper border border-line rounded-xl shadow-2xl p-2 min-w-[180px]"
               style={{
                 top: Math.min(
                   regeneratePopover.anchor.getBoundingClientRect().bottom + 8,
@@ -2487,7 +2503,7 @@ export const StudyGuruChat = () => {
                 ),
               }}
             >
-              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                 Regenerate with
               </div>
               <div className="space-y-1">
@@ -2495,11 +2511,11 @@ export const StudyGuruChat = () => {
                   <button
                     key={id}
                     onClick={() => handleRegenerateWithModel(regeneratePopover.userIndex, id)}
-                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-slate-100 hover:bg-slate-800 transition"
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-ink hover:bg-surface-2 transition"
                   >
                     <span>{MODEL_CONFIGS[id].label}</span>
                     {id === selectedModel && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-brass" />
                     )}
                   </button>
                 ))}
@@ -2517,7 +2533,7 @@ export const StudyGuruChat = () => {
             onClick={() => setContextMenu(null)}
           >
             <div
-              className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden"
+              className="w-full sm:w-64 bg-paper border border-line rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
               style={{
                 position: window.innerWidth >= 640 ? "absolute" : "relative",
@@ -2532,17 +2548,17 @@ export const StudyGuruChat = () => {
                     if (msg) handleCopyText(msg.content);
                     setContextMenu(null);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-ink hover:bg-surface-2 rounded-lg transition"
                 >
-                  <Copy className="w-5 h-5 text-slate-400" />
+                  <Copy className="w-5 h-5 text-ink-muted" />
                   <span className="font-medium">Copy</span>
                 </button>
                 {contextMenu.role === "user" && (
                   <button
                     onClick={() => handleEditMessage(contextMenu.messageIndex)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-ink hover:bg-surface-2 rounded-lg transition"
                   >
-                    <Pencil className="w-5 h-5 text-slate-400" />
+                    <Pencil className="w-5 h-5 text-ink-muted" />
                     <span className="font-medium">Edit message</span>
                   </button>
                 )}
@@ -2553,9 +2569,9 @@ export const StudyGuruChat = () => {
                       if (msg) handleSpeak(msg.content);
                       setContextMenu(null);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-ink hover:bg-surface-2 rounded-lg transition"
                   >
-                    <Volume2 className="w-5 h-5 text-slate-400" />
+                    <Volume2 className="w-5 h-5 text-ink-muted" />
                     <span className="font-medium">Read aloud</span>
                   </button>
                 )}
@@ -2591,3 +2607,5 @@ export const StudyGuruChat = () => {
     </div >
   );
 };
+
+

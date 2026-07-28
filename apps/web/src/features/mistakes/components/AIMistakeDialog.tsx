@@ -222,23 +222,20 @@ export const AIMistakeDialog = ({
 
       {/* Dialog */}
       <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
-        <div className="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-gradient-to-br from-slate-950/95 via-slate-900/95 to-slate-950/95 backdrop-blur-xl shadow-2xl">
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-600/5" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-
+        <div className="relative overflow-hidden rounded-3xl border border-line bg-paper backdrop-blur-xl shadow-2xl">
+          
           <div className="relative p-8">
             {/* Header */}
             <div className="mb-6">
-              <h2 className="text-3xl font-bold text-slate-100 mb-2 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20">
-                  <svg className="h-6 w-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-3xl font-display font-bold text-ink mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brass-soft">
+                  <svg className="h-6 w-6 text-brass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
                 AI-Powered Mistake Logging
               </h2>
-              <p className="text-slate-400">
+              <p className="text-ink-muted">
                 {step === 'upload' && 'Upload photos of your mistake and let AI analyze it'}
                 {step === 'analyzing' && 'Analyzing your mistake with Gemini 2.5 Pro...'}
                 {step === 'review' && 'Review and confirm the AI analysis'}
@@ -248,19 +245,19 @@ export const AIMistakeDialog = ({
             {/* Step Indicator */}
             <div className="mb-8 flex items-center justify-center gap-2">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                step === 'upload' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'
+                step === 'upload' ? 'bg-brass text-ink' : 'bg-surface-2 text-ink-muted'
               }`}>
                 1
               </div>
-              <div className={`h-1 w-16 rounded ${step !== 'upload' ? 'bg-purple-500' : 'bg-slate-800'}`} />
+              <div className={`h-1 w-16 rounded ${step !== 'upload' ? 'bg-brass' : 'bg-surface-2'}`} />
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                step === 'analyzing' ? 'bg-purple-500 text-white' : step === 'review' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'
+                step === 'analyzing' ? 'bg-brass text-ink' : step === 'review' ? 'bg-brass text-ink' : 'bg-surface-2 text-ink-muted'
               }`}>
                 2
               </div>
-              <div className={`h-1 w-16 rounded ${step === 'review' ? 'bg-purple-500' : 'bg-slate-800'}`} />
+              <div className={`h-1 w-16 rounded ${step === 'review' ? 'bg-brass' : 'bg-surface-2'}`} />
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                step === 'review' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'
+                step === 'review' ? 'bg-brass text-ink' : 'bg-surface-2 text-ink-muted'
               }`}>
                 3
               </div>
@@ -277,14 +274,14 @@ export const AIMistakeDialog = ({
                 />
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-200">
+                  <label className="text-sm font-semibold text-ink">
                     Additional Context (Optional)
                   </label>
                   <textarea
                     value={userContext}
                     onChange={(e) => setUserContext(e.target.value)}
                     placeholder="Add any context that might help AI understand your mistake better..."
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink placeholder:text-ink-muted focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20"
                     rows={4}
                   />
                 </div>
@@ -292,14 +289,14 @@ export const AIMistakeDialog = ({
                 <div className="flex justify-between gap-3">
                   <button
                     onClick={handleClose}
-                    className="rounded-xl border border-slate-700 bg-slate-800/50 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
+                    className="rounded-xl border border-line bg-surface-2 px-6 py-3 text-sm font-semibold text-ink-muted hover:bg-surface transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleAnalyze}
                     disabled={images.length === 0}
-                    className="rounded-xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="rounded-xl bg-brass px-6 py-3 text-sm font-semibold text-ink hover:bg-brass-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Analyze with AI
                   </button>
@@ -310,11 +307,11 @@ export const AIMistakeDialog = ({
             {/* Analyzing Step */}
             {step === 'analyzing' && (
               <div className="py-12 text-center">
-                <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-purple-500/20">
-                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-500/20 border-t-purple-500" />
+                <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-brass-soft">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-brass/20 border-t-brass" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-100 mb-2">Analyzing Your Mistake</h3>
-                <p className="text-sm text-slate-400">
+                <h3 className="text-xl font-semibold text-ink mb-2">Analyzing Your Mistake</h3>
+                <p className="text-sm text-ink-muted">
                   Our AI is examining your images and identifying the key issues...
                 </p>
               </div>
@@ -325,30 +322,30 @@ export const AIMistakeDialog = ({
               <div className="space-y-6">
                 {/* Title */}
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-200">Title</label>
-                  <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
-                    <p className="text-sm text-slate-200">{aiResult.title}</p>
+                  <label className="text-sm font-semibold text-ink">Title</label>
+                  <div className="rounded-xl border border-line bg-surface-2 px-4 py-3">
+                    <p className="text-sm text-ink">{aiResult.title}</p>
                   </div>
                 </div>
 
                 {/* Metadata */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">Error Type</label>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
-                      <p className="text-sm text-slate-200 capitalize">{aiResult.errorType}</p>
+                    <label className="text-sm font-semibold text-ink">Error Type</label>
+                    <div className="rounded-xl border border-line bg-surface-2 px-4 py-3">
+                      <p className="text-sm text-ink capitalize">{aiResult.errorType}</p>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">Difficulty</label>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
-                      <p className="text-sm text-slate-200 capitalize">{aiResult.difficulty}</p>
+                    <label className="text-sm font-semibold text-ink">Difficulty</label>
+                    <div className="rounded-xl border border-line bg-surface-2 px-4 py-3">
+                      <p className="text-sm text-ink capitalize">{aiResult.difficulty}</p>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">Subject</label>
-                    <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
-                      <p className="text-sm text-slate-200">{aiResult.subject}</p>
+                    <label className="text-sm font-semibold text-ink">Subject</label>
+                    <div className="rounded-xl border border-line bg-surface-2 px-4 py-3">
+                      <p className="text-sm text-ink">{aiResult.subject}</p>
                     </div>
                   </div>
                 </div>
@@ -356,14 +353,14 @@ export const AIMistakeDialog = ({
                 {/* Subject & Chapter Selection */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">Choose Subject</label>
+                    <label className="text-sm font-semibold text-ink">Choose Subject</label>
                     <select
                       value={selectedSubjectId}
                       onChange={(e) => {
                         setSelectedSubjectId(e.target.value);
                         setSelectedChapterId('');
                       }}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-200 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20"
                     >
                       <option value="">Select subject</option>
                       {subjects.map((subject) => (
@@ -374,13 +371,13 @@ export const AIMistakeDialog = ({
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">
-                      Chapter <span className="text-xs text-slate-500">(or auto-create: "{aiResult.suggestedChapter}")</span>
+                    <label className="text-sm font-semibold text-ink">
+                      Chapter <span className="text-xs text-ink-muted">(or auto-create: "{aiResult.suggestedChapter}")</span>
                     </label>
                     <select
                       value={selectedChapterId}
                       onChange={(e) => setSelectedChapterId(e.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-200 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink focus:border-brass/50 focus:outline-none focus:ring-2 focus:ring-brass/20"
                       disabled={!selectedSubjectId}
                     >
                       <option value="">Auto-create: {aiResult.suggestedChapter}</option>
@@ -394,33 +391,33 @@ export const AIMistakeDialog = ({
                 </div>
 
                 {/* Analysis */}
-                <div className="space-y-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-6">
-                  <h3 className="text-lg font-semibold text-purple-300">AI Analysis</h3>
+                <div className="space-y-4 rounded-2xl border border-brass/30 bg-brass-soft p-6">
+                  <h3 className="text-lg font-semibold text-brass">AI Analysis</h3>
                   
                   <div className="space-y-3">
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-200 mb-1">What Went Wrong</h4>
-                      <p className="text-sm text-slate-300">{aiResult.analysis.whatWentWrong}</p>
+                      <h4 className="text-sm font-semibold text-ink mb-1">What Went Wrong</h4>
+                      <p className="text-sm text-ink-muted">{aiResult.analysis.whatWentWrong}</p>
                     </div>
                     
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-200 mb-1">Why It's Wrong</h4>
-                      <p className="text-sm text-slate-300">{aiResult.analysis.whyWrong}</p>
+                      <h4 className="text-sm font-semibold text-ink mb-1">Why It's Wrong</h4>
+                      <p className="text-sm text-ink-muted">{aiResult.analysis.whyWrong}</p>
                     </div>
                     
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-200 mb-1">Correct Approach</h4>
-                      <p className="text-sm text-slate-300">{aiResult.analysis.correctApproach}</p>
+                      <h4 className="text-sm font-semibold text-ink mb-1">Correct Approach</h4>
+                      <p className="text-sm text-ink-muted">{aiResult.analysis.correctApproach}</p>
                     </div>
 
                     {aiResult.analysis.keyConcepts.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-semibold text-slate-200 mb-2">Key Concepts</h4>
+                        <h4 className="text-sm font-semibold text-ink mb-2">Key Concepts</h4>
                         <div className="flex flex-wrap gap-2">
                           {aiResult.analysis.keyConcepts.map((concept, idx) => (
                             <span
                               key={idx}
-                              className="rounded-full bg-purple-500/20 px-3 py-1 text-xs text-purple-300"
+                              className="rounded-full bg-brass-soft px-3 py-1 text-xs text-brass"
                             >
                               {concept}
                             </span>
@@ -434,12 +431,12 @@ export const AIMistakeDialog = ({
                 {/* Similar Topics */}
                 {aiResult.similarTopics.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">Similar Topics to Review</label>
+                    <label className="text-sm font-semibold text-ink">Similar Topics to Review</label>
                     <div className="flex flex-wrap gap-2">
                       {aiResult.similarTopics.map((topic, idx) => (
                         <span
                           key={idx}
-                          className="rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1 text-xs text-slate-300"
+                          className="rounded-full border border-line bg-surface-2 px-3 py-1 text-xs text-ink-muted"
                         >
                           {topic}
                         </span>
@@ -451,10 +448,10 @@ export const AIMistakeDialog = ({
                 {/* Preview Best Image */}
                 {images[aiResult.bestImageIndex] && (
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-200">
+                    <label className="text-sm font-semibold text-ink">
                       Key Error Image (Image {aiResult.bestImageIndex + 1})
                     </label>
-                    <div className="rounded-xl border border-slate-700 overflow-hidden">
+                    <div className="rounded-xl border border-line overflow-hidden">
                       <img
                         src={images[aiResult.bestImageIndex].preview}
                         alt="Best error image"
@@ -464,17 +461,17 @@ export const AIMistakeDialog = ({
                   </div>
                 )}
 
-                <div className="flex justify-between gap-3 pt-4 border-t border-slate-800">
+                <div className="flex justify-between gap-3 pt-4 border-t border-line">
                   <button
                     onClick={() => setStep('upload')}
-                    className="rounded-xl border border-slate-700 bg-slate-800/50 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
+                    className="rounded-xl border border-line bg-surface-2 px-6 py-3 text-sm font-semibold text-ink-muted hover:bg-surface transition-colors"
                   >
                     Back to Upload
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={!selectedSubjectId || createMistakeMutation.isPending || isSaving}
-                    className="rounded-xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="rounded-xl bg-brass px-6 py-3 text-sm font-semibold text-ink hover:bg-brass-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {createMistakeMutation.isPending || isSaving ? 'Saving...' : 'Save Mistake'}
                   </button>
@@ -485,7 +482,7 @@ export const AIMistakeDialog = ({
             {/* Close Button */}
             <button
               onClick={handleClose}
-              className="absolute top-6 right-6 rounded-lg p-2 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors"
+              className="absolute top-6 right-6 rounded-lg p-2 text-ink-muted hover:bg-surface-2 hover:text-ink transition-colors"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -57,6 +57,15 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
 
         setMessages(prev => {
           if (prev.some(m => m.id === msg.id)) return prev;
+          // If it's our own message echoed back, replace the optimistic temp message
+          if (decryptedMsg.isOwn) {
+            const tempIdx = prev.findIndex(m => m.id.startsWith('temp-') && m.isOwn);
+            if (tempIdx !== -1) {
+              const updated = [...prev];
+              updated[tempIdx] = decryptedMsg;
+              return updated;
+            }
+          }
           return [...prev, decryptedMsg];
         });
 

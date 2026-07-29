@@ -243,6 +243,7 @@ export const chatRouter = router({
           messageType: true,
           mediaUrl: true,
           readAt: true,
+          deliveredAt: true,
           createdAt: true,
         },
       });
@@ -259,27 +260,22 @@ export const chatRouter = router({
       };
     }),
 
-  /** Send a message (HTTP fallback when WebSocket is unavailable) */
+  /** Send a message via HTTP (reliable fallback) */
   sendMessage: procedure
     .use(requireUser)
-    .input(
-      z.object({
-        conversationId: z.string().uuid(),
-        ciphertext: z.string().min(1),
-        nonce: z.string().min(1),
-        messageType: z.enum(["text", "sticker", "gif", "photo"]).default("text"),
-        mediaUrl: z.string().url().optional(),
-      })
-    )
+    .input(z.object({
+      conversationId: z.string().uuid(),
+      ciphertext: z.string(),
+      nonce: z.string(),
+      messageType: z.string().default("text"),
+      mediaUrl: z.string().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const myIdentity = await ctx.prisma.chatIdentity.findUnique({
         where: { userId: ctx.user.id },
       });
-      if (!myIdentity) {
-        throw new TRPCError({ code: "UNAUTHORIZED" });
-      }
+      if (!myIdentity) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-      // Verify the user is part of this conversation
       const conv = await ctx.prisma.chatConversation.findFirst({
         where: {
           id: input.conversationId,
@@ -289,12 +285,7 @@ export const chatRouter = router({
           ],
         },
       });
-      if (!conv) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Conversation not found",
-        });
-      }
+      if (!conv) throw new TRPCError({ code: "NOT_FOUND", message: "Conversation not found" });
 
       const message = await ctx.prisma.chatMessage.create({
         data: {
@@ -303,17 +294,21 @@ export const chatRouter = router({
           ciphertext: input.ciphertext,
           nonce: input.nonce,
           messageType: input.messageType,
-          mediaUrl: input.mediaUrl ?? null,
+          mediaUrl: input.mediaUrl || null,
         },
       });
 
-      // Update conversation's lastMessageAt
       await ctx.prisma.chatConversation.update({
         where: { id: input.conversationId },
         data: { lastMessageAt: new Date() },
       });
 
-      return message;
+      return {
+        id: message.id,
+        conversationId: message.conversationId,
+        senderId: myIdentity.id,
+        createdAt: message.createdAt.toISOString(),
+      };
     }),
 
   /** Mark all messages in a conversation as read */

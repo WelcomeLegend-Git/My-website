@@ -1,75 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import { ChatShell } from './ChatShell';
-import clsx from 'clsx';
 
 export function VaultEntryPoint() {
-  const [clickCount, setClickCount] = useState(0);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [vaultOpen, setVaultOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
-  useEffect(() => {
-    if (clickCount > 0 && clickCount < 5) {
-      const timer = setTimeout(() => setClickCount(0), 3000);
-      return () => clearTimeout(timer);
-    }
-    if (clickCount >= 5) {
-      setIsRevealed(true);
-      setClickCount(0);
-    }
-  }, [clickCount]);
-
-  if (vaultOpen) {
+  if (chatOpen) {
     return (
       <div className="fixed inset-0 z-50 bg-paper flex flex-col">
-        <ChatShell onClose={() => setVaultOpen(false)} />
+        <ChatShell onClose={() => setChatOpen(false)} />
       </div>
     );
   }
 
   return (
-    <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 relative">
-      <AnimatePresence>
-        {isRevealed && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="mb-8 w-full max-w-sm"
-          >
-            <div 
-              onClick={() => setVaultOpen(true)}
-              className="glass-card rounded-2xl border border-line p-6 flex flex-col items-center justify-center cursor-pointer hover:border-brass/50 transition-colors group relative overflow-hidden"
-            >
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsRevealed(false); }}
-                className="absolute top-2 right-2 p-1 text-ink-muted hover:text-ink transition-colors"
-              >
-                <X size={16} />
-              </button>
-              
-              <div className="w-12 h-12 rounded-full bg-surface-2 flex items-center justify-center mb-4 group-hover:bg-brass/20 transition-colors">
-                <Lock className="text-brass" size={24} />
-              </div>
-              <h3 className="font-space font-medium text-lg text-ink">The Vault</h3>
-              <p className="text-sm text-ink-muted mt-1 text-center">
-                End-to-end encrypted communications.
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div 
-        onClick={() => setClickCount(prev => prev + 1)}
-        className={clsx(
-          "text-[10px] text-ink-muted/30 text-center py-4 select-none cursor-default transition-all duration-300",
-          clickCount > 0 && clickCount < 5 && "text-brass/40 scale-105"
-        )}
+    <section className="rounded-2xl border border-line bg-surface p-5 mt-6">
+      <div
+        onClick={() => setChatOpen(true)}
+        className="flex items-center gap-4 cursor-pointer group"
       >
-        v1.0.0
+        <div className="w-12 h-12 rounded-full bg-brass/10 flex items-center justify-center border border-brass/20 group-hover:bg-brass/20 transition-colors">
+          <MessageCircle className="text-brass" size={22} />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-space font-medium text-ink group-hover:text-brass transition-colors">Chat</h3>
+          <p className="text-xs text-ink-muted mt-0.5">
+            End-to-end encrypted messaging
+          </p>
+        </div>
+        <div className="text-ink-muted group-hover:text-brass transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

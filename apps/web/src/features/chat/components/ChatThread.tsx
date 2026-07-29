@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { trpc } from '../../../lib/trpc';
 import { useChatIdentity } from '../hooks/useChatIdentity';
 import { useChatSocket } from '../hooks/useChatSocket';
@@ -21,9 +21,10 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
   const convData = conversations?.find((c: any) => c.id === conversationId);
   const { data: initialMessagesData, isLoading: isMsgsLoading } = trpc.chat.getMessages.useQuery({ conversationId });
   const markRead = trpc.chat.markAsRead.useMutation();
+  const sendMessageMutation = trpc.chat.sendMessage.useMutation();
 
-  // Websocket setup
-  const { sendWsMessage, sendTypingIndicator, sendReadReceipt } = useChatSocket({
+  // WebSocket — real-time relay only (NOT the source of truth for sending)
+  const { sendWsMessage, sendTypingIndicator, sendReadReceipt, sendDeliveryReceipt } = useChatSocket({
     onMessage: (msg) => handleIncomingMessage(msg),
     onTyping: (cid, uid, typing) => {
       if (cid === conversationId && uid !== identity?.id) setIsTyping(typing);
@@ -31,19 +32,45 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
     onOnlineStatus: (uid, online) => {
       if (uid === convData?.participant.id) setIsOnline(online);
     },
-    onReadReceipt: (cid, readBy, readAt) => {
-      if (cid === conversationId && readBy !== identity?.id) {
-         setMessages(prev => prev.map(m => m.isOwn && !(m as any).readAt ? { ...m, readAt } : m));
+    onReadReceipt: (cid, _readBy, readAt) => {
+      if (cid === conversationId) {
+        // Mark ALL own messages as read
+        setMessages(prev => prev.map(m =>
+          m.isOwn && !m.readAt ? { ...m, readAt, deliveredAt: m.deliveredAt || readAt } : m
+        ));
       }
-    }
+    },
+    onDeliveryReceipt: (cid, messageIds, deliveredAt) => {
+      if (cid === conversationId) {
+        setMessages(prev => prev.map(m =>
+          m.isOwn && messageIds.includes(m.id) && !m.deliveredAt
+            ? { ...m, deliveredAt }
+            : m
+        ));
+      }
+    },
+    onMessageAck: (id, cid, createdAt) => {
+      if (cid === conversationId) {
+        // Replace temp message with server-confirmed message (single tick)
+        setMessages(prev => {
+          const tempIdx = prev.findIndex(m => m.id.startsWith('temp-') && m.isOwn);
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = { ...updated[tempIdx], id, createdAt: new Date(createdAt) };
+            return updated;
+          }
+          return prev;
+        });
+      }
+    },
   });
 
-  const handleIncomingMessage = async (msg: WsServerMessage) => {
+  const handleIncomingMessage = useCallback(async (msg: WsServerMessage) => {
     if (msg.type === 'message' && msg.conversationId === conversationId && keyPair && convData) {
       try {
         const partnerPubKey = fromBase64(convData.participant.publicKey);
         const decryptedStr = decryptMessage(msg.ciphertext, msg.nonce, partnerPubKey, keyPair.privateKey);
-        
+
         const decryptedMsg: DecryptedMessage = {
           id: msg.id,
           conversationId: msg.conversationId,
@@ -52,43 +79,49 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
           content: decryptedStr,
           mediaUrl: msg.mediaUrl,
           createdAt: new Date(msg.createdAt),
-          isOwn: msg.senderId === identity?.id
+          isOwn: msg.senderId === identity?.id,
         };
 
         setMessages(prev => {
+          // Dedup by server ID
           if (prev.some(m => m.id === msg.id)) return prev;
-          // If it's our own message echoed back, replace the optimistic temp message
-          if (decryptedMsg.isOwn) {
-            const tempIdx = prev.findIndex(m => m.id.startsWith('temp-') && m.isOwn);
-            if (tempIdx !== -1) {
-              const updated = [...prev];
-              updated[tempIdx] = decryptedMsg;
-              return updated;
-            }
-          }
           return [...prev, decryptedMsg];
         });
 
+        // If it's someone else's message, send delivery receipt + mark read
         if (!decryptedMsg.isOwn) {
+          sendDeliveryReceipt(conversationId, [msg.id]);
           markRead.mutate({ conversationId });
           sendReadReceipt(conversationId);
+
+          // Browser notification if tab is hidden
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              const parsed = JSON.parse(decryptedStr);
+              const preview = parsed.type === 'text' ? parsed.text : `Sent a ${parsed.type}`;
+              new Notification(convData.participant.displayName || 'New message', {
+                body: preview,
+                icon: '/favicon.ico',
+                tag: `chat-${conversationId}`,
+              });
+            } catch {}
+          }
         }
       } catch (err) {
         console.error('Failed to decrypt incoming message', err);
       }
     }
-  };
+  }, [conversationId, keyPair, convData, identity, sendDeliveryReceipt, sendReadReceipt, markRead]);
 
-  // Decrypt initial messages
+  // Decrypt initial messages from DB
   useEffect(() => {
     if (initialMessagesData?.messages && keyPair && convData) {
       setIsDecrypting(true);
       const partnerPubKey = fromBase64(convData.participant.publicKey);
-      
-      const decrypted = initialMessagesData.messages.map((msg: any) => {
+
+      const decrypted: DecryptedMessage[] = initialMessagesData.messages.map((msg: any) => {
         try {
           const isOwn = msg.senderId === identity?.id;
-          
           const content = decryptMessage(msg.ciphertext, msg.nonce, partnerPubKey, keyPair.privateKey);
           return {
             id: msg.id,
@@ -99,9 +132,10 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
             mediaUrl: msg.mediaUrl,
             createdAt: new Date(msg.createdAt),
             isOwn,
-            readAt: msg.readAt,
-          } as DecryptedMessage & { readAt?: string };
-        } catch (e) {
+            deliveredAt: msg.deliveredAt || null,
+            readAt: msg.readAt || null,
+          };
+        } catch {
           return {
             id: msg.id,
             conversationId,
@@ -110,14 +144,14 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
             content: JSON.stringify({ type: 'text', text: '<Decryption failed>' }),
             createdAt: new Date(msg.createdAt),
             isOwn: msg.senderId === identity?.id,
-          } as DecryptedMessage;
+          };
         }
       });
-      
+
       setMessages(decrypted);
       setIsDecrypting(false);
-      
-      // Mark all read on load if there are messages
+
+      // Mark all read on load
       if (decrypted.length > 0) {
         markRead.mutate({ conversationId });
         sendReadReceipt(conversationId);
@@ -125,39 +159,73 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
     }
   }, [initialMessagesData, keyPair, convData, identity]);
 
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const handleSendMessage = async (content: MessageContent) => {
     if (!keyPair || !convData) return;
-    
+
     const partnerPubKey = fromBase64(convData.participant.publicKey);
     const contentStr = JSON.stringify(content);
-    
     const { ciphertext, nonce } = encryptMessage(contentStr, partnerPubKey, keyPair.privateKey);
-    
-    // Send via WS
-    sendWsMessage({
-      type: 'message',
-      conversationId,
-      messageType: content.type,
-      ciphertext,
-      nonce,
-      mediaUrl: content.type === 'photo' ? (content as any).url : undefined
-    });
 
-    // Optimistically add to UI
+    // Optimistically add with temp ID (no tick yet — pending)
+    const tempId = `temp-${Date.now()}`;
     const tempMsg: DecryptedMessage = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       conversationId,
       senderId: identity!.id,
       type: content.type,
       content: contentStr,
       createdAt: new Date(),
-      isOwn: true
+      isOwn: true,
     };
     setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      // Send via HTTP (reliable, persisted to DB) — this gives us single tick ✓
+      const result = await sendMessageMutation.mutateAsync({
+        conversationId,
+        ciphertext,
+        nonce,
+        messageType: content.type,
+        mediaUrl: content.type === 'photo' ? (content as any).url : undefined,
+      });
+
+      // Replace temp message with confirmed message (single tick ✓)
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, id: result.id, createdAt: new Date(result.createdAt) }
+          : m
+      ));
+
+      // Relay via WS for real-time delivery to recipient (no DB write — already saved via HTTP)
+      sendWsMessage({
+        type: 'relay',
+        conversationId,
+        messageId: result.id,
+        messageType: content.type,
+        ciphertext,
+        nonce,
+        mediaUrl: content.type === 'photo' ? (content as any).url : undefined,
+        createdAt: result.createdAt,
+      } as any);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      // Mark the temp message as failed
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, id: 'failed-' + tempId } : m
+      ));
+    }
   };
 
   if (isMsgsLoading || isDecrypting || !convData) {
@@ -190,15 +258,15 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
         </div>
 
         {messages.map((msg) => (
-          <MessageBubble 
-            key={msg.id} 
-            message={msg} 
-            partnerPublicKey={convData?.participant.publicKey} 
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            partnerPublicKey={convData?.participant.publicKey}
           />
         ))}
-        
+
         {isTyping && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex self-start bg-surface-2 rounded-2xl rounded-tl-sm px-4 py-3 w-16"
@@ -213,7 +281,7 @@ export function ChatThread({ conversationId, onBack }: { conversationId: string;
         <div ref={messagesEndRef} />
       </div>
 
-      <ChatInput 
+      <ChatInput
         onSend={handleSendMessage}
         onTyping={(typing) => sendTypingIndicator(conversationId, typing)}
         conversationId={conversationId}

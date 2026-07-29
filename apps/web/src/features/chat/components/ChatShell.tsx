@@ -49,7 +49,7 @@ export function ChatShell({ onClose }: { onClose: () => void }) {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-space font-medium text-lg text-ink flex items-center gap-2">
-            The Vault <span className="text-brass">🔐</span>
+            Chat <span className="text-brass">💬</span>
           </h1>
         </div>
         <div className="flex items-center gap-4">

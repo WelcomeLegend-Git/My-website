@@ -3,11 +3,10 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import { DecryptedMessage, MessageContent } from '../types';
-import { downloadAndDecrypt } from '../crypto/photo-pipeline';
 import { getStickerById } from '../stickers';
-import { Loader2, Image as ImageIcon, Check, CheckCheck } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Check, CheckCheck, Clock } from 'lucide-react';
 
-export function MessageBubble({ message, partnerPublicKey }: { message: DecryptedMessage, partnerPublicKey?: string }) {
+export function MessageBubble({ message, partnerPublicKey }: { message: DecryptedMessage; partnerPublicKey?: string }) {
   const [content, setContent] = useState<MessageContent | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState(false);
@@ -19,23 +18,44 @@ export function MessageBubble({ message, partnerPublicKey }: { message: Decrypte
 
       if (parsed.type === 'photo') {
         if (message.mediaUrl) {
-           // In reality, we'd download and decrypt here
-           // downloadAndDecrypt(parsed.url, parsed.key, parsed.nonce).then(setPhotoDataUrl).catch(() => setPhotoError(true));
-           // For mock, just set error if url is missing.
-           setPhotoDataUrl(message.mediaUrl);
+          setPhotoDataUrl(message.mediaUrl);
         } else {
-           setPhotoError(true);
+          setPhotoError(true);
         }
       }
-    } catch (e) {
-      // Fallback if parsing fails
+    } catch {
       setContent({ type: 'text', text: message.content });
     }
-  }, [message]);
+  }, [message.content, message.mediaUrl]);
 
   const isOwn = message.isOwn;
+  const isFailed = message.id.startsWith('failed-');
+  const isPending = message.id.startsWith('temp-');
 
   if (!content) return null;
+
+  // Triple-tick logic for own messages:
+  // - Clock icon = pending (temp- id, not yet saved to server)
+  // - ✓ gray = saved to server (has real id, no deliveredAt)
+  // - ✓✓ gray = delivered to recipient device (has deliveredAt, no readAt)
+  // - ✓✓ blue = seen by recipient (has readAt)
+  const renderTicks = () => {
+    if (!isOwn) return null;
+
+    if (isFailed) {
+      return <span className="text-[9px] text-red-500 font-mono">Failed</span>;
+    }
+    if (isPending) {
+      return <Clock className="w-3 h-3 text-ink-muted/50" />;
+    }
+    if (message.readAt) {
+      return <CheckCheck className="w-3 h-3 text-blue-500" />;
+    }
+    if (message.deliveredAt) {
+      return <CheckCheck className="w-3 h-3 text-ink-muted" />;
+    }
+    return <Check className="w-3 h-3 text-ink-muted" />;
+  };
 
   return (
     <motion.div
@@ -49,15 +69,16 @@ export function MessageBubble({ message, partnerPublicKey }: { message: Decrypte
       <div
         className={clsx(
           "px-4 py-2.5 rounded-2xl relative group",
-          isOwn 
-            ? "bg-brass/20 text-brass border border-brass/30 rounded-tr-sm" 
-            : "bg-surface-2 text-ink border border-line rounded-tl-sm"
+          isOwn
+            ? "bg-brass/20 text-brass border border-brass/30 rounded-tr-sm"
+            : "bg-surface-2 text-ink border border-line rounded-tl-sm",
+          isFailed && "opacity-50"
         )}
       >
         {content.type === 'text' && (
           <p className="whitespace-pre-wrap break-words text-sm">{content.text}</p>
         )}
-        
+
         {content.type === 'sticker' && (
           <div className="text-6xl leading-none py-2">
             {getStickerById(content.id)?.emoji || '❓'}
@@ -87,9 +108,7 @@ export function MessageBubble({ message, partnerPublicKey }: { message: Decrypte
         <span className="text-[9px] text-ink-muted font-mono">
           {format(message.createdAt, 'HH:mm')}
         </span>
-        {isOwn && (
-           (message as any).readAt ? <CheckCheck className="w-3 h-3 text-blue-500" /> : <Check className="w-3 h-3 text-ink-muted" />
-        )}
+        {renderTicks()}
       </div>
     </motion.div>
   );

@@ -11,6 +11,8 @@ export interface DecryptedMessage {
   mediaUrl?: string | null;
   createdAt: Date;
   isOwn: boolean;
+  deliveredAt?: string | null;
+  readAt?: string | null;
 }
 
 // Parsed message content (after JSON.parse of content)
@@ -35,9 +37,9 @@ export interface GifContent {
 
 export interface PhotoContent {
   type: 'photo';
-  url: string; // Supabase Storage URL of encrypted blob
-  key: string; // Base64 symmetric key
-  nonce: string; // Base64 nonce
+  url: string;
+  key: string;
+  nonce: string;
   width?: number;
   height?: number;
 }
@@ -48,7 +50,7 @@ export type MessageContent = TextContent | StickerContent | GifContent | PhotoCo
 export interface ChatIdentity {
   id: string;
   userId: string;
-  publicKey: string; // Base64
+  publicKey: string;
   inviteCode: string;
   displayName: string | null;
 }
@@ -66,26 +68,30 @@ export interface ChatConversationSummary {
   lastMessagePreview?: string;
 }
 
-// WebSocket message types (client <-> server)
+// WebSocket message types (client -> server)
 export type WsClientMessage =
   | { type: 'auth'; token: string }
   | { type: 'message'; conversationId: string; ciphertext: string; nonce: string; messageType: ChatMessageType; mediaUrl?: string }
   | { type: 'typing'; conversationId: string; isTyping: boolean }
-  | { type: 'read'; conversationId: string };
+  | { type: 'read'; conversationId: string }
+  | { type: 'delivered'; conversationId: string; messageIds: string[] };
 
+// WebSocket message types (server -> client)
 export type WsServerMessage =
   | { type: 'auth_ok'; userId: string }
   | { type: 'auth_error'; message: string }
   | { type: 'message'; id: string; conversationId: string; senderId: string; ciphertext: string; nonce: string; messageType: ChatMessageType; mediaUrl?: string | null; createdAt: string }
+  | { type: 'message_ack'; id: string; conversationId: string; createdAt: string }
   | { type: 'typing'; conversationId: string; userId: string; isTyping: boolean }
   | { type: 'online'; userId: string; online: boolean }
+  | { type: 'delivery_receipt'; conversationId: string; messageIds: string[]; deliveredAt: string }
   | { type: 'read_receipt'; conversationId: string; readBy: string; readAt: string }
   | { type: 'error'; message: string };
 
 // Key pair stored locally
 export interface StoredKeyPair {
-  publicKey: string; // Base64
-  privateKey: string; // Base64
+  publicKey: string;
+  privateKey: string;
   createdAt: number;
 }
 

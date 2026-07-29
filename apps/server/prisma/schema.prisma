@@ -569,9 +569,11 @@ model ChatMessage {
   messageType     String   @default("text")
   mediaUrl        String?
   readAt          DateTime?
+  deliveredAt     DateTime?
   createdAt       DateTime @default(now())
 
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([conversationId, senderId, readAt])
+  @@index([conversationId, senderId, deliveredAt])
 }

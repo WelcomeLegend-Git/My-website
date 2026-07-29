@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { trpc } from "../../lib/trpc";
+import { VaultEntryPoint } from "../../features/chat/components/VaultEntryPoint";
 
 export const SettingsPage = () => {
   const { user } = useAuth();
@@ -400,6 +401,7 @@ export const SettingsPage = () => {
             </div>
           </div>
         </section>
+        <VaultEntryPoint />
       </div>
     </div>
   );

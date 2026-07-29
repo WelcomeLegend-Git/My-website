@@ -6,6 +6,7 @@ import { studyRouter } from "./routers/study";
 import { subjectsRouter } from "./routers/subjects";
 import { quizRouter } from "./routers/quiz";
 import { bookmarksRouter } from "./routers/bookmarks";
+import { chatRouter } from "./routers/chat";
 import { router } from "./trpc";
 
 export const appRouter = router({
@@ -17,6 +18,7 @@ export const appRouter = router({
   studyApi: studyRouter,
   quiz: quizRouter,
   bookmarks: bookmarksRouter,
+  chat: chatRouter,
 });
 
 export type AppRouter = typeof appRouter;

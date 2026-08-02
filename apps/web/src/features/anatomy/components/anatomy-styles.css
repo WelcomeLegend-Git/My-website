@@ -125,6 +125,7 @@ button:focus-visible, input:focus-visible, canvas:focus-visible {
   box-shadow: inset 0 0 0 3px #f7eee5;
 }
 .mobile-library-trigger { display: none; }
+.mobile-library-fab { display: none; }
 
 .workspace {
   max-width: 100%;
@@ -512,6 +513,23 @@ button.organ-card-image:focus-visible { outline: 2px solid #8b6fc4; outline-offs
   .main-nav { display: none; }
   .profile span { width: 34px; height: 34px; }
   .mobile-library-trigger { display: flex; }
+  .mobile-library-fab {
+    display: flex;
+    position: fixed;
+    bottom: 90px;
+    right: 16px;
+    z-index: 30;
+    background: var(--line);
+    color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.1);
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
   .workspace { display: block; margin-top: 8px; }
   .viewer-shell { height: 68vh; min-height: 520px; border-radius: 22px; }
   .organ-library {

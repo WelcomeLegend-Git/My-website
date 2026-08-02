@@ -14,6 +14,7 @@ import {
   FileText,
   Heart,
   LibraryBig,
+  Menu,
   Microscope,
   NotebookPen,
   Play,
@@ -187,6 +188,11 @@ export function AnatomyApp() {
 
       {modal && <LearningModal type={modal} organ={organ} onClose={() => setModal(null)} />}
       {mobileLibrary && <button className="drawer-backdrop" aria-label="Close library" onClick={() => setMobileLibrary(false)} />}
+      {!mobileLibrary && (
+        <button className="mobile-library-fab" aria-label="Open library" onClick={() => setMobileLibrary(true)}>
+          <Menu size={24} />
+        </button>
+      )}
       </main>
     </div>
   );

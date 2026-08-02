@@ -52,7 +52,6 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
         onLoading: (isLoading, value) => {
           setLoading(isLoading);
           setProgress(value);
-          if (isLoading) setSlowLoad(false);
         },
       });
       viewerRef.current = viewer;

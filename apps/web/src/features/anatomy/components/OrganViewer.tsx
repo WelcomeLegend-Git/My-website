@@ -5,7 +5,7 @@ import {
   Box,
   CircleDashed,
   Layers3,
-  Maximize2,
+  ArrowRightLeft,
   RotateCcw,
   ScanLine,
   Search,
@@ -31,17 +31,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   const [selected, setSelected] = useState<Hotspot | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [slowLoad, setSlowLoad] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
-
-  // A typical organ is ready well inside a second — flashing a loading panel for
-  // that reads as jank. It only appears if the fetch is genuinely slow; the flag
-  // is cleared by onLoading when the next load starts.
-  useEffect(() => {
-    if (!loading) return;
-    const timer = window.setTimeout(() => setSlowLoad(true), 900);
-    return () => window.clearTimeout(timer);
-  }, [loading]);
 
   useEffect(() => {
     organRef.current = organ;
@@ -166,9 +156,9 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
         ))}
       </ul>
 
-      {loading && slowLoad && (
+      {loading && (
         <div className="model-loader" role="status" aria-live="polite">
-          <div className="loader-orbit"><Maximize2 size={20} /></div>
+          <div className="loader-orbit"><ArrowRightLeft size={20} /></div>
           <strong>Preparing the {organ.name.toLowerCase()}</strong>
           <span>{Math.max(8, Math.round(progress * 100))}%</span>
         </div>

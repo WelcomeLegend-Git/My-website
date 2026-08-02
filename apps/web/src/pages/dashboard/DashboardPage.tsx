@@ -9,6 +9,7 @@ export const DashboardPage = () => {
 
   // Fetch real data
   const { data: mistakes } = trpc.mistakes.list.useQuery(undefined);
+  const { data: history } = trpc.studyApi.getHistory.useQuery({ limit: 50 });
 
   // Calculate real stats
   const stats = useMemo(() => {
@@ -27,12 +28,41 @@ export const DashboardPage = () => {
       ? Math.round((resolvedMistakes.length / totalMistakes) * 100)
       : 0;
 
+    // Calculate review streak
+    let streak = 0;
+    if (history && history.length > 0) {
+      const dates = (history as any[]).map(session => new Date(session.createdAt).toDateString());
+      const uniqueDates = [...new Set(dates)].map(d => new Date(d));
+      uniqueDates.sort((a, b) => b.getTime() - a.getTime()); // descending
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (uniqueDates[0].getTime() === today.getTime() || uniqueDates[0].getTime() === yesterday.getTime()) {
+        streak = 1;
+        let lastDate = uniqueDates[0];
+        for (let i = 1; i < uniqueDates.length; i++) {
+          const expectedPrevDate = new Date(lastDate);
+          expectedPrevDate.setDate(expectedPrevDate.getDate() - 1);
+          if (uniqueDates[i].getTime() === expectedPrevDate.getTime()) {
+            streak++;
+            lastDate = uniqueDates[i];
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
     return {
       resolvedCount: resolvedMistakes.length,
       bySubject,
       masteryPercentage,
+      streak,
     };
-  }, [mistakes]);
+  }, [mistakes, history]);
 
   useEffect(() => {
     setAiSection("study");
@@ -117,11 +147,11 @@ export const DashboardPage = () => {
             </div>
             <div className="space-y-2 sm:space-y-3">
               <div className="flex items-end gap-2 sm:gap-3">
-                <p className="text-4xl sm:text-5xl font-bold text-ink font-mono">5</p>
+                <p className="text-4xl sm:text-5xl font-bold text-ink font-mono">{stats.streak}</p>
                 <span className="text-base sm:text-lg font-medium text-brass mb-1.5 sm:mb-2 font-mono">days</span>
                 <div className="flex gap-1 mb-2">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-brass"></div>
+                    <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < stats.streak ? 'bg-brass' : 'bg-surface-2'}`}></div>
                   ))}
                 </div>
               </div>

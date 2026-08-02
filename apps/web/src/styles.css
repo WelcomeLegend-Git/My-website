@@ -19,6 +19,7 @@
   --brass-strong: #F0C06A;
   --brass-soft: rgba(217, 164, 65, 0.15);
   --signal: #5FAE8B;
+  --signal-soft: rgba(95, 174, 139, 0.15);
 
   color-scheme: dark;
 }
@@ -38,6 +39,7 @@
   --brass-strong: #7C4F0F;
   --brass-soft: rgba(166, 110, 23, 0.10);
   --signal: #3C7A5C;
+  --signal-soft: rgba(60, 122, 92, 0.15);
 
   color-scheme: light;
 }

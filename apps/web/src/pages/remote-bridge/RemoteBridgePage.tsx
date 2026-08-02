@@ -963,7 +963,7 @@ function SettingsPanel({
         {/* Live Status Indicator */}
         <div style={{
           marginTop: 8, padding: "8px 12px", borderRadius: 8,
-          backgroundColor: (pushEnabled && phoneToggle) ? "var(--signal)" :
+          backgroundColor: (pushEnabled && phoneToggle) ? "var(--signal-soft)" :
                            (!pushEnabled && !phoneToggle) ? "var(--line)" :
                            "var(--brass-soft)",
           display: "flex", alignItems: "center", gap: 8,
@@ -971,7 +971,13 @@ function SettingsPanel({
           <span style={{ fontSize: 16 }}>
             {(pushEnabled && phoneToggle) ? "🟢" : (!pushEnabled && !phoneToggle) ? "⚪" : "⚠️"}
           </span>
-          <span style={{ color: "var(--ink-muted)", fontSize: 12 }}>
+          <span style={{ 
+            color: (pushEnabled && phoneToggle) ? "var(--signal)" : 
+                   (!pushEnabled && !phoneToggle) ? "var(--ink-muted)" : 
+                   "var(--brass)", 
+            fontSize: 12,
+            fontWeight: 500
+          }}>
             {(pushEnabled && phoneToggle) ? "Background notifications active — you'll receive call alerts" :
              (!pushEnabled && !phoneToggle) ? "Background notifications disabled on both devices" :
              pushEnabled && !phoneToggle ? "Phone toggle is OFF — enable it from AuraRing app to receive alerts" :
@@ -1594,8 +1600,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: 48,
     height: 48,
     borderRadius: 24,
-    background: "var(--signal)",
-    border: "1px solid var(--signal)",
+    background: "var(--signal-soft)",
+    border: "1px solid var(--signal-soft)",
     color: "var(--signal)",
     display: "flex",
     alignItems: "center",

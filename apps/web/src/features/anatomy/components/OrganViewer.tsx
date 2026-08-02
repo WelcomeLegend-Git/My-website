@@ -89,11 +89,8 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
     const viewer = viewerRef.current;
     if (!viewer) return;
     if (tool === "rotate") onAutoRotate(!autoRotate);
-    if (tool === "zoom") viewer.zoom(-1);
-    if (tool === "isolate") setActiveTool(viewer.toggleIsolate() ? tool : null);
     if (tool === "section") setActiveTool(viewer.toggleCrossSection() ? tool : null);
     if (tool === "layers") setActiveTool(viewer.toggleLayers() ? tool : null);
-    if (tool === "compare") onCompare();
     if (tool === "reset") {
       viewer.reset();
       setActiveTool(null);
@@ -102,11 +99,8 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
 
   const tools = [
     { id: "rotate", label: "Rotate", icon: RotateCcw },
-    { id: "zoom", label: "Zoom", icon: Search },
-    { id: "isolate", label: "Isolate", icon: CircleDashed },
     { id: "section", label: "Cross-section", icon: ScanLine },
     { id: "layers", label: "Layers", icon: Layers3 },
-    { id: "compare", label: "Compare", icon: Box },
     { id: "reset", label: "Reset", icon: RotateCcw },
   ];
 

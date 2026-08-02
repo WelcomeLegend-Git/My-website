@@ -286,27 +286,7 @@ export const ShellLayout = () => {
 
               {/* Right Section: Theme toggle, User & Actions */}
               <div className="flex items-center gap-1.5 sm:gap-3 relative">
-                {/* Theme Toggle */}
-                <button
-                  type="button"
-                  onClick={cycleTheme}
-                  className="flex items-center justify-center w-9 h-9 rounded-lg border border-line text-ink-muted hover:text-brass hover:border-brass/40 transition-all duration-200"
-                  title={`Theme: ${themeChoice}`}
-                >
-                  {themeChoice === "system" ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  ) : isDark ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  )}
-                </button>
+
 
                 {/* AI Toggle - Desktop */}
                 <button
@@ -367,6 +347,25 @@ export const ShellLayout = () => {
                     </div>
 
                     <div className="p-2 space-y-1 text-sm">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cycleTheme();
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-ink hover:bg-surface-2 hover:text-brass transition-colors cursor-pointer text-left"
+                      >
+                        <span className="material-icons text-base text-ink-muted">
+                          {themeChoice === "system" ? "desktop_windows" : isDark ? "dark_mode" : "light_mode"}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            Theme: {themeChoice.charAt(0).toUpperCase() + themeChoice.slice(1)}
+                          </span>
+                          <span className="text-[11px] text-ink-muted">Switch appearance</span>
+                        </div>
+                      </button>
+
                       <Link
                         to="/settings"
                         onClick={() => {

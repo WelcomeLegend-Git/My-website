@@ -55,15 +55,14 @@ const App = () => {
           {/* Developer journal routes (aliases) */}
           <Route path="blog/my-journey" element={<MyJourneyPage />} />
           <Route path="blog/my-tech" element={<MyTechDeepDivePage />} />
+          
+          <Route path="anatomy" element={<AnatomyPage />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
         {/* Remote Bridge — full-screen, no shell layout (optimized for tablet) */}
         <Route path="remote-bridge" element={<RemoteBridgePage />} />
-        
-        {/* Full-screen webgl layout */}
-        <Route path="anatomy" element={<AnatomyPage />} />
       </Route>
 
       {/* Public Ludo routes: invitees can enter a room as a temporary game guest. */}

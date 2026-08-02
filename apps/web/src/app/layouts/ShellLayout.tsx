@@ -79,6 +79,8 @@ export const ShellLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const isStudyCoach = location.pathname.startsWith("/study-coach");
+  const isAnatomy = location.pathname.startsWith("/anatomy");
+  const isFullScreenRoute = isStudyCoach || isAnatomy;
   const [aiOpen, setAiOpen] = useState(false);
   const [showMentor, setShowMentor] = useState(true);
   const [aiContext, setAiContext] = useState<Record<string, unknown> | undefined>(undefined);
@@ -218,7 +220,7 @@ export const ShellLayout = () => {
     <div
       className={
         "relative flex bg-paper text-ink " +
-        (isStudyCoach ? "h-screen overflow-hidden" : "min-h-screen")
+        (isFullScreenRoute ? "h-screen overflow-hidden" : "min-h-screen")
       }
     >
       {/* Mobile/Tablet AI Sidebar Overlay */}
@@ -448,7 +450,7 @@ export const ShellLayout = () => {
             </div>
 
             {/* Mobile Navigation */}
-            {!isStudyCoach && (
+            {!isFullScreenRoute && (
               <nav className="lg:hidden border-t border-line py-2 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-1.5 sm:gap-2 min-w-max px-1">
                   {navItems.map((item) => (
@@ -483,15 +485,15 @@ export const ShellLayout = () => {
           <main
             className={
               "flex-1 w-full min-w-0 fade-in-up " +
-              (isStudyCoach
+              (isFullScreenRoute
                 ? "px-0 py-0 flex flex-col min-h-0"
                 : "px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8")
             }
           >
             <div
               className={
-                isStudyCoach
-                  ? "flex-1 min-h-0 overflow-hidden"
+                isFullScreenRoute
+                  ? "flex-1 min-h-0 overflow-hidden flex flex-col"
                   : "max-w-7xl mx-auto"
               }
             >

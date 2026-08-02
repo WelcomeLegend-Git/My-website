@@ -541,7 +541,8 @@ button.organ-card-image:focus-visible { outline: 2px solid #8b6fc4; outline-offs
     height: min(76vh, 650px);
     transform: translateY(110%);
     border-radius: 26px;
-    background: #fffaf3;
+    background: var(--paper);
+    border: 1px solid var(--line);
   }
   .organ-library.open { transform: translateY(0); }
   .panel-heading .mobile-close { display: grid; margin-left: auto; margin-right: 7px; }

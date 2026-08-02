@@ -493,7 +493,7 @@ export const ShellLayout = () => {
             <div
               className={
                 isFullScreenRoute
-                  ? "flex-1 min-h-0 overflow-hidden flex flex-col"
+                  ? "flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col"
                   : "max-w-7xl mx-auto"
               }
             >

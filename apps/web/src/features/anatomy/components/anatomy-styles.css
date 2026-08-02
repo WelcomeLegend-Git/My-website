@@ -27,11 +27,9 @@ button:focus-visible, input:focus-visible, canvas:focus-visible {
   outline: 2px solid #8b6fc4;
   outline-offset: 3px;
 }
-
 .app-shell {
-  height: 100%;
+  min-height: 100%;
   padding: 12px;
-  overflow: hidden;
 }
 
 .topbar {
@@ -502,13 +500,13 @@ button.organ-card-image:focus-visible { outline: 2px solid #8b6fc4; outline-offs
   .info-panel { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px 22px; max-height: none; }
   .info-panel .description, .info-panel .rule, .info-panel h2, .key-facts, .medical-note { grid-column: 2; }
   .info-kicker, .info-title-row { grid-column: 1; }
-  .info-panel { height: 330px; }
+  .info-panel { height: auto; }
   .workspace { height: auto; }
   .organ-library, .viewer-shell { height: 650px; }
 }
 
 @media (max-width: 760px) {
-  .app-shell { padding: 10px; overflow: hidden; }
+  .app-shell { padding: 10px; }
   .topbar { height: 58px; grid-template-columns: 1fr auto auto; }
   .brand strong { font-size: 29px; }
   .main-nav { display: none; }

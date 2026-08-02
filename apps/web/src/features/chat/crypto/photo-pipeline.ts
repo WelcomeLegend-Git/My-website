@@ -97,7 +97,6 @@ export async function encryptAndUpload(
   if (error) {
     throw new Error(`Failed to upload encrypted photo: ${error.message}`);
   }
-  
   const { data: urlData } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(fileName);
@@ -124,9 +123,10 @@ export async function downloadAndDecrypt(
   }
   
   const encryptedBytes = new Uint8Array(await response.arrayBuffer());
-  const decryptedBytes = decryptMedia(encryptedBytes, keyB64, nonceB64);
+  const decrypted = decryptMedia(encryptedBytes, keyB64, nonceB64);
   
-  const blob = new Blob([decryptedBytes], { type: 'image/jpeg' });
+  // @ts-expect-error ArrayBufferLike / SharedArrayBuffer incompatibility
+  const blob = new Blob([decrypted.buffer], { type: 'image/jpeg' });
   return URL.createObjectURL(blob);
 }
 

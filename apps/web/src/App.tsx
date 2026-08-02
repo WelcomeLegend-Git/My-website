@@ -22,6 +22,7 @@ import { QuizResultsPage } from "./pages/quiz/QuizResultsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { BookmarksPage } from "./pages/bookmarks/BookmarksPage";
 import { RemoteBridgePage } from "./pages/remote-bridge/RemoteBridgePage";
+import { AnatomyPage } from "./pages/anatomy/AnatomyPage";
 import { LudoPage } from "./pages/LudoPage";
 
 const App = () => {
@@ -60,6 +61,9 @@ const App = () => {
 
         {/* Remote Bridge — full-screen, no shell layout (optimized for tablet) */}
         <Route path="remote-bridge" element={<RemoteBridgePage />} />
+        
+        {/* Full-screen webgl layout */}
+        <Route path="anatomy" element={<AnatomyPage />} />
       </Route>
 
       {/* Public Ludo routes: invitees can enter a room as a temporary game guest. */}

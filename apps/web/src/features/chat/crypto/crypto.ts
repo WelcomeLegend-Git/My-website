@@ -52,7 +52,7 @@ export function fromBase64(b64: string): Uint8Array {
  */
 export function getFingerprint(publicKey: Uint8Array): string {
   ensureReady();
-  const hash = sodium.crypto_generichash(16, publicKey);
+  const hash = sodium.crypto_generichash(16, publicKey, new Uint8Array());
   // Base32 encode first 4 bytes → 6-7 chars, take first 6
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
   let code = '';

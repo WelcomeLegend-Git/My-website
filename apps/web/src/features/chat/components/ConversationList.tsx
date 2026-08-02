@@ -65,7 +65,7 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
                     </div>
                     <div className="flex justify-between items-center mt-1">
                       <p className="text-xs text-ink-muted truncate font-mono">
-                        {conv.lastMessagePreview || 'New conversation'}
+                        {(conv as any).lastMessagePreview || 'New conversation'}
                       </p>
                       {((conv as any).unreadCount || 0) > 0 && (
                         <span className="bg-brass text-paper text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">

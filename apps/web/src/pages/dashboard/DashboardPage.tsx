@@ -12,8 +12,8 @@ export const DashboardPage = () => {
 
   // Calculate real stats
   const stats = useMemo(() => {
-    const resolvedMistakes = mistakes?.filter(m => m.status === 'resolved') || [];
-    const totalMistakes = mistakes?.length || 0;
+    const resolvedMistakes = (mistakes as any[])?.filter(m => m.status === 'resolved') || [];
+    const totalMistakes = (mistakes as any[])?.length || 0;
     
     // Calculate resolved by subject
     const bySubject: Record<string, number> = {};
@@ -244,6 +244,19 @@ export const DashboardPage = () => {
             </div>
             <p className="font-semibold text-ink text-sm">Ludo Arena</p>
             <p className="text-xs text-ink-muted mt-1">Play solo or with friends</p>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => navigate('/anatomy')}
+            className="p-4 rounded-2xl border border-line hover:border-brass/50 bg-surface-2 hover:bg-surface transition-all duration-300 hover-lift text-left">
+            <div className="w-10 h-10 rounded-xl bg-brass-soft flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <p className="font-semibold text-ink text-sm">3D Anatomy</p>
+            <p className="text-xs text-ink-muted mt-1">WebGL Explorer</p>
           </button>
         </div>
       </div>

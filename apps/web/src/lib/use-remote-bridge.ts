@@ -128,6 +128,9 @@ export interface CallEvent {
   photos?: RemotePhotoItem[];
   photoData?: PhotoDataPayload;
   screenSnapshot?: ScreenSnapshotPayload;
+  totalPhotosCount?: number;
+  photoPage?: number;
+  photoLimit?: number;
 }
 
 export interface BridgeStatus {
@@ -143,6 +146,9 @@ export interface BridgeStatus {
   remoteSettings: RemoteAppSettings | null;
   authError: string | null;
   photos: RemotePhotoItem[];
+  totalPhotosCount: number;
+  photoPage: number;
+  photoPageSize: number;
   currentPhotoData: PhotoDataPayload | null;
   screenSnapshot: ScreenSnapshotPayload | null;
   isCapturingScreen: boolean;
@@ -389,6 +395,9 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     remoteSettings: null,
     authError: null,
     photos: [],
+    totalPhotosCount: 0,
+    photoPage: 0,
+    photoPageSize: 40,
     currentPhotoData: null,
     screenSnapshot: null,
     isCapturingScreen: false,
@@ -601,7 +610,15 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     }
                   } else if (callEvent.eventType === "PHOTOS_LIST_RESPONSE") {
                     if (callEvent.photos) {
-                      setStatus((s) => ({ ...s, phoneOnline: true, photos: callEvent.photos!, isLoadingPhotos: false }));
+                      setStatus((s) => ({
+                        ...s,
+                        phoneOnline: true,
+                        photos: callEvent.photos!,
+                        totalPhotosCount: callEvent.totalPhotosCount || callEvent.photos!.length,
+                        photoPage: callEvent.photoPage ?? s.photoPage,
+                        photoPageSize: callEvent.photoLimit || 40,
+                        isLoadingPhotos: false,
+                      }));
                     }
                   } else if (callEvent.eventType === "PHOTO_DATA_RESPONSE") {
                     if (callEvent.photoData) {

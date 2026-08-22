@@ -310,9 +310,13 @@ export function RemoteBridgePage() {
           {activeTab === "photos" && (
             <PhotosPanel
               photos={status.photos || []}
+              totalPhotosCount={status.totalPhotosCount}
+              currentPage={status.photoPage}
+              pageSize={status.photoPageSize}
               isLoading={status.isLoadingPhotos}
               currentPhotoData={status.currentPhotoData}
-              onRefresh={() => getPhotosList(0, 40)}
+              onRefresh={() => getPhotosList(status.photoPage, 40)}
+              onPageChange={(page) => getPhotosList(page, 40)}
               onFetchPhoto={fetchPhotoData}
               onClearPhoto={clearActivePhoto}
               phoneOnline={status.phoneOnline}
@@ -935,17 +939,25 @@ function SettingToggle({
 
 function PhotosPanel({
   photos,
+  totalPhotosCount,
+  currentPage,
+  pageSize,
   isLoading,
   currentPhotoData,
   onRefresh,
+  onPageChange,
   onFetchPhoto,
   onClearPhoto,
   phoneOnline,
 }: {
   photos: RemotePhotoItem[];
+  totalPhotosCount: number;
+  currentPage: number;
+  pageSize: number;
   isLoading: boolean;
   currentPhotoData: PhotoDataPayload | null;
   onRefresh: () => void;
+  onPageChange: (page: number) => void;
   onFetchPhoto: (photoId: number) => void;
   onClearPhoto: () => void;
   phoneOnline: boolean;
@@ -961,13 +973,33 @@ function PhotosPanel({
     document.body.removeChild(link);
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalPhotosCount / pageSize));
+  const startItem = totalPhotosCount > 0 ? currentPage * pageSize + 1 : 0;
+  const endItem = Math.min(totalPhotosCount, (currentPage + 1) * pageSize);
+
+  // Generate visible page numbers
+  const getPageNumbers = () => {
+    const delta = 2;
+    const range: number[] = [];
+    for (
+      let i = Math.max(0, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+    return range;
+  };
+
   return (
     <div style={styles.card} className="rb-glass">
       <div style={styles.panelHeader}>
         <div>
           <h2 style={{ margin: "0 0 4px 0", fontSize: 20 }}>📸 Phone Photos & Gallery</h2>
           <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-            {photos.length} photos loaded securely from phone gallery
+            {totalPhotosCount > 0
+              ? `Showing photos ${startItem}–${endItem} of ${totalPhotosCount.toLocaleString()}`
+              : `${photos.length} photos loaded from phone`}
           </p>
         </div>
         <button
@@ -990,80 +1022,161 @@ function PhotosPanel({
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: 12,
-            marginTop: 16,
-          }}
-        >
-          {photos.map((photo) => (
-            <div
-              key={photo.id}
-              onClick={() => {
-                setSelectedPhoto(photo);
-                onFetchPhoto(photo.id);
-              }}
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12,
-                overflow: "hidden",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                flexDirection: "column",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#D4AF37";
-                e.currentTarget.style.transform = "scale(1.02)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
+        <>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: 12,
+              marginTop: 16,
+            }}
+          >
+            {photos.map((photo) => (
               <div
+                key={photo.id}
+                onClick={() => {
+                  setSelectedPhoto(photo);
+                  onFetchPhoto(photo.id);
+                }}
                 style={{
-                  width: "100%",
-                  aspectRatio: "1/1",
-                  background: "#161B22",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 12,
                   overflow: "hidden",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#D4AF37";
+                  e.currentTarget.style.transform = "scale(1.02)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
-                {photo.thumbnailBase64 ? (
-                  <img
-                    src={`data:image/jpeg;base64,${photo.thumbnailBase64}`}
-                    alt={photo.displayName}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 32 }}>🖼️</span>
-                )}
-              </div>
-              <div style={{ padding: 8 }}>
                 <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
+                    width: "100%",
+                    aspectRatio: "1/1",
+                    background: "#161B22",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
                   }}
                 >
-                  {photo.displayName}
+                  {photo.thumbnailBase64 ? (
+                    <img
+                      src={`data:image/jpeg;base64,${photo.thumbnailBase64}`}
+                      alt={photo.displayName}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 32 }}>🖼️</span>
+                  )}
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-                  {new Date(photo.dateAdded).toLocaleDateString()} • {(photo.size / (1024 * 1024)).toFixed(1)} MB
+                <div style={{ padding: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {photo.displayName}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                    {new Date(photo.dateAdded).toLocaleDateString()} • {(photo.size / (1024 * 1024)).toFixed(1)} MB
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 28,
+                padding: "16px 0",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                onClick={() => onPageChange(0)}
+                disabled={currentPage === 0 || isLoading}
+                style={{
+                  ...styles.filterBtn,
+                  opacity: currentPage === 0 ? 0.4 : 1,
+                  padding: "8px 12px",
+                }}
+                title="First Page"
+              >
+                « First
+              </button>
+              <button
+                onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+                disabled={currentPage === 0 || isLoading}
+                style={{
+                  ...styles.filterBtn,
+                  opacity: currentPage === 0 ? 0.4 : 1,
+                  padding: "8px 14px",
+                }}
+              >
+                ‹ Prev
+              </button>
+
+              {getPageNumbers().map((p) => (
+                <button
+                  key={p}
+                  onClick={() => onPageChange(p)}
+                  disabled={isLoading}
+                  style={{
+                    ...(p === currentPage ? styles.filterBtnActive : styles.filterBtn),
+                    padding: "8px 14px",
+                    fontWeight: p === currentPage ? 800 : 600,
+                  }}
+                >
+                  {p + 1}
+                </button>
+              ))}
+
+              <button
+                onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
+                disabled={currentPage >= totalPages - 1 || isLoading}
+                style={{
+                  ...styles.filterBtn,
+                  opacity: currentPage >= totalPages - 1 ? 0.4 : 1,
+                  padding: "8px 14px",
+                }}
+              >
+                Next ›
+              </button>
+              <button
+                onClick={() => onPageChange(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1 || isLoading}
+                style={{
+                  ...styles.filterBtn,
+                  opacity: currentPage >= totalPages - 1 ? 0.4 : 1,
+                  padding: "8px 12px",
+                }}
+                title="Last Page"
+              >
+                Last »
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Lightbox Modal */}

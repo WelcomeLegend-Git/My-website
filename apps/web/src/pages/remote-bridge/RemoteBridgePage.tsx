@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import {
   useRemoteBridge,
@@ -895,7 +896,7 @@ function CallLogsPanel({
       )}
 
       {/* ─── Contact History Details Modal (Matching Google Phone UI) ─── */}
-      {selectedContact && (
+      {selectedContact && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -903,14 +904,18 @@ function CallLogsPanel({
             left: 0,
             right: 0,
             bottom: 0,
+            width: "100vw",
+            height: "100vh",
             background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(12px)",
-            zIndex: 150,
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            zIndex: 99999,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             padding: 16,
+            boxSizing: "border-box",
           }}
           onClick={() => setSelectedContact(null)}
         >
@@ -1144,7 +1149,8 @@ function CallLogsPanel({
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1686,7 +1692,7 @@ function PhotosPanel({
       )}
 
       {/* Lightbox Modal */}
-      {(selectedPhoto || currentPhotoData) && (
+      {(selectedPhoto || currentPhotoData) && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -1694,14 +1700,18 @@ function PhotosPanel({
             left: 0,
             right: 0,
             bottom: 0,
+            width: "100vw",
+            height: "100vh",
             background: "rgba(0,0,0,0.85)",
             backdropFilter: "blur(10px)",
-            zIndex: 100,
+            WebkitBackdropFilter: "blur(10px)",
+            zIndex: 99999,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             padding: 24,
+            boxSizing: "border-box",
           }}
           onClick={() => {
             setSelectedPhoto(null);
@@ -1761,10 +1771,11 @@ function PhotosPanel({
               style={{
                 padding: 16,
                 display: "flex",
-                alignItems: "center",
                 justifyContent: "center",
-                maxHeight: "75vh",
-                overflow: "auto",
+                alignItems: "center",
+                maxWidth: "100%",
+                maxHeight: "calc(90vh - 60px)",
+                overflow: "hidden",
               }}
             >
               {currentPhotoData ? (
@@ -1773,13 +1784,13 @@ function PhotosPanel({
                   alt={currentPhotoData.displayName}
                   style={{
                     maxWidth: "100%",
-                    maxHeight: "70vh",
-                    borderRadius: 8,
+                    maxHeight: "75vh",
                     objectFit: "contain",
+                    borderRadius: 8,
                   }}
                 />
               ) : selectedPhoto?.thumbnailBase64 ? (
-                <div style={{ textAlign: "center" }}>
+                <div style={{ position: "relative", textAlign: "center" }}>
                   <img
                     src={`data:image/jpeg;base64,${selectedPhoto.thumbnailBase64}`}
                     alt="Loading..."
@@ -1801,7 +1812,8 @@ function PhotosPanel({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -2320,7 +2332,7 @@ function NotificationCenterPanel({
       )}
 
       {/* Picture Lightbox Modal */}
-      {previewImage && (
+      {previewImage && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -2328,14 +2340,18 @@ function NotificationCenterPanel({
             left: 0,
             right: 0,
             bottom: 0,
+            width: "100vw",
+            height: "100vh",
             background: "rgba(0,0,0,0.85)",
             backdropFilter: "blur(10px)",
-            zIndex: 100,
+            WebkitBackdropFilter: "blur(10px)",
+            zIndex: 99999,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             padding: 24,
+            boxSizing: "border-box",
           }}
           onClick={() => setPreviewImage(null)}
         >
@@ -2382,7 +2398,8 @@ function NotificationCenterPanel({
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

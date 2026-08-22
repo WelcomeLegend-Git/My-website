@@ -1,5 +1,5 @@
-import { FINISH_POSITION, HOME_POSITION, type LudoGameState, type PlayerColor, type TokenPosition } from "./types";
 import { HOME_LANE_START, getRingIndex } from "./engine";
+import { FINISH_POSITION, HOME_POSITION, type LudoGameState, type PlayerColor, type TokenPosition } from "./types";
 
 export interface BoardPoint {
   x: number;

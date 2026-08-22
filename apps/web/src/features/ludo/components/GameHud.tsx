@@ -1,10 +1,10 @@
 import { ArrowLeft, Bot, Clock3, Crown, Gauge, Sparkles, Volume2, VolumeX, Wifi } from "lucide-react";
 
-import { Dice3D } from "./Dice3D";
 
 import { COLOR_META } from "../game/board";
 import { getActivePlayer } from "../game/engine";
 import { FINISH_POSITION, type LudoGameState } from "../game/types";
+import { Dice3D } from "./Dice3D";
 
 
 

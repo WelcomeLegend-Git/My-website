@@ -59,7 +59,7 @@ const emitCapture = (x: number, y: number, color?: string): Particle[] => {
   return particles;
 };
 
-const emitVictory = (canvasW: number, _canvasH: number): Particle[] => {
+const emitVictory = (canvasW: number): Particle[] => {
   const particles: Particle[] = [];
   for (let i = 0; i < 90; i++) {
     particles.push({
@@ -157,7 +157,7 @@ export const emitParticles = (
 ): Particle[] => {
   switch (preset) {
     case "capture": return emitCapture(origin.x, origin.y, color);
-    case "victory": return emitVictory(canvasSize.w, canvasSize.h);
+    case "victory": return emitVictory(canvasSize.w);
     case "six": return emitSix(origin.x, origin.y);
     case "finishToken": return emitFinishToken(origin.x, origin.y, color);
     case "diceDust": return emitDiceDust(origin.x, origin.y);

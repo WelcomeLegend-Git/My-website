@@ -17,12 +17,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { LudoSoundEngine } from "./audio/SoundEngine";
+import { GameHud } from "./components/GameHud";
+import { LudoBoard } from "./components/LudoBoard";
+import { PassDeviceOverlay } from "./components/PassDeviceOverlay";
 import { ParticleCanvas } from "./effects/ParticleCanvas";
 import { useParticles } from "./effects/useParticles";
 
-import { LudoBoard } from "./components/LudoBoard";
-import { GameHud } from "./components/GameHud";
-import { PassDeviceOverlay } from "./components/PassDeviceOverlay";
 import { COLOR_META } from "./game/board";
 import { getActivePlayer } from "./game/engine";
 import { PLAYER_COLORS, type GameMode, type LudoPlayer } from "./game/types";
@@ -103,8 +103,10 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
 
   // --- Sound engine (top-level, unconditional) ---
   const soundRef = useRef<LudoSoundEngine | null>(null);
-  if (!soundRef.current) soundRef.current = new LudoSoundEngine();
-  soundRef.current.muted = muted;
+  useEffect(() => {
+    if (!soundRef.current) soundRef.current = new LudoSoundEngine();
+    soundRef.current.muted = muted;
+  }, [muted]);
 
   // --- Particle system (top-level, unconditional) ---
   const particles = useParticles();
@@ -150,7 +152,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     }
     prevDiceValueRef.current = state.diceValue;
     prevPhaseRef.current = state.phase;
-  }, [controller.game?.diceValue, controller.game?.phase, particles]);
+  }, [controller.game, controller.game?.diceValue, controller.game?.phase, particles]);
 
   useEffect(() => {
     const state = controller.game;
@@ -180,7 +182,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
         particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, active.color);
       }
     }
-  }, [controller.lastMoveResult, controller.game?.revision, particles]);
+  }, [controller.game, controller.lastMoveResult, controller.game?.revision, particles]);
 
   useEffect(() => {
     const state = controller.game;
@@ -191,13 +193,13 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
       const rect = shell.getBoundingClientRect();
       particles.emit("victory", { x: rect.width / 2, y: 0 });
     }
-  }, [controller.game?.phase, particles]);
+  }, [controller.game, controller.game?.phase, particles]);
 
   useEffect(() => {
     const state = controller.game;
     if (!state || state.phase !== "rolling" || state.revision <= 1) return;
     soundRef.current?.turnChime();
-  }, [controller.game?.activePlayerIndex, controller.game?.phase, controller.game?.revision]);
+  }, [controller.game, controller.game?.activePlayerIndex, controller.game?.phase, controller.game?.revision]);
 
   useEffect(() => {
     const engine = soundRef.current;
@@ -327,7 +329,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
                 interactionDisabled={Boolean(controller.handoffPlayerName) || active.isBot}
                 boardShaking={boardShaking}
               />
-              <ParticleCanvas particles={particles} />
+              <ParticleCanvas bindCanvas={particles.bindCanvas} />
               {showSixBurst && <div className="ludo-six-burst" aria-hidden="true">SIX!</div>}
             </div>
           </div>

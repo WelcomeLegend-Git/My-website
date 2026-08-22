@@ -3,17 +3,21 @@ import { useCallback, useEffect, useRef } from "react";
 import { emitParticles, renderParticle, updateParticle, type Particle, type ParticlePreset } from "./particles";
 
 export interface ParticleAPI {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  bindCanvas: (el: HTMLCanvasElement | null) => void;
   emit: (preset: ParticlePreset, origin: { x: number; y: number }, color?: string) => void;
 }
 
 export const useParticles = (): ParticleAPI => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null) as React.MutableRefObject<HTMLCanvasElement | null>;
   const particlesRef = useRef<Particle[]>([]);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
-  const loop = useCallback((time: number) => {
+  const bindCanvas = useCallback((el: HTMLCanvasElement | null) => {
+    canvasRef.current = el;
+  }, []);
+
+  const loop = useCallback(function loop(time: number) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -57,5 +61,5 @@ export const useParticles = (): ParticleAPI => {
     };
   }, []);
 
-  return { canvasRef, emit };
+  return { bindCanvas, emit };
 };

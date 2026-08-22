@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BOARD_UNITS,
   COLOR_META,
   getTokenPoint,
   HOME_LANE_CELLS,

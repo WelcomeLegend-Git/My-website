@@ -1,18 +1,17 @@
 import { useEffect, useRef } from "react";
 
-import type { ParticleAPI } from "../effects/useParticles";
-
 interface ParticleCanvasProps {
-  particles: ParticleAPI;
+  bindCanvas: (el: HTMLCanvasElement | null) => void;
 }
 
-export const ParticleCanvas = ({ particles }: ParticleCanvasProps) => {
+export const ParticleCanvas = ({ bindCanvas }: ParticleCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const canvas = particles.canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!container) return;
+    const canvas = container.querySelector("canvas");
+    if (!canvas) return;
 
     const resize = (): void => {
       const rect = container.getBoundingClientRect();
@@ -28,7 +27,7 @@ export const ParticleCanvas = ({ particles }: ParticleCanvasProps) => {
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [particles.canvasRef]);
+  }, []);
 
   return (
     <div
@@ -42,7 +41,7 @@ export const ParticleCanvas = ({ particles }: ParticleCanvasProps) => {
       }}
     >
       <canvas
-        ref={particles.canvasRef as any}
+        ref={bindCanvas}
         style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       />
     </div>

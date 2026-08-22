@@ -14,8 +14,8 @@ import {
   advanceTurn,
   START_RING_INDEX,
 } from "./engine";
-import type { LudoPlayer, LudoGameState, GameSetup, LudoRules } from "./types";
-import { FINISH_POSITION, HOME_POSITION, TOKENS_PER_PLAYER, DEFAULT_LUDO_RULES } from "./types";
+import type { LudoPlayer, LudoGameState, LudoRules } from "./types";
+import { FINISH_POSITION, HOME_POSITION } from "./types";
 
 /* ---------- helpers ---------- */
 
@@ -481,14 +481,10 @@ describe("Ludo engine — edge cases", () => {
   });
 
   it("moving an illegal token throws LudoRuleError", () => {
-    let state = freshGame();
-    state = withToken(state, "red", 0, 10);
+    const state = freshGame();
     const rolled = rollDice(state, 6, 2_000);
-    // Try to move token 3 which is still at home (not a 6 destination from home would need another 6)
-    // Actually token 3 IS legal on a 6 (leaving home). Let's set up a scenario with no legal move for a specific token
-    const rolled2 = rollDice(freshGame(), 6, 2_000);
     // All tokens are legal (all at home, roll is 6), so let's make a moving state and try an out-of-range token
-    const movingState = { ...rolled2, legalTokenIndexes: [0, 1] };
+    const movingState = { ...rolled, legalTokenIndexes: [0, 1] };
     expect(() => moveToken(movingState, 3, 2_100)).toThrow("cannot use this dice roll");
   });
 

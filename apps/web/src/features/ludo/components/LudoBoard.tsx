@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import type { KeyboardEvent } from "react";
 
-import { isSafeRingIndex } from "../game/engine";
 import {
   BOARD_UNITS,
   COLOR_META,
@@ -11,6 +10,7 @@ import {
   stackOffset,
   tokensAtPoint,
 } from "../game/board";
+import { isSafeRingIndex } from "../game/engine";
 import { FINISH_POSITION, type LudoGameState, type PlayerColor } from "../game/types";
 
 const SVG_SIZE = 600;

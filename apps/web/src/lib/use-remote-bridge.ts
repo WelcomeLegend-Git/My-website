@@ -28,6 +28,58 @@ export interface RecentCall {
   duration: number;
 }
 
+export interface FullCallLog {
+  number: string;
+  name: string | null;
+  type: number;
+  date: number;
+  duration: number;
+  simSlot: string;
+  isPrivate?: boolean;
+}
+
+export interface CallRecordingItem {
+  id: number;
+  contactName: string | null;
+  number: string;
+  timestamp: number;
+  durationSeconds: number;
+  isBothSides: boolean;
+  customName: string | null;
+  fileSize: number;
+}
+
+export interface RecordingAudioData {
+  recordingId: number;
+  mimeType: string;
+  fileName: string;
+  audioData: string;
+  durationSeconds: number;
+  contactName: string | null;
+  number: string;
+}
+
+export interface PrivateVaultEntry {
+  number: string;
+  name: string | null;
+  durationSeconds: number;
+  isIncoming: boolean;
+  timestamp: number;
+  callType: string;
+}
+
+export interface RemoteAppSettings {
+  autoRecordUnknown: boolean;
+  autoRecordSelected: boolean;
+  spamEnabled: boolean;
+  autoReplyEnabled: boolean;
+  shakeToAnswer: boolean;
+  flipToReject: boolean;
+  oneHandMode: boolean;
+  blockUnknown: boolean;
+  recordingRetention: string;
+}
+
 export interface CallEvent {
   eventType: string;
   callerNumber?: string;
@@ -39,6 +91,12 @@ export interface CallEvent {
   durationSeconds: number;
   bluetoothDeviceName?: string;
   recentCalls?: RecentCall[];
+  callLogs?: FullCallLog[];
+  recordings?: CallRecordingItem[];
+  privateVault?: PrivateVaultEntry[];
+  settings?: RemoteAppSettings | Record<string, unknown>;
+  audioChunk?: RecordingAudioData;
+  isRecordingActive?: boolean;
 }
 
 export interface BridgeStatus {
@@ -47,6 +105,11 @@ export interface BridgeStatus {
   phoneOnline: boolean;
   currentCall: CallEvent | null;
   recentCalls: RecentCall[];
+  allCallLogs: FullCallLog[];
+  recordings: CallRecordingItem[];
+  currentAudio: RecordingAudioData | null;
+  privateVault: { history: PrivateVaultEntry[]; privateNumbers: string[] } | null;
+  remoteSettings: RemoteAppSettings | null;
   authError: string | null;
 }
 
@@ -283,6 +346,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     phoneOnline: false,
     currentCall: null,
     recentCalls: [],
+    allCallLogs: [],
+    recordings: [],
+    currentAudio: null,
+    privateVault: null,
+    remoteSettings: null,
     authError: null,
   });
 
@@ -304,9 +372,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       const ts = Date.now();
       const nonce = generateNonce();
 
-      // HMAC covers the full envelope to prevent replay/tamper attacks
-      // Must match Android's RemoteCallProtocol.Envelope.hmacInput() format:
-      // "type|payload|iv|ts|deviceId|nonce"
       const hmacInput = `COMMAND|${encrypted}|${iv}|${ts}|${options.deviceId}|${nonce}`;
       const hmac = await computeHmac(hmacInput, options.encryptionKey);
 
@@ -332,7 +397,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
 
     const { encryptionKey, deviceId, authToken } = options;
 
-    // Request notification permission early
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -387,12 +451,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-      console.log("[RemoteBridge] WS connected, sending auth...");
+        console.log("[RemoteBridge] WS connected, sending auth...");
         diagLog(`WS_OPEN — sending auth handshake`);
         setStatus((s) => ({ ...s, connected: true, authError: null }));
         reconnectAttempts.current = 0;
 
-        // Send auth handshake — include device name for display
         const deviceNameFromUA = (() => {
           try {
             const ua = navigator.userAgent;
@@ -428,8 +491,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
             case "AUTH_OK":
               console.log("[RemoteBridge] Auth OK!");
               diagLog(`AUTH_OK — starting ping interval`);
-              // Reset phoneOnline — the server will send DEVICE_CONNECTED for
-              // any peers that are currently online right after AUTH_OK
               setStatus((s) => ({ ...s, authenticated: true, authError: null, phoneOnline: false }));
               pingIntervalRef.current = setInterval(() => {
                 ws.send(JSON.stringify({ type: "PING", ts: Date.now() }));
@@ -460,7 +521,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
               break;
 
             case "EVENT":
-              // Encrypted event from phone
               if (cryptoKeyRef.current) {
                 try {
                   const plaintext = await decrypt(
@@ -476,6 +536,28 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     if (callEvent.recentCalls) {
                       setStatus((s) => ({ ...s, phoneOnline: true, recentCalls: callEvent.recentCalls! }));
                     }
+                  } else if (callEvent.eventType === "FULL_CALL_LOGS_RESPONSE") {
+                    if (callEvent.callLogs) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, allCallLogs: callEvent.callLogs! }));
+                    }
+                  } else if (callEvent.eventType === "RECORDINGS_LIST_RESPONSE") {
+                    if (callEvent.recordings) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, recordings: callEvent.recordings! }));
+                    }
+                  } else if (callEvent.eventType === "RECORDING_AUDIO_COMPLETE") {
+                    if (callEvent.audioChunk) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, currentAudio: callEvent.audioChunk! }));
+                    }
+                  } else if (callEvent.eventType === "PRIVATE_VAULT_RESPONSE") {
+                    const vaultData = (callEvent.settings as any) || {
+                      history: callEvent.privateVault || [],
+                      privateNumbers: [],
+                    };
+                    setStatus((s) => ({ ...s, phoneOnline: true, privateVault: vaultData }));
+                  } else if (callEvent.eventType === "APP_SETTINGS_RESPONSE") {
+                    if (callEvent.settings) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, remoteSettings: callEvent.settings as RemoteAppSettings }));
+                    }
                   } else {
                     setStatus((s) => ({
                       ...s,
@@ -483,7 +565,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                       currentCall: callEvent,
                     }));
 
-                    // Show notification + play ringtone for incoming calls
                     showCallNotification(callEvent);
                   }
                 } catch (err) {
@@ -496,14 +577,13 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
               diagLog(`DEVICE_CONNECTED type=${message.deviceType} id=${message.deviceId}`);
               if (message.deviceType === "phone") {
                 setStatus((s) => ({ ...s, phoneOnline: true }));
-                // Phone just connected — request status & calls after short delay
-                // so the phone's state sync has time to initialize
                 setTimeout(() => {
                   if (wsRef.current?.readyState === WebSocket.OPEN) {
-                    // Send STATUS_REQUEST command
                     sendCommand("STATUS_REQUEST");
-                    // Send GET_RECENT_CALLS command
                     sendCommand("GET_RECENT_CALLS");
+                    sendCommand("GET_ALL_CALL_LOGS");
+                    sendCommand("GET_RECORDINGS_LIST");
+                    sendCommand("GET_APP_SETTINGS");
                   }
                 }, 1500);
               }
@@ -539,15 +619,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           ...s,
           connected: false,
           authenticated: false,
-          // Don't reset phoneOnline here — the phone may still be connected;
-          // it's our own tablet socket that dropped (e.g. browser background throttle).
-          // On reconnect, the server will send DEVICE_CONNECTED for online peers.
           currentCall: null,
         }));
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         stopRingtone();
 
-        // Reconnect — but only if online
         if (shouldReconnect && navigator.onLine) {
           const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
           reconnectAttempts.current++;
@@ -564,9 +640,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     connect();
     wakePhone("mount");
 
-    // ─── Smart reconnect on page focus (like Phone Link) ───
-    // When user switches to this tab, if we're disconnected, reconnect immediately
-    // Also wake the phone via FCM if it's not connected
     function handleVisibilityChange() {
       if (document.visibilityState === "visible" && shouldReconnect) {
         const ws = wsRef.current;
@@ -576,15 +649,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
           reconnectAttempts.current = 0;
           connect();
         }
-
-        // Wake the phone via FCM in case its WebSocket went idle while the page was closed.
         wakePhone("visible");
       }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // ─── Network-aware reconnect ───
-    // When iPad comes back online, reconnect immediately
     function handleOnline() {
       console.log("[RemoteBridge] Network came back online");
       const ws = wsRef.current;
@@ -595,7 +664,6 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       }
       wakePhone("online");
     }
-    // When iPad goes offline, don't spam reconnect — just note it
     function handleOffline() {
       console.log("[RemoteBridge] Network went offline — pausing reconnect");
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
@@ -628,6 +696,19 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     unholdCall: () => sendCommand("UNHOLD_CALL"),
     requestStatus: () => sendCommand("STATUS_REQUEST"),
     getRecentCalls: () => sendCommand("GET_RECENT_CALLS"),
+    getAllCallLogs: () => sendCommand("GET_ALL_CALL_LOGS"),
+    getRecordingsList: () => sendCommand("GET_RECORDINGS_LIST"),
+    fetchRecordingAudio: (recordingId: number) =>
+      sendCommand("FETCH_RECORDING_AUDIO", { recordingId }),
+    toggleInCallRecording: (enable?: boolean) =>
+      sendCommand("TOGGLE_IN_CALL_RECORDING", { enableRecording: enable }),
+    getPrivateVault: (pin: string) =>
+      sendCommand("GET_PRIVATE_VAULT_LOGS", { pin }),
+    getAppSettings: () => sendCommand("GET_APP_SETTINGS"),
+    updateAppSettings: (settingsPayload: Record<string, unknown>) =>
+      sendCommand("UPDATE_APP_SETTINGS", { settingsPayload }),
+    clearCurrentAudio: () =>
+      setStatus((s) => ({ ...s, currentAudio: null })),
     setPhoneOnline: (online: boolean) =>
       setStatus((s) => ({ ...s, phoneOnline: online })),
   };

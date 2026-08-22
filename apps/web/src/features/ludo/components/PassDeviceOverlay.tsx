@@ -1,5 +1,5 @@
-import { Hand, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import { Hand, ShieldCheck } from "lucide-react";
 
 interface PassDeviceOverlayProps {
   playerName: string;

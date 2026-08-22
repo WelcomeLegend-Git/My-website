@@ -28,7 +28,7 @@ export interface LudoGameController {
 
 export const useLudoGame = (): LudoGameController => {
   const [game, setGame] = useState<LudoGameState | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [handoffPlayerName, setHandoffPlayerName] = useState<string | null>(null);
   const latestSetup = useRef<GameSetup | null>(null);

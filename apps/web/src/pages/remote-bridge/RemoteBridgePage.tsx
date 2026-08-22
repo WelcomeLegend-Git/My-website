@@ -573,7 +573,35 @@ function DialPanel({
   );
 }
 
-// ─── 3. Full Call Logs Panel ───
+// ─── 3. Full Call Logs Panel with Contact History Modal ───
+
+function formatCallDateGroup(timestamp: number): string {
+  const d = new Date(timestamp);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const callDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (callDay.getTime() === today.getTime()) return "Today";
+  if (callDay.getTime() === yesterday.getTime()) return "Yesterday";
+
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const diffDays = Math.floor((today.getTime() - callDay.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (diffDays < 7) {
+    return `${daysOfWeek[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+  }
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatCallTime(timestamp: number): string {
+  const d = new Date(timestamp);
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayStr = days[d.getDay()];
+  const timeStr = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${dayStr} ${timeStr}`;
+}
 
 function CallLogsPanel({
   logs,
@@ -584,9 +612,16 @@ function CallLogsPanel({
   onRefresh: () => void;
   onCallNumber: (num: string) => void;
 }) {
+  const [viewMode, setViewMode] = useState<"all" | "contacts">("all");
   const [filter, setFilter] = useState<"all" | "missed" | "incoming" | "outgoing">("all");
   const [search, setSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<{
+    name?: string | null;
+    number: string;
+    contactLogs: FullCallLog[];
+  } | null>(null);
 
+  // Filtered chronological logs
   const filtered = useMemo(() => {
     return logs.filter((l) => {
       if (filter === "missed" && l.type !== 3) return false;
@@ -600,18 +635,118 @@ function CallLogsPanel({
     });
   }, [logs, filter, search]);
 
+  // Grouped by Contact
+  const contactGroups = useMemo(() => {
+    const map = new Map<string, { name?: string | null; number: string; logs: FullCallLog[]; lastDate: number }>();
+    logs.forEach((log) => {
+      const key = log.number || "Unknown";
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          name: log.name,
+          number: log.number,
+          logs: [log],
+          lastDate: log.date,
+        });
+      } else {
+        existing.logs.push(log);
+        if (log.date > existing.lastDate) {
+          existing.lastDate = log.date;
+        }
+        if (!existing.name && log.name) {
+          existing.name = log.name;
+        }
+      }
+    });
+
+    let list = Array.from(map.values());
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c) => c.name?.toLowerCase().includes(q) || c.number.includes(q));
+    }
+    return list.sort((a, b) => b.lastDate - a.lastDate);
+  }, [logs, search]);
+
+  // Open contact history drawer
+  const openContactHistory = (number: string, name?: string | null) => {
+    const contactLogs = logs.filter((l) => l.number === number);
+    setSelectedContact({
+      name: name || contactLogs[0]?.name,
+      number,
+      contactLogs,
+    });
+  };
+
+  // Group selected contact's logs by date
+  const groupedContactLogs = useMemo(() => {
+    if (!selectedContact) return [];
+    const groups: { dateLabel: string; items: FullCallLog[] }[] = [];
+    selectedContact.contactLogs.forEach((log) => {
+      const label = formatCallDateGroup(log.date);
+      const group = groups.find((g) => g.dateLabel === label);
+      if (group) {
+        group.items.push(log);
+      } else {
+        groups.push({ dateLabel: label, items: [log] });
+      }
+    });
+    return groups;
+  }, [selectedContact]);
+
+  const contactStats = useMemo(() => {
+    if (!selectedContact) return { total: 0, incoming: 0, outgoing: 0, missed: 0, duration: 0 };
+    let incoming = 0, outgoing = 0, missed = 0, duration = 0;
+    selectedContact.contactLogs.forEach((l) => {
+      if (l.type === 1) incoming++;
+      else if (l.type === 2) outgoing++;
+      else if (l.type === 3) missed++;
+      duration += l.duration || 0;
+    });
+    return {
+      total: selectedContact.contactLogs.length,
+      incoming,
+      outgoing,
+      missed,
+      duration,
+    };
+  }, [selectedContact]);
+
   return (
     <div style={styles.card} className="rb-glass">
       <div style={styles.panelHeader}>
         <div>
-          <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>All Call Logs</h3>
+          <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>📋 Full Call Logs & Contact History</h3>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "4px 0 0 0" }}>
-            Real-time synced call logs from AuraRing ({logs.length} entries)
+            Complete real-time synced call logs from phone ({logs.length.toLocaleString()} calls loaded)
           </p>
         </div>
-        <button onClick={onRefresh} style={styles.refreshBtn}>
-          🔄 Refresh Logs
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 2 }}>
+            <button
+              onClick={() => setViewMode("all")}
+              style={{
+                ...(viewMode === "all" ? styles.filterBtnActive : styles.filterBtn),
+                padding: "6px 12px",
+                fontSize: 12,
+              }}
+            >
+              📜 All Calls
+            </button>
+            <button
+              onClick={() => setViewMode("contacts")}
+              style={{
+                ...(viewMode === "contacts" ? styles.filterBtnActive : styles.filterBtn),
+                padding: "6px 12px",
+                fontSize: 12,
+              }}
+            >
+              👥 By Contact ({contactGroups.length})
+            </button>
+          </div>
+          <button onClick={onRefresh} style={styles.refreshBtn}>
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       <div style={styles.filterRow}>
@@ -622,43 +757,395 @@ function CallLogsPanel({
           onChange={(e) => setSearch(e.target.value)}
           style={styles.searchInput}
         />
-        <div style={{ display: "flex", gap: 6 }}>
-          {(["all", "missed", "incoming", "outgoing"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={filter === f ? styles.filterBtnActive : styles.filterBtn}
-            >
-              {f.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        {viewMode === "all" && (
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["all", "missed", "incoming", "outgoing"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={filter === f ? styles.filterBtnActive : styles.filterBtn}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-        {filtered.length === 0 ? (
-          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: 32 }}>No call logs found</p>
-        ) : (
-          filtered.map((log, idx) => (
-            <div key={idx} style={styles.logItem}>
+      {viewMode === "all" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+          {filtered.length === 0 ? (
+            <p style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: 32 }}>No call logs found</p>
+          ) : (
+            filtered.map((log, idx) => (
+              <div
+                key={idx}
+                style={{
+                  ...styles.logItem,
+                  cursor: "pointer",
+                }}
+                onClick={() => openContactHistory(log.number, log.name)}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 22 }}>
+                    {log.type === 1 ? "↙️" : log.type === 2 ? "↗️" : log.type === 3 ? "❌" : "🚫"}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{log.name || log.number}</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          background: "rgba(212,175,55,0.15)",
+                          color: "#D4AF37",
+                        }}
+                      >
+                        📜 History
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                      {log.number} • {new Date(log.date).toLocaleString()} • {formatDuration(log.duration)}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCallNumber(log.number);
+                  }}
+                  style={styles.smallCallBtn}
+                >
+                  📞 Call
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* Grouped by Contact View */
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+          {contactGroups.length === 0 ? (
+            <p style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: 32 }}>No contacts found</p>
+          ) : (
+            contactGroups.map((contact, idx) => (
+              <div
+                key={idx}
+                onClick={() => openContactHistory(contact.number, contact.name)}
+                style={{
+                  ...styles.logItem,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: "50%",
+                      background: "rgba(212,175,55,0.2)",
+                      border: "1px solid rgba(212,175,55,0.4)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                      color: "#D4AF37",
+                      fontSize: 16,
+                    }}
+                  >
+                    {(contact.name || contact.number).charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{contact.name || contact.number}</span>
+                      <span style={{ fontSize: 11, background: "rgba(255,255,255,0.1)", padding: "1px 6px", borderRadius: 10 }}>
+                        {contact.logs.length} calls
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                      {contact.number} • Last: {new Date(contact.lastDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openContactHistory(contact.number, contact.name);
+                    }}
+                    style={{ ...styles.filterBtn, fontSize: 12, padding: "6px 10px" }}
+                  >
+                    📜 View History
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCallNumber(contact.number);
+                    }}
+                    style={styles.smallCallBtn}
+                  >
+                    📞 Call
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ─── Contact History Details Modal (Matching Google Phone UI) ─── */}
+      {selectedContact && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(12px)",
+            zIndex: 150,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => setSelectedContact(null)}
+        >
+          <div
+            style={{
+              maxWidth: 480,
+              width: "100%",
+              maxHeight: "88vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "#111827",
+              borderRadius: 20,
+              border: "1px solid rgba(212,175,55,0.35)",
+              overflow: "hidden",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.8)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Contact Top Header */}
+            <div
+              style={{
+                padding: "18px 20px",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(255,255,255,0.02)",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 22 }}>
-                  {log.type === 1 ? "↙️" : log.type === 2 ? "↗️" : log.type === 3 ? "❌" : "🚫"}
-                </span>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: "rgba(212,175,55,0.25)",
+                    border: "2px solid #D4AF37",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    color: "#D4AF37",
+                    fontSize: 18,
+                  }}
+                >
+                  {(selectedContact.name || selectedContact.number).charAt(0).toUpperCase()}
+                </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{log.name || log.number}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                    {log.number} • {new Date(log.date).toLocaleString()} • {formatDuration(log.duration)}
+                  <div style={{ fontWeight: 800, fontSize: 17, color: "#fff" }}>
+                    {selectedContact.name || selectedContact.number}
+                  </div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+                    Phone • {selectedContact.number}
                   </div>
                 </div>
               </div>
-              <button onClick={() => onCallNumber(log.number)} style={styles.smallCallBtn}>
-                📞 Call
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => {
+                    onCallNumber(selectedContact.number);
+                    setSelectedContact(null);
+                  }}
+                  style={{
+                    background: "#10B981",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 20,
+                    padding: "8px 14px",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  📞 Call
+                </button>
+                <button onClick={() => setSelectedContact(null)} style={styles.closeBtn}>
+                  ✕
+                </button>
+              </div>
             </div>
-          ))
-        )}
-      </div>
+
+            {/* Quick Stats Banner */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 8,
+                padding: "12px 16px",
+                background: "rgba(255,255,255,0.03)",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                textAlign: "center",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Total</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#D4AF37" }}>{contactStats.total}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Incoming</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#3B82F6" }}>{contactStats.incoming}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Outgoing</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#10B981" }}>{contactStats.outgoing}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Missed</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#EF4444" }}>{contactStats.missed}</div>
+              </div>
+            </div>
+
+            {/* Date-Grouped Calls List */}
+            <div
+              style={{
+                padding: "16px 20px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+              }}
+            >
+              {groupedContactLogs.map((group, gIdx) => (
+                <div key={gIdx}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.5)",
+                      marginBottom: 8,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    {group.dateLabel}
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: 14,
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {group.items.map((item, itemIdx) => {
+                      const isIncoming = item.type === 1;
+                      const isOutgoing = item.type === 2;
+                      const isMissed = item.type === 3;
+                      const isRejected = item.type === 4 || item.type === 5;
+
+                      const icon = isIncoming ? "↙️" : isOutgoing ? "↗️" : isMissed ? "❌" : "🚫";
+                      const label = isIncoming
+                        ? "Incoming call"
+                        : isOutgoing
+                        ? "Outgoing call"
+                        : isMissed
+                        ? "Missed call"
+                        : "Rejected call";
+
+                      const durationText = isMissed
+                        ? "Rang"
+                        : item.duration > 0
+                        ? formatDuration(item.duration)
+                        : "0s";
+
+                      return (
+                        <div
+                          key={itemIdx}
+                          style={{
+                            padding: "12px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            borderBottom:
+                              itemIdx < group.items.length - 1
+                                ? "1px solid rgba(255,255,255,0.04)"
+                                : "none",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 18 }}>{icon}</span>
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                  color: isMissed ? "#EF4444" : "#fff",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                <span>{label}</span>
+                                {item.duration > 0 && (
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      background: "rgba(255,255,255,0.1)",
+                                      padding: "1px 4px",
+                                      borderRadius: 4,
+                                      color: "rgba(255,255,255,0.7)",
+                                    }}
+                                  >
+                                    HD
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                                {formatCallTime(item.date)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: isMissed ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.8)",
+                            }}
+                          >
+                            {durationText}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

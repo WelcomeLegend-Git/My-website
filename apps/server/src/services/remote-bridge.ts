@@ -90,6 +90,7 @@ interface PersonalCodeSession {
   createdAt: number;
 }
 const personalCodeSessions = new Map<string, PersonalCodeSession>();
+const pairingCodeToSessionId = new Map<string, string>();
 
 function getIncomingCallPushKey(input: {
   userId: string;
@@ -738,27 +739,27 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({ online });
   });
 
-  // ═══ QR Pairing Flow (1-min expiry, 5/hr limit) ═══
+  // ═══ Dynamic QR & 6-Digit OTP Pairing Flow (5-min expiry, single-use) ═══
 
   app.post("/api/remote-bridge/pairing/create", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
     const ip = req.ip || "unknown";
     const pairingType = (req.body?.type === "manual") ? "manual" : "qr";
 
-    // Rate limit check (disabled for testing)
-    // if (checkPairingRateLimit(userId, pairingType)) {
-    //   await logActivity(userId, null, "pairing_rate_limited", `${pairingType} pairing rate limited`, ip);
-    //   return res.status(429).json({
-    //     message: `Too many ${pairingType} pairing attempts. Max ${MAX_PAIRINGS_PER_HOUR} per hour.`,
-    //   });
-    // }
-
     // Generate pairing data
     const pairingId = crypto.randomUUID();
     const pairingToken = crypto.randomBytes(32).toString("hex");
     const encryptionKey = crypto.randomBytes(32).toString("base64");
-    const expiryMs = pairingType === "qr" ? QR_EXPIRY_MS : MANUAL_CODE_EXPIRY_MS;
+    const expiryMs = 5 * 60 * 1000; // 5 minutes
     const expiresAt = new Date(Date.now() + expiryMs);
+
+    // Generate a unique, random 6-digit numeric pairing code
+    let code: string;
+    do {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+    } while (pairingCodeToSessionId.has(code));
+
+    pairingCodeToSessionId.set(code, pairingId);
 
     activePairingSessions.set(pairingId, {
       userId,
@@ -776,18 +777,122 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     // Auto-cleanup after expiry + buffer
     setTimeout(() => {
       activePairingSessions.delete(pairingId);
+      pairingCodeToSessionId.delete(code);
     }, expiryMs + 5000);
 
-    await logActivity(userId, null, "pairing_created", `${pairingType} pairing created (expires ${expiryMs / 1000}s)`, ip);
+    const webHost = env.WEB_APP_URL || (req.protocol + "://" + req.get("host"));
+    const qrPayload = JSON.stringify({
+      s: webHost,
+      p: pairingId,
+      t: pairingToken,
+      k: encryptionKey,
+    });
+
+    await logActivity(userId, null, "pairing_created", `${pairingType} pairing created (code: ${code}, expires in 5m)`, ip);
 
     return res.json({
       pairingId,
       pairingToken,
       encryptionKey,
+      code,
+      qrPayload,
       expiresAt: expiresAt.toISOString(),
       type: pairingType,
       expiresInSeconds: expiryMs / 1000,
     });
+  });
+
+  // Phone confirms pairing by entering the server-generated 6-digit code
+  app.post("/api/remote-bridge/pairing/confirm-code", async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
+
+    try {
+      const { code, deviceId, deviceName } = req.body || {};
+      const cleanCode = (code || "").toString().replace(/\s+/g, "").trim();
+
+      if (!cleanCode || cleanCode.length !== 6) {
+        return res.status(400).json({ message: "6-Digit Pairing Code required" });
+      }
+
+      const pairingId = pairingCodeToSessionId.get(cleanCode);
+      if (!pairingId) {
+        return res.status(404).json({ message: "Invalid or expired 6-digit pairing code" });
+      }
+
+      const session = activePairingSessions.get(pairingId);
+      if (!session) {
+        pairingCodeToSessionId.delete(cleanCode);
+        return res.status(404).json({ message: "Pairing session not found or expired" });
+      }
+
+      // Verify expiry
+      if (new Date() > session.expiresAt) {
+        activePairingSessions.delete(pairingId);
+        pairingCodeToSessionId.delete(cleanCode);
+        return res.status(410).json({ message: "Pairing code expired" });
+      }
+
+      // Already confirmed? (prevent replay)
+      if (session.confirmed) {
+        return res.status(409).json({ message: "Pairing code already used" });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: session.userId } });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Consume the code so it cannot be used again
+      session.confirmed = true;
+      session.phoneDeviceId = deviceId;
+      pairingCodeToSessionId.delete(cleanCode);
+
+      // Register/update the phone device
+      await prisma.remoteBridgeDevice.upsert({
+        where: { userId_deviceId: { userId: user.id, deviceId } },
+        create: {
+          userId: user.id,
+          deviceId,
+          deviceType: "phone",
+          deviceName: deviceName || null,
+          trusted: true,
+          lastSeen: new Date(),
+          encryptionKey: session.encryptionKey,
+          ipAddress: ip,
+          userAgent,
+          pairedVia: "code",
+        } as any,
+        update: {
+          lastSeen: new Date(),
+          trusted: true,
+          encryptionKey: session.encryptionKey,
+          ipAddress: ip,
+          userAgent,
+          pairedVia: "code",
+          ...(deviceName ? { deviceName } : {}),
+        } as any,
+      });
+
+      setTimeout(() => activePairingSessions.delete(pairingId), 15_000);
+
+      const accessToken = createAccessToken({ sub: user.id, email: user.email });
+      const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
+
+      await logActivity(user.id, deviceId, "pairing_confirmed", `Phone paired via dynamic code ${cleanCode} from ${ip}`, ip);
+
+      return res.json({
+        success: true,
+        accessToken,
+        refreshToken,
+        userId: user.id,
+        encryptionKey: session.encryptionKey,
+        serverUrl: req.protocol + "://" + req.get("host"),
+      });
+    } catch (error) {
+      logger.error({ error }, "Pairing confirm-code error");
+      return res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // Phone confirms pairing after scanning QR
@@ -861,6 +966,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
           ipAddress: ip,
           userAgent,
           pairedVia: session.type,
+          ...(deviceName ? { deviceName } : {}),
         } as any,
       });
 
@@ -972,6 +1078,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     return res.json({
       status: session.confirmed ? "confirmed" : "pending",
       phoneDeviceId: session.phoneDeviceId,
+      encryptionKey: session.encryptionKey,
     });
   });
 

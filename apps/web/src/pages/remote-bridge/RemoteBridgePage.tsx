@@ -898,47 +898,104 @@ function SettingToggle({
   );
 }
 
-// ─── Setup Screen (6-Digit Master Link + QR) ───
+// ─── Setup Screen (Dynamic 6-Digit Code & QR) ───
 
 function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boolean) => void }) {
-  const [tab, setTab] = useState<"master" | "qr">("master");
-  const [otpCode, setOtpCode] = useState("878955");
+  const [tab, setTab] = useState<"code" | "qr">("code");
+  const [pairingData, setPairingData] = useState<{
+    pairingId: string;
+    code: string;
+    qrPayload: string;
+    expiresInSeconds: number;
+    encryptionKey: string;
+  } | null>(null);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleMasterConnect = async () => {
-    setError("");
-    const cleanCode = otpCode.replace(/\s+/g, "").trim();
-    if (!cleanCode || cleanCode.length < 6) {
-      setError("Please enter the 6-digit Master Link Code (e.g. 878955)");
-      return;
-    }
-
+  const createSession = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const tabletDeviceId = getOrCreateBridgeDeviceId();
       const base = getApiBaseUrl();
-      const res = await authenticatedFetch(`${base}/api/remote-bridge/personal-link`, {
+      const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: cleanCode,
-          pin: cleanCode,
-          tabletDeviceId,
-        }),
+        body: JSON.stringify({ type: "manual" }),
       });
-
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to link");
+        throw new Error("Failed to generate pairing session");
       }
-
       const data = await res.json();
-      onPaired(data.encryptionKey || "", true);
+      setPairingData(data);
+      setTimeLeft(data.expiresInSeconds || 300);
     } catch (e: any) {
-      setError(e.message || "Master link failed");
+      setError(e.message || "Failed to generate pairing session");
     }
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    createSession();
+  }, [createSession]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  // Polling for phone confirmation
+  useEffect(() => {
+    if (!pairingData?.pairingId) return;
+
+    let stopped = false;
+    const interval = setInterval(async () => {
+      if (stopped) return;
+      try {
+        const base = getApiBaseUrl();
+        const res = await authenticatedFetch(
+          `${base}/api/remote-bridge/pairing/${pairingData.pairingId}/status`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "confirmed" && !stopped) {
+            stopped = true;
+            clearInterval(interval);
+            const encryptionKey = data.encryptionKey || pairingData.encryptionKey;
+            const tabletDeviceId = getOrCreateBridgeDeviceId();
+
+            // Register tablet device
+            await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                deviceId: tabletDeviceId,
+                deviceType: "tablet",
+                deviceName: "Web Mirror Hub",
+                encryptionKey,
+              }),
+            }).catch(() => {});
+
+            onPaired(encryptionKey, true);
+          }
+        }
+      } catch {}
+    }, 1500);
+
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [pairingData?.pairingId, pairingData?.encryptionKey, onPaired]);
+
+  const formatTimer = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -946,15 +1003,15 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
       <div style={{ fontSize: 44, marginBottom: 12 }}>⚡</div>
       <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Connect AuraRing Phone Mirror</h2>
       <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: "8px 0 24px 0" }}>
-        Enter your 6-digit Personal Link Code from the AuraRing app to connect permanently.
+        Pair with your phone using a one-time dynamic code or by scanning the QR code.
       </p>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
         <button
-          onClick={() => setTab("master")}
-          style={tab === "master" ? styles.setupTabActive : styles.setupTab}
+          onClick={() => setTab("code")}
+          style={tab === "code" ? styles.setupTabActive : styles.setupTab}
         >
-          ⚡ 6-Digit Master Link
+          ⚡ One-Time 6-Digit Code
         </button>
         <button
           onClick={() => setTab("qr")}
@@ -964,62 +1021,63 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
         </button>
       </div>
 
-      {tab === "master" ? (
+      {tab === "code" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", margin: 0 }}>
-            Enter the 6-digit code shown on your phone in<br />
-            <strong>AuraRing → Settings → Personal Ecosystem</strong>
+            Enter this 6-digit code in <strong>AuraRing → Settings → Personal Ecosystem</strong>:
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
-            <input
-              type="text"
-              maxLength={6}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-              placeholder="878955"
-              style={{
-                width: "100%",
-                maxWidth: 280,
-                padding: "16px 20px",
-                fontSize: 32,
-                fontWeight: 800,
-                textAlign: "center",
-                background: "rgba(255,255,255,0.06)",
-                border: "2px solid #D4AF37",
-                borderRadius: 14,
-                color: "#D4AF37",
-                letterSpacing: 10,
-                fontFamily: "monospace",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Default Master Code: 878955</span>
-          </div>
+          {loading ? (
+            <div style={{ padding: 24, fontSize: 16, color: "#D4AF37" }}>Generating unique code...</div>
+          ) : pairingData?.code ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
+              <div
+                style={{
+                  padding: "16px 28px",
+                  fontSize: 36,
+                  fontWeight: 900,
+                  textAlign: "center",
+                  background: "rgba(212, 175, 55, 0.12)",
+                  border: "2px solid #D4AF37",
+                  borderRadius: 16,
+                  color: "#D4AF37",
+                  letterSpacing: 12,
+                  fontFamily: "monospace",
+                  boxShadow: "0 0 20px rgba(212, 175, 55, 0.25)",
+                }}
+              >
+                {pairingData.code}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: timeLeft < 30 ? "#EF4444" : "rgba(255,255,255,0.5)" }}>
+                <span>⏱️ Code expires in {formatTimer(timeLeft)}</span>
+                {timeLeft === 0 && (
+                  <button onClick={createSession} style={styles.iconBtn}>
+                    🔄 Refresh Code
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
 
           {error && <p style={{ color: "#EF4444", fontSize: 13, margin: 0 }}>{error}</p>}
 
-          <button
-            onClick={handleMasterConnect}
-            disabled={loading}
-            style={{
-              ...styles.primaryBtn,
-              width: "100%",
-              maxWidth: 320,
-              padding: "14px 24px",
-              fontSize: 16,
-              borderRadius: 12,
-            }}
-          >
-            {loading ? "Connecting..." : "⚡ Activate Permanent Phone Mirror"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34D399", animation: "pulse 1.5s infinite" }} />
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Waiting for phone connection...</span>
+          </div>
         </div>
       ) : (
-        <div style={{ padding: 20 }}>
-          <QRCodeSVG value="auraring://pair" size={200} bgColor="#121826" fgColor="#FFFFFF" />
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 12 }}>
-            Scan with your phone camera
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 10 }}>
+          {pairingData?.qrPayload ? (
+            <div style={{ padding: 16, background: "#fff", borderRadius: 16, display: "inline-block" }}>
+              <QRCodeSVG value={pairingData.qrPayload} size={220} bgColor="#FFFFFF" fgColor="#000000" />
+            </div>
+          ) : (
+            <div style={{ padding: 24, color: "#D4AF37" }}>Loading QR...</div>
+          )}
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 16 }}>
+            In AuraRing app, tap <strong>Scan Website QR Code</strong>
           </p>
         </div>
       )}

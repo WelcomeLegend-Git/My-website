@@ -108,6 +108,19 @@ export interface ScreenSnapshotPayload {
   error?: string;
 }
 
+export interface NotificationItem {
+  id: number;
+  packageName: string;
+  appName: string;
+  title?: string;
+  text?: string;
+  subText?: string;
+  timestamp: number;
+  hasPicture: boolean;
+  pictureBase64?: string;
+  notificationKey?: string;
+}
+
 export interface CallEvent {
   eventType: string;
   callerNumber?: string;
@@ -131,6 +144,9 @@ export interface CallEvent {
   totalPhotosCount?: number;
   photoPage?: number;
   photoLimit?: number;
+  notifications?: NotificationItem[];
+  notificationItem?: NotificationItem;
+  totalNotificationsCount?: number;
 }
 
 export interface BridgeStatus {
@@ -153,6 +169,9 @@ export interface BridgeStatus {
   screenSnapshot: ScreenSnapshotPayload | null;
   isCapturingScreen: boolean;
   isLoadingPhotos: boolean;
+  notifications: NotificationItem[];
+  totalNotificationsCount: number;
+  isLoadingNotifications: boolean;
 }
 
 interface UseBridgeOptions {
@@ -402,6 +421,9 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     screenSnapshot: null,
     isCapturingScreen: false,
     isLoadingPhotos: false,
+    notifications: [],
+    totalNotificationsCount: 0,
+    isLoadingNotifications: false,
   });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -628,6 +650,30 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     if (callEvent.screenSnapshot) {
                       setStatus((s) => ({ ...s, phoneOnline: true, screenSnapshot: callEvent.screenSnapshot!, isCapturingScreen: false }));
                     }
+                  } else if (callEvent.eventType === "NOTIFICATIONS_LIST_RESPONSE") {
+                    if (callEvent.notifications) {
+                      setStatus((s) => ({
+                        ...s,
+                        phoneOnline: true,
+                        notifications: callEvent.notifications!,
+                        totalNotificationsCount: callEvent.totalNotificationsCount || callEvent.notifications!.length,
+                        isLoadingNotifications: false,
+                      }));
+                    }
+                  } else if (callEvent.eventType === "NOTIFICATION_ARRIVED") {
+                    if (callEvent.notificationItem) {
+                      const newItem = callEvent.notificationItem;
+                      setStatus((s) => {
+                        const exists = s.notifications.some((n) => n.id === newItem.id);
+                        const updated = exists ? s.notifications : [newItem, ...s.notifications];
+                        return {
+                          ...s,
+                          phoneOnline: true,
+                          notifications: updated.slice(0, 10000),
+                          totalNotificationsCount: s.totalNotificationsCount + (exists ? 0 : 1),
+                        };
+                      });
+                    }
                   } else {
                     setStatus((s) => ({
                       ...s,
@@ -793,6 +839,22 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
       setStatus((s) => ({ ...s, screenSnapshot: null })),
     clearCurrentAudio: () =>
       setStatus((s) => ({ ...s, currentAudio: null })),
+    getNotificationsList: (options?: { searchQuery?: string; packageFilter?: string; sinceTimestamp?: number; page?: number; limit?: number }) => {
+      setStatus((s) => ({ ...s, isLoadingNotifications: true }));
+      sendCommand("GET_NOTIFICATIONS_LIST", options || {});
+    },
+    clearAllNotifications: () => {
+      sendCommand("CLEAR_NOTIFICATIONS");
+      setStatus((s) => ({ ...s, notifications: [], totalNotificationsCount: 0 }));
+    },
+    deleteNotification: (id: number) => {
+      sendCommand("DELETE_NOTIFICATION", { notificationId: id });
+      setStatus((s) => ({
+        ...s,
+        notifications: s.notifications.filter((n) => n.id !== id),
+        totalNotificationsCount: Math.max(0, s.totalNotificationsCount - 1),
+      }));
+    },
     setPhoneOnline: (online: boolean) =>
       setStatus((s) => ({ ...s, phoneOnline: online })),
   };

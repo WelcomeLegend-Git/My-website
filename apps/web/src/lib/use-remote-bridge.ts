@@ -80,6 +80,34 @@ export interface RemoteAppSettings {
   recordingRetention: string;
 }
 
+export interface RemotePhotoItem {
+  id: number;
+  displayName: string;
+  dateAdded: number;
+  size: number;
+  width: number;
+  height: number;
+  mimeType: string;
+  thumbnailBase64?: string;
+}
+
+export interface PhotoDataPayload {
+  photoId: number;
+  displayName: string;
+  mimeType: string;
+  base64Data: string;
+  size: number;
+}
+
+export interface ScreenSnapshotPayload {
+  success: boolean;
+  base64Data?: string;
+  width?: number;
+  height?: number;
+  timestamp?: number;
+  error?: string;
+}
+
 export interface CallEvent {
   eventType: string;
   callerNumber?: string;
@@ -97,6 +125,9 @@ export interface CallEvent {
   settings?: RemoteAppSettings | Record<string, unknown>;
   audioChunk?: RecordingAudioData;
   isRecordingActive?: boolean;
+  photos?: RemotePhotoItem[];
+  photoData?: PhotoDataPayload;
+  screenSnapshot?: ScreenSnapshotPayload;
 }
 
 export interface BridgeStatus {
@@ -111,6 +142,11 @@ export interface BridgeStatus {
   privateVault: { history: PrivateVaultEntry[]; privateNumbers: string[] } | null;
   remoteSettings: RemoteAppSettings | null;
   authError: string | null;
+  photos: RemotePhotoItem[];
+  currentPhotoData: PhotoDataPayload | null;
+  screenSnapshot: ScreenSnapshotPayload | null;
+  isCapturingScreen: boolean;
+  isLoadingPhotos: boolean;
 }
 
 interface UseBridgeOptions {
@@ -352,6 +388,11 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     privateVault: null,
     remoteSettings: null,
     authError: null,
+    photos: [],
+    currentPhotoData: null,
+    screenSnapshot: null,
+    isCapturingScreen: false,
+    isLoadingPhotos: false,
   });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -558,6 +599,18 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     if (callEvent.settings) {
                       setStatus((s) => ({ ...s, phoneOnline: true, remoteSettings: callEvent.settings as RemoteAppSettings }));
                     }
+                  } else if (callEvent.eventType === "PHOTOS_LIST_RESPONSE") {
+                    if (callEvent.photos) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, photos: callEvent.photos!, isLoadingPhotos: false }));
+                    }
+                  } else if (callEvent.eventType === "PHOTO_DATA_RESPONSE") {
+                    if (callEvent.photoData) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, currentPhotoData: callEvent.photoData! }));
+                    }
+                  } else if (callEvent.eventType === "SCREEN_SNAPSHOT_RESPONSE") {
+                    if (callEvent.screenSnapshot) {
+                      setStatus((s) => ({ ...s, phoneOnline: true, screenSnapshot: callEvent.screenSnapshot!, isCapturingScreen: false }));
+                    }
                   } else {
                     setStatus((s) => ({
                       ...s,
@@ -707,6 +760,20 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
     getAppSettings: () => sendCommand("GET_APP_SETTINGS"),
     updateAppSettings: (settingsPayload: Record<string, unknown>) =>
       sendCommand("UPDATE_APP_SETTINGS", { settingsPayload }),
+    getPhotosList: (page?: number, limit?: number) => {
+      setStatus((s) => ({ ...s, isLoadingPhotos: true }));
+      sendCommand("GET_PHOTOS_LIST", { page: page || 0, limit: limit || 40 });
+    },
+    fetchPhotoData: (photoId: number) =>
+      sendCommand("FETCH_PHOTO_DATA", { photoId }),
+    captureScreenSnapshot: () => {
+      setStatus((s) => ({ ...s, isCapturingScreen: true }));
+      sendCommand("CAPTURE_SCREEN_SNAPSHOT");
+    },
+    clearActivePhoto: () =>
+      setStatus((s) => ({ ...s, currentPhotoData: null })),
+    clearScreenSnapshot: () =>
+      setStatus((s) => ({ ...s, screenSnapshot: null })),
     clearCurrentAudio: () =>
       setStatus((s) => ({ ...s, currentAudio: null })),
     setPhoneOnline: (online: boolean) =>

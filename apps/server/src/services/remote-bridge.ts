@@ -780,9 +780,12 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       pairingCodeToSessionId.delete(code);
     }, expiryMs + 5000);
 
-    const webHost = env.WEB_APP_URL || (req.protocol + "://" + req.get("host"));
+    const backendServerUrl = (req.protocol + "://" + req.get("host")).includes("localhost")
+      ? (req.protocol + "://" + req.get("host"))
+      : "https://jee-study-backend.onrender.com";
+
     const qrPayload = JSON.stringify({
-      s: webHost,
+      s: backendServerUrl,
       p: pairingId,
       t: pairingToken,
       k: encryptionKey,

@@ -80,6 +80,17 @@ if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_EMAIL) {
 
 const incomingCallPushes = new Map<string, number>();
 
+// ─── Personal Ecosystem 6-Digit Code Sessions ───
+interface PersonalCodeSession {
+  code: string;
+  userId: string;
+  phoneDeviceId: string;
+  encryptionKey: string;
+  deviceName: string;
+  createdAt: number;
+}
+const personalCodeSessions = new Map<string, PersonalCodeSession>();
+
 function getIncomingCallPushKey(input: {
   userId: string;
   deviceId?: string;
@@ -384,30 +395,22 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
   });
 
-  // ═══ Personal Link (1-Step Master Pairing with PIN: 878955) ═══
+  // ═══ Personal Ecosystem (Phone Registration with Master PIN 878955) ═══
 
-  app.post("/api/remote-bridge/personal-link", async (req, res) => {
+  app.post("/api/remote-bridge/personal-register", async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     try {
-      const schema = z.object({
-        pin: z.string(),
-        deviceId: z.string(),
-        encryptionKey: z.string().optional(),
-        deviceName: z.string().optional(),
-        email: z.string().email().optional(),
-      });
+      const { pin, code, deviceId, encryptionKey, deviceName, email } = req.body || {};
+      const effectivePin = (pin || code || "").trim();
 
-      const parsed = schema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid payload format" });
-      }
-
-      const { pin, deviceId, encryptionKey, deviceName, email } = parsed.data;
-      if (pin !== "878955") {
+      if (effectivePin !== "878955") {
         return res.status(401).json({ message: "Invalid master PIN" });
       }
 
-      // Find user
+      if (!deviceId || !encryptionKey) {
+        return res.status(400).json({ message: "deviceId and encryptionKey are required" });
+      }
+
       let user = null;
       if (email) {
         user = await prisma.user.findUnique({ where: { email } });
@@ -428,8 +431,9 @@ export function setupRemoteBridgeRoutes(app: Express): void {
           deviceName: deviceName || "Suraj Phone",
           lastSeen: new Date(),
           ipAddress: ip,
+          encryptionKey,
           pairedVia: "personal_master_pin",
-        },
+        } as any,
         create: {
           userId: user.id,
           deviceId,
@@ -437,14 +441,132 @@ export function setupRemoteBridgeRoutes(app: Express): void {
           deviceName: deviceName || "Suraj Phone",
           trusted: true,
           pairedVia: "personal_master_pin",
+          encryptionKey,
           ipAddress: ip,
-        },
+        } as any,
+      });
+
+      const activeCode = (code && typeof code === "string" && code.trim().length === 6) ? code.trim() : "878955";
+      personalCodeSessions.set(activeCode, {
+        code: activeCode,
+        userId: user.id,
+        phoneDeviceId: deviceId,
+        encryptionKey,
+        deviceName: deviceName || "Suraj Phone",
+        createdAt: Date.now(),
+      });
+      // Always keep "878955" active as permanent master PIN
+      personalCodeSessions.set("878955", {
+        code: "878955",
+        userId: user.id,
+        phoneDeviceId: deviceId,
+        encryptionKey,
+        deviceName: deviceName || "Suraj Phone",
+        createdAt: Date.now(),
       });
 
       const accessToken = createAccessToken({ sub: user.id, email: user.email });
       const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
 
-      await logActivity(user.id, deviceId, "personal_link_connected", `Master personal link activated from ${ip}`, ip);
+      await logActivity(user.id, deviceId, "personal_phone_registered", `Phone registered with master code ${activeCode} from ${ip}`, ip);
+
+      return res.json({
+        success: true,
+        code: activeCode,
+        userId: user.id,
+        userName: user.name,
+        accessToken,
+        refreshToken,
+        deviceId,
+      });
+    } catch (error) {
+      logger.error({ error }, "Personal phone registration error");
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ═══ Personal Link (Website/iPad 6-Digit OTP Pairing) ═══
+
+  app.post("/api/remote-bridge/personal-link", async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    try {
+      const { pin, code, tabletDeviceId, email } = req.body || {};
+      const effectiveCode = (code || pin || "").trim();
+
+      if (!effectiveCode) {
+        return res.status(400).json({ message: "6-Digit Master Link Code is required" });
+      }
+
+      if (effectiveCode !== "878955" && !personalCodeSessions.has(effectiveCode)) {
+        return res.status(401).json({ message: "Invalid or expired 6-digit link code" });
+      }
+
+      let user = null;
+      let encryptionKey = "";
+      let phoneDeviceId = "";
+
+      const session = personalCodeSessions.get(effectiveCode);
+      if (session) {
+        user = await prisma.user.findUnique({ where: { id: session.userId } });
+        phoneDeviceId = session.phoneDeviceId;
+        encryptionKey = session.encryptionKey;
+      }
+
+      if (!user) {
+        if (email) {
+          user = await prisma.user.findUnique({ where: { email } });
+        }
+        if (!user) {
+          user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+        }
+      }
+
+      if (!user) {
+        return res.status(404).json({ message: "No registered account found" });
+      }
+
+      // If encryption key wasn't in active session, fetch from latest trusted phone in DB
+      if (!encryptionKey || !phoneDeviceId) {
+        const phoneDevice = await prisma.remoteBridgeDevice.findFirst({
+          where: { userId: user.id, deviceType: "phone", trusted: true },
+          orderBy: { updatedAt: "desc" },
+        });
+        if (phoneDevice) {
+          phoneDeviceId = phoneDevice.deviceId;
+          encryptionKey = (phoneDevice as any).encryptionKey || "";
+        }
+      }
+
+      const tDeviceId = tabletDeviceId || `tablet_${crypto.randomUUID().slice(0, 12)}`;
+
+      // Upsert trusted tablet device so WebSocket authentication succeeds!
+      await prisma.remoteBridgeDevice.upsert({
+        where: { userId_deviceId: { userId: user.id, deviceId: tDeviceId } },
+        update: {
+          trusted: true,
+          deviceType: "tablet",
+          deviceName: "Personal Web Mirror",
+          lastSeen: new Date(),
+          ipAddress: ip,
+          pairedVia: "personal_master_pin",
+          ...(encryptionKey ? { encryptionKey } : {}),
+        } as any,
+        create: {
+          userId: user.id,
+          deviceId: tDeviceId,
+          deviceType: "tablet",
+          deviceName: "Personal Web Mirror",
+          trusted: true,
+          pairedVia: "personal_master_pin",
+          encryptionKey: encryptionKey || null,
+          ipAddress: ip,
+        } as any,
+      });
+
+      const accessToken = createAccessToken({ sub: user.id, email: user.email });
+      const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
+
+      await logActivity(user.id, tDeviceId, "personal_tablet_linked", `Personal tablet linked with code ${effectiveCode} from ${ip}`, ip);
 
       return res.json({
         success: true,
@@ -453,7 +575,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         accessToken,
         refreshToken,
         encryptionKey,
-        deviceId,
+        deviceId: tDeviceId,
+        phoneDeviceId,
       });
     } catch (error) {
       logger.error({ error }, "Personal master link error");
@@ -1523,12 +1646,26 @@ async function authenticateWebSocket(
     const resolvedName = (typeof deviceName === "string" && deviceName.trim()) ? deviceName.trim() : null;
     const resolvedType = deviceType || "phone";
 
-    const device = await prisma.remoteBridgeDevice.findUnique({
+    let device = await prisma.remoteBridgeDevice.findUnique({
       where: { userId_deviceId: { userId, deviceId } },
     });
 
     if (!device) {
-      return { success: false, error: "Device not registered. Pair this device again." };
+      if (resolvedType === "tablet") {
+        device = await prisma.remoteBridgeDevice.create({
+          data: {
+            userId,
+            deviceId,
+            deviceType: "tablet",
+            deviceName: resolvedName || "Web Tablet Hub",
+            trusted: true,
+            pairedVia: "personal_master_pin",
+            ipAddress: ip,
+          } as any,
+        });
+      } else {
+        return { success: false, error: "Device not registered. Pair this device again." };
+      }
     }
 
     if (device.deviceType !== resolvedType) {

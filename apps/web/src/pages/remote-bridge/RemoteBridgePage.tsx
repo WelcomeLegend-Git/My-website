@@ -898,53 +898,43 @@ function SettingToggle({
   );
 }
 
-// ─── Setup Screen (1-Step Master Link + QR) ───
+// ─── Setup Screen (6-Digit Master Link + QR) ───
 
 function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boolean) => void }) {
   const [tab, setTab] = useState<"master" | "qr">("master");
-  const [masterCode, setMasterCode] = useState("");
-  const [pin, setPin] = useState("878955");
+  const [otpCode, setOtpCode] = useState("878955");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleMasterConnect = async () => {
     setError("");
+    const cleanCode = otpCode.replace(/\s+/g, "").trim();
+    if (!cleanCode || cleanCode.length < 6) {
+      setError("Please enter the 6-digit Master Link Code (e.g. 878955)");
+      return;
+    }
+
     setLoading(true);
     try {
-      let deviceId = `phone_${crypto.randomUUID().slice(0, 8)}`;
-      let encryptionKey = "";
-
-      if (masterCode.trim()) {
-        try {
-          const decoded = JSON.parse(atob(masterCode.trim()));
-          if (decoded.deviceId) deviceId = decoded.deviceId;
-          if (decoded.key) encryptionKey = decoded.key;
-        } catch {
-          // If raw json
-          const raw = JSON.parse(masterCode.trim());
-          if (raw.deviceId) deviceId = raw.deviceId;
-          if (raw.key) encryptionKey = raw.key;
-        }
-      }
-
+      const tabletDeviceId = getOrCreateBridgeDeviceId();
       const base = getApiBaseUrl();
       const res = await authenticatedFetch(`${base}/api/remote-bridge/personal-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pin: pin.trim(),
-          deviceId,
-          encryptionKey,
+          code: cleanCode,
+          pin: cleanCode,
+          tabletDeviceId,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Failed to link");
       }
 
       const data = await res.json();
-      onPaired(data.encryptionKey || encryptionKey, true);
+      onPaired(data.encryptionKey || "", true);
     } catch (e: any) {
       setError(e.message || "Master link failed");
     }
@@ -955,16 +945,16 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
     <div style={styles.setupCard} className="rb-glass">
       <div style={{ fontSize: 44, marginBottom: 12 }}>⚡</div>
       <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Connect AuraRing Phone Mirror</h2>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: "8px 0 20px 0" }}>
-        Directly mirror calls, recordings, and settings on your iPad without ever disconnecting.
+      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: "8px 0 24px 0" }}>
+        Enter your 6-digit Personal Link Code from the AuraRing app to connect permanently.
       </p>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
         <button
           onClick={() => setTab("master")}
           style={tab === "master" ? styles.setupTabActive : styles.setupTab}
         >
-          ⚡ 1-Step Master Link (PIN 878955)
+          ⚡ 6-Digit Master Link
         </button>
         <button
           onClick={() => setTab("qr")}
@@ -975,27 +965,53 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
       </div>
 
       {tab === "master" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "left", margin: 0 }}>
-            Paste the Master Code copied from AuraRing (<strong>Settings → Personal Ecosystem</strong>) or connect with PIN 878955:
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", margin: 0 }}>
+            Enter the 6-digit code shown on your phone in<br />
+            <strong>AuraRing → Settings → Personal Ecosystem</strong>
           </p>
-          <textarea
-            placeholder="Paste Master Link Code from Phone..."
-            value={masterCode}
-            onChange={(e) => setMasterCode(e.target.value)}
-            style={styles.codeTextarea}
-          />
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Master PIN:</span>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
             <input
               type="text"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              style={styles.pinInput}
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+              placeholder="878955"
+              style={{
+                width: "100%",
+                maxWidth: 280,
+                padding: "16px 20px",
+                fontSize: 32,
+                fontWeight: 800,
+                textAlign: "center",
+                background: "rgba(255,255,255,0.06)",
+                border: "2px solid #D4AF37",
+                borderRadius: 14,
+                color: "#D4AF37",
+                letterSpacing: 10,
+                fontFamily: "monospace",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Default Master Code: 878955</span>
           </div>
+
           {error && <p style={{ color: "#EF4444", fontSize: 13, margin: 0 }}>{error}</p>}
-          <button onClick={handleMasterConnect} disabled={loading} style={styles.primaryBtn}>
+
+          <button
+            onClick={handleMasterConnect}
+            disabled={loading}
+            style={{
+              ...styles.primaryBtn,
+              width: "100%",
+              maxWidth: 320,
+              padding: "14px 24px",
+              fontSize: 16,
+              borderRadius: 12,
+            }}
+          >
             {loading ? "Connecting..." : "⚡ Activate Permanent Phone Mirror"}
           </button>
         </div>

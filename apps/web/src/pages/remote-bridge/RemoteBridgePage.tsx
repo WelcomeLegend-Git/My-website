@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-remote-bridge";
 import { getApiBaseUrl } from "../../lib/env";
@@ -75,7 +75,7 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
       transform: translateY(0);
     }
     
-    /* ΓöÇΓöÇΓöÇ Scrollable content area ΓöÇΓöÇΓöÇ */
+    /* ─── Scrollable content area ─── */
     .rb-scroll-content {
       flex: 1;
       overflow-y: auto;
@@ -175,7 +175,7 @@ if (typeof document !== "undefined" && !document.getElementById("rb-spin-style")
   document.head.appendChild(style);
 }
 
-// ΓöÇΓöÇΓöÇ Config Storage (persisted in localStorage) ΓöÇΓöÇΓöÇ
+// ─── Config Storage (persisted in localStorage) ───
 
 const BRIDGE_CONFIG_KEY = "aura-remote-bridge-config";
 const BRIDGE_DEVICE_ID_KEY = "aura-remote-bridge-device-id";
@@ -223,7 +223,7 @@ async function getBridgeErrorMessage(response: Response, fallback: string): Prom
   return fallback;
 }
 
-// ΓöÇΓöÇΓöÇ Dial Pad Buttons ΓöÇΓöÇΓöÇ
+// ─── Dial Pad Buttons ───
 
 const DIAL_PAD = [
   ["1", "2", "3"],
@@ -232,7 +232,7 @@ const DIAL_PAD = [
   ["*", "0", "#"],
 ];
 
-// ΓöÇΓöÇΓöÇ Page Component ΓöÇΓöÇΓöÇ
+// ─── Page Component ───
 
 export function RemoteBridgePage() {
   const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
@@ -265,7 +265,7 @@ export function RemoteBridgePage() {
         const data = await res.json();
         setPhoneOnline(data.phoneOnline);
         if (data.phoneOnline) {
-          // Phone is online ΓÇö request fresh data immediately + retry after delay
+          // Phone is online — request fresh data immediately + retry after delay
           requestStatus();
           getRecentCalls();
           // Retry after 2s in case the phone wasn't fully ready on first request
@@ -279,7 +279,7 @@ export function RemoteBridgePage() {
     setRefreshing(false);
   }, [authToken, requestStatus, getRecentCalls, setPhoneOnline]);
 
-  // QR pairing confirmed callback ΓÇö register tablet device on server first
+  // QR pairing confirmed callback — register tablet device on server first
   const handleQrPaired = useCallback(async (encryptionKey: string) => {
     const deviceId = getOrCreateBridgeDeviceId();
 
@@ -375,7 +375,7 @@ export function RemoteBridgePage() {
     };
   }, [status.authenticated, acceptCall, rejectCall]);
 
-  // ΓöÇΓöÇΓöÇ Setup Screen (QR + Manual) ΓöÇΓöÇΓöÇ
+  // ─── Setup Screen (QR + Manual) ───
 
   if (showSetup || !config) {
     return (
@@ -387,7 +387,7 @@ export function RemoteBridgePage() {
     );
   }
 
-  // ΓöÇΓöÇΓöÇ Main Dashboard ΓöÇΓöÇΓöÇ
+  // ─── Main Dashboard ───
 
   return (
     <div style={styles.container} className="rb-container">
@@ -421,14 +421,14 @@ export function RemoteBridgePage() {
                 }}
                 title="Refresh connection (check if phone is online)"
               >
-                ≡ƒöä
+                🔄
               </button>
             )}
           </div>
           <div style={styles.statusRight}>
             {currentCall?.bluetoothDeviceName && (
               <div style={styles.btBadge}>
-                ≡ƒÄº {currentCall.bluetoothDeviceName}
+                🎧 {currentCall.bluetoothDeviceName}
               </div>
             )}
             <div style={styles.brandBadge}>
@@ -448,7 +448,7 @@ export function RemoteBridgePage() {
                 ...(activeTab === tab ? styles.tabActive : {}),
               }}
             >
-              {tab === "call" ? "≡ƒô₧ Calls" : tab === "dial" ? "Γî¿∩╕Å Dial" : tab === "settings" ? "ΓÜÖ∩╕Å Settings" : "≡ƒöì Diag"}
+              {tab === "call" ? "📞 Calls" : tab === "dial" ? "⌨️ Dial" : tab === "settings" ? "⚙️ Settings" : "🔍 Diag"}
             </button>
           ))}
         </div>
@@ -512,7 +512,7 @@ export function RemoteBridgePage() {
   );
 }
 
-// ΓöÇΓöÇΓöÇ Call Panel ΓöÇΓöÇΓöÇ
+// ─── Call Panel ───
 
 function CallPanel({
   callState,
@@ -544,7 +544,7 @@ function CallPanel({
   if (!phoneOnline) {
     return (
       <div style={styles.emptyState}>
-        <div style={styles.emptyIcon}>≡ƒô▒</div>
+        <div style={styles.emptyIcon}>📱</div>
         <h3 style={styles.emptyTitle}>Phone Not Connected</h3>
         <p style={styles.emptyDesc}>
           Make sure AuraRing is running and the Remote Bridge is enabled.
@@ -557,7 +557,7 @@ function CallPanel({
     if (!recentCalls || recentCalls.length === 0) {
       return (
         <div style={styles.emptyState}>
-          <div style={styles.emptyIcon}>Γ£¿</div>
+          <div style={styles.emptyIcon}>✨</div>
           <h3 style={styles.emptyTitle}>No Active Call</h3>
           <p style={styles.emptyDesc}>
             Incoming calls will appear here. Use the Dial tab to make a call.
@@ -574,7 +574,7 @@ function CallPanel({
             const dateStr = new Date(call.date).toLocaleString([], {
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
             });
-            const typeIcon = call.type === 1 ? "ΓåÖ∩╕Å" : call.type === 2 ? "Γåù∩╕Å" : call.type === 3 ? "Γ¥î" : "≡ƒô₧";
+            const typeIcon = call.type === 1 ? "↙️" : call.type === 2 ? "↗️" : call.type === 3 ? "❌" : "📞";
             const typeColor = call.type === 3 ? "#FF3B30" : "var(--ink-muted)";
             
             return (
@@ -586,7 +586,7 @@ function CallPanel({
                   <div style={styles.recentCallName}>{call.name || call.number}</div>
                   <div style={{ ...styles.recentCallMeta, color: typeColor }}>
                     {typeIcon} {dateStr}
-                    {call.duration > 0 && ` ┬╖ ${Math.floor(call.duration / 60)}m ${call.duration % 60}s`}
+                    {call.duration > 0 && ` · ${Math.floor(call.duration / 60)}m ${call.duration % 60}s`}
                   </div>
                 </div>
                 <button 
@@ -595,7 +595,7 @@ function CallPanel({
                   className="rb-btn-hover"
                   title={`Call ${call.name || call.number}`}
                 >
-                  ≡ƒô₧
+                  📞
                 </button>
               </div>
             );
@@ -624,10 +624,10 @@ function CallPanel({
                  callState === "HOLDING" ? "var(--brass)" :
                  "var(--ink-muted)"
         }} className="rb-call-status">
-          {callState === "RINGING" ? "≡ƒô₧ Incoming Call..." :
-           callState === "ACTIVE" ? `≡ƒƒó Active ┬╖ ${formatDuration(currentCall?.durationSeconds || 0)}` :
-           callState === "CONNECTING" ? "≡ƒô▓ Connecting..." :
-           callState === "HOLDING" ? "ΓÅ╕ On Hold" :
+          {callState === "RINGING" ? "📞 Incoming Call..." :
+           callState === "ACTIVE" ? `🟢 Active · ${formatDuration(currentCall?.durationSeconds || 0)}` :
+           callState === "CONNECTING" ? "📲 Connecting..." :
+           callState === "HOLDING" ? "⏸ On Hold" :
            callState}
         </p>
       </div>
@@ -637,10 +637,10 @@ function CallPanel({
         {callState === "RINGING" && (
           <>
             <button onClick={onAccept} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn rb-btn-hover">
-              Γ£à Accept
+              ✅ Accept
             </button>
             <button onClick={onReject} style={{ ...styles.actionBtn, ...styles.rejectBtn }} className="rb-action-btn rb-btn-hover">
-              Γ¥î Reject
+              ❌ Reject
             </button>
           </>
         )}
@@ -656,7 +656,7 @@ function CallPanel({
               }}
               className="rb-action-btn rb-btn-hover"
             >
-              {currentCall?.isMuted ? "≡ƒöç Muted" : "≡ƒÄñ Mute"}
+              {currentCall?.isMuted ? "🔇 Muted" : "🎤 Mute"}
             </button>
             <button
               onClick={onToggleSpeaker}
@@ -667,13 +667,13 @@ function CallPanel({
               }}
               className="rb-action-btn rb-btn-hover"
             >
-              {currentCall?.isSpeakerOn ? "≡ƒöè Speaker" : "≡ƒöê Speaker"}
+              {currentCall?.isSpeakerOn ? "🔊 Speaker" : "🔈 Speaker"}
             </button>
             <button onClick={onHold} style={{ ...styles.actionBtn, ...styles.controlBtn }} className="rb-action-btn rb-btn-hover">
-              ΓÅ╕ Hold
+              ⏸ Hold
             </button>
             <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn rb-btn-hover">
-              ≡ƒô₧ End Call
+              📞 End Call
             </button>
           </>
         )}
@@ -681,10 +681,10 @@ function CallPanel({
         {callState === "HOLDING" && (
           <>
             <button onClick={onUnhold} style={{ ...styles.actionBtn, ...styles.acceptBtn }} className="rb-action-btn rb-btn-hover">
-              Γû╢∩╕Å Resume
+              ▶️ Resume
             </button>
             <button onClick={onHangup} style={{ ...styles.actionBtn, ...styles.endBtn }} className="rb-action-btn rb-btn-hover">
-              ≡ƒô₧ End Call
+              📞 End Call
             </button>
           </>
         )}
@@ -693,7 +693,7 @@ function CallPanel({
   );
 }
 
-// ΓöÇΓöÇΓöÇ Dial Panel ΓöÇΓöÇΓöÇ
+// ─── Dial Panel ───
 
 function DialPanel({
   number,
@@ -741,7 +741,7 @@ function DialPanel({
           className="rb-glass-card rb-btn-hover"
           disabled={!number}
         >
-          Γî½
+          ⌫
         </button>
         <button
           onClick={onDial}
@@ -752,14 +752,14 @@ function DialPanel({
           }}
           className="rb-btn-hover"
         >
-          ≡ƒô₧ Call
+          📞 Call
         </button>
       </div>
     </div>
   );
 }
 
-// ΓöÇΓöÇΓöÇ Settings Panel ΓöÇΓöÇΓöÇ
+// ─── Settings Panel ───
 
 function SettingsPanel({
   config,
@@ -926,9 +926,9 @@ function SettingsPanel({
 
   return (
     <div style={styles.settingsPanel} className="rb-settings-panel">
-      {/* ΓöÇΓöÇΓöÇ Background Notifications Toggle ΓöÇΓöÇΓöÇ */}
+      {/* ─── Background Notifications Toggle ─── */}
       <div style={styles.settingSection}>
-        <h3 style={styles.settingTitle}>≡ƒöö Background Notifications</h3>
+        <h3 style={styles.settingTitle}>🔔 Background Notifications</h3>
         <p style={{ color: "var(--ink-muted)", fontSize: 12, margin: "0 0 12px" }}>
           Get notified of incoming calls even when this tab is in the background or closed.
           Both toggles must be ON for notifications to work.
@@ -936,7 +936,7 @@ function SettingsPanel({
 
         {/* Tablet Toggle */}
         <div style={{ ...styles.infoRow, cursor: "pointer" }} onClick={() => !pushLoading && handlePushToggle(!pushEnabled)}>
-          <span>≡ƒô▓ This iPad (Background Alerts)</span>
+          <span>📲 This iPad (Background Alerts)</span>
           <div style={{
             width: 44, height: 24, borderRadius: 12,
             backgroundColor: pushEnabled ? "var(--signal)" : "var(--surface-2)",
@@ -954,9 +954,9 @@ function SettingsPanel({
 
         {/* Phone Toggle Status (read-only on web) */}
         <div style={styles.infoRow}>
-          <span>≡ƒô▒ Phone (Allow iPad Alerts)</span>
+          <span>📱 Phone (Allow iPad Alerts)</span>
           <span style={{ color: phoneToggle ? "var(--signal)" : "var(--brass)", fontSize: 13, fontWeight: 600 }}>
-            {phoneToggle ? "Γ£ô ON" : "Γ£ò OFF"}
+            {phoneToggle ? "✓ ON" : "✕ OFF"}
           </span>
         </div>
 
@@ -969,7 +969,7 @@ function SettingsPanel({
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ fontSize: 16 }}>
-            {(pushEnabled && phoneToggle) ? "≡ƒƒó" : (!pushEnabled && !phoneToggle) ? "ΓÜ¬" : "ΓÜá∩╕Å"}
+            {(pushEnabled && phoneToggle) ? "🟢" : (!pushEnabled && !phoneToggle) ? "⚪" : "⚠️"}
           </span>
           <span style={{ 
             color: (pushEnabled && phoneToggle) ? "var(--signal)" : 
@@ -978,16 +978,16 @@ function SettingsPanel({
             fontSize: 12,
             fontWeight: 500
           }}>
-            {(pushEnabled && phoneToggle) ? "Background notifications active ΓÇö you'll receive call alerts" :
+            {(pushEnabled && phoneToggle) ? "Background notifications active — you'll receive call alerts" :
              (!pushEnabled && !phoneToggle) ? "Background notifications disabled on both devices" :
-             pushEnabled && !phoneToggle ? "Phone toggle is OFF ΓÇö enable it from AuraRing app to receive alerts" :
-             "iPad toggle is OFF ΓÇö enable it above to receive background alerts"}
+             pushEnabled && !phoneToggle ? "Phone toggle is OFF — enable it from AuraRing app to receive alerts" :
+             "iPad toggle is OFF — enable it above to receive background alerts"}
           </span>
         </div>
 
         {!pushConfigured && (
           <p style={{ color: "var(--brass)", fontSize: 11, marginTop: 8 }}>
-            ΓÜá∩╕Å VAPID keys not configured on server. Push won't work until admin sets them up.
+            ⚠️ VAPID keys not configured on server. Push won't work until admin sets them up.
           </p>
         )}
       </div>
@@ -1000,7 +1000,7 @@ function SettingsPanel({
         </div>
         <div style={styles.infoRow}>
           <span>Encryption</span>
-          <span style={{ color: "var(--signal)" }}>Γ£ô AES-256-GCM</span>
+          <span style={{ color: "var(--signal)" }}>✓ AES-256-GCM</span>
         </div>
       </div>
 
@@ -1027,7 +1027,7 @@ function SettingsPanel({
       <div style={styles.settingSection}>
         <h3 style={{ ...styles.settingTitle, color: "#FF3B30" }}>Danger Zone</h3>
         <button onClick={handleKillSwitch} style={styles.killBtn}>
-          ≡ƒÜ¿ Emergency Kill Switch
+          🚨 Emergency Kill Switch
         </button>
         <button onClick={handleResetConnection} style={styles.resetBtn}>
           Reset Connection
@@ -1050,7 +1050,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 
-// ΓöÇΓöÇΓöÇ Setup Screen (WhatsApp-style QR + Manual) ΓöÇΓöÇΓöÇ
+// ─── Setup Screen (WhatsApp-style QR + Manual) ───
 
 function SetupScreen({
   onQrPaired,
@@ -1138,7 +1138,7 @@ function SetupScreen({
         if (res.ok) {
           const data = await res.json();
           if (data.status === "confirmed") {
-            // Phone scanned the QR! ≡ƒÄë
+            // Phone scanned the QR! 🎉
             clearInterval(pollIntervalRef.current);
             if (countdownRef.current) clearInterval(countdownRef.current);
             onQrPaired(encryptionKey);
@@ -1175,7 +1175,7 @@ function SetupScreen({
 
   return (
     <div style={styles.setupCard}>
-      <div style={styles.setupIcon}>≡ƒöù</div>
+      <div style={styles.setupIcon}>🔗</div>
       <h2 style={styles.setupTitle}>Connect to AuraRing</h2>
       <p style={styles.setupDesc}>
         Pair your phone with this device to control calls remotely.
@@ -1190,7 +1190,7 @@ function SetupScreen({
             ...(setupTab === "qr" ? styles.setupTabBtnActive : {}),
           }}
         >
-          ≡ƒô╖ Scan QR Code
+          📷 Scan QR Code
         </button>
         <button
           onClick={() => setSetupTab("manual")}
@@ -1199,7 +1199,7 @@ function SetupScreen({
             ...(setupTab === "manual" ? styles.setupTabBtnActive : {}),
           }}
         >
-          Γî¿∩╕Å Enter Key
+          ⌨️ Enter Key
         </button>
       </div>
 
@@ -1208,7 +1208,7 @@ function SetupScreen({
         <div style={styles.qrContainer}>
           {qrLoading ? (
             <div style={styles.qrPlaceholder}>
-              <div style={styles.qrSpinner}>ΓÅ│</div>
+              <div style={styles.qrSpinner}>⏳</div>
               <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>
                 Generating secure QR code...
               </p>
@@ -1217,14 +1217,14 @@ function SetupScreen({
             <div style={styles.qrPlaceholder}>
               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
-                ≡ƒöä Retry
+                🔄 Retry
               </button>
             </div>
           ) : timeLeft === 0 ? (
             <div style={styles.qrPlaceholder}>
               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
-                ≡ƒöä Generate New
+                🔄 Generate New
               </button>
             </div>
           ) : (
@@ -1243,7 +1243,7 @@ function SetupScreen({
 
               <div style={styles.qrInfo}>
                 <p style={styles.qrInstruction}>
-                  Open <strong>AuraRing</strong> ΓåÆ Settings ΓåÆ Remote Bridge ΓåÆ <strong>Scan QR</strong>
+                  Open <strong>AuraRing</strong> → Settings → Remote Bridge → <strong>Scan QR</strong>
                 </p>
                 <div style={styles.qrTimer}>
                   <span style={{
@@ -1256,7 +1256,7 @@ function SetupScreen({
                     onClick={() => createPairingSession()}
                     style={styles.refreshBtn}
                   >
-                    ≡ƒöä Refresh
+                    🔄 Refresh
                   </button>
                 </div>
               </div>
@@ -1274,20 +1274,20 @@ function SetupScreen({
           
           {qrLoading ? (
              <div style={styles.qrPlaceholder}>
-               <div style={styles.qrSpinner}>ΓÅ│</div>
+               <div style={styles.qrSpinner}>⏳</div>
                <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>Generating code...</p>
              </div>
           ) : timeLeft === 0 ? (
              <div style={styles.qrPlaceholder}>
                <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>Code Expired</p>
                <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
-                 ≡ƒöä Generate New
+                 🔄 Generate New
                </button>
              </div>
           ) : qrError ? (
              <div style={styles.qrPlaceholder}>
                <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
-               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>≡ƒöä Retry</button>
+               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>🔄 Retry</button>
              </div>
           ) : (
             <>
@@ -1315,7 +1315,7 @@ function SetupScreen({
                   }}
                   style={{ ...styles.primaryBtn, flex: 1 }}
                 >
-                  ≡ƒôï Copy Code
+                  📋 Copy Code
                 </button>
               </div>
 
@@ -1332,7 +1332,7 @@ function SetupScreen({
   );
 }
 
-// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇ
+// ─── Helpers ───
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -1340,7 +1340,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// ΓöÇΓöÇΓöÇ Styles ΓöÇΓöÇΓöÇ
+// ─── Styles ───
 
 const styles: Record<string, React.CSSProperties> = {
   container: {

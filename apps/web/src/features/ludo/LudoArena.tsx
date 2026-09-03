@@ -11,8 +11,10 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
+  UserPlus,
   Users,
   Wifi,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -25,8 +27,9 @@ import { useParticles } from "./effects/useParticles";
 
 import { COLOR_META } from "./game/board";
 import { getActivePlayer } from "./game/engine";
-import { PLAYER_COLORS, type GameMode, type LudoPlayer } from "./game/types";
+import { PLAYER_COLORS, type GameMode, type LudoGameState, type LudoPlayer } from "./game/types";
 import { useLudoGame } from "./hooks/useLudoGame";
+import { usePeerLudo } from "./hooks/usePeerLudo";
 import { createRoomLink, generateInviteSecret, generateRoomCode, normaliseRoomCode } from "./online/roomCode";
 import "./ludo.css";
 
@@ -41,6 +44,7 @@ const modeCards: Array<{
   icon: typeof Bot;
   accent: string;
   tag: string;
+  badge?: string;
 }> = [
   {
     mode: "single",
@@ -49,6 +53,7 @@ const modeCards: Array<{
     icon: Bot,
     accent: "violet",
     tag: "VS AI",
+    badge: "MOST PLAYED",
   },
   {
     mode: "pass",
@@ -87,6 +92,7 @@ export interface LudoArenaProps {
 
 export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   const controller = useLudoGame();
+  const peer = usePeerLudo();
   const [view, setView] = useState<LobbyView>(initialRoomCode ? "online" : "home");
   const [selectedMode, setSelectedMode] = useState<GameMode>("single");
   const [playerCount, setPlayerCount] = useState(2);
@@ -112,8 +118,17 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   const particles = useParticles();
   const prevDiceValueRef = useRef<number | null>(null);
   const prevPhaseRef = useRef<string | null>(null);
-  const prevRevisionRef = useRef<number>(0);
+  const prevMoveFingerprintRef = useRef<string | null>(null);
   const boardShellRef = useRef<HTMLDivElement>(null);
+
+  const onlineGame = peer.game;
+  const activeGame: LudoGameState | null = onlineGame ?? controller.game;
+  const isOnline = onlineGame !== null;
+  const myTurn = isOnline
+    ? peer.role === "host"
+      ? getActivePlayer(onlineGame).id === "host-seat"
+      : getActivePlayer(onlineGame).id === peer.mySeatKey
+    : true;
 
   const activeRoomLink = useMemo(() => {
     if (!roomCode || !inviteSecret || typeof window === "undefined") return "";
@@ -133,10 +148,15 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     }
   }, [initialRoomCode]);
 
-  // --- Sound & particle effects (top-level, guarded) ---
+  // --- Sound & particle effects (dice) ---
   useEffect(() => {
-    const state = controller.game;
-    if (!state) return;
+    const state = activeGame;
+    if (!state) {
+      prevDiceValueRef.current = null;
+      prevPhaseRef.current = null;
+      prevMoveFingerprintRef.current = null;
+      return;
+    }
     if (state.diceValue !== null && state.diceValue !== prevDiceValueRef.current && prevPhaseRef.current === "rolling") {
       soundRef.current?.diceRoll();
       if (state.diceValue === 6) {
@@ -152,40 +172,42 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     }
     prevDiceValueRef.current = state.diceValue;
     prevPhaseRef.current = state.phase;
-  }, [controller.game, controller.game?.diceValue, controller.game?.phase, particles]);
+  }, [activeGame, particles]);
 
+  // --- Sound & particle effects (moves, captures, finishes) ---
   useEffect(() => {
-    const state = controller.game;
-    const result = controller.lastMoveResult;
-    if (!state || !result || state.revision === prevRevisionRef.current) return;
-    prevRevisionRef.current = state.revision;
-    const active = getActivePlayer(state);
+    const state = activeGame;
+    if (!state?.lastMove) return;
+    const move = state.lastMove;
+    const fingerprint = `${move.playerColor}-${move.tokenIndex}-${move.from}-${move.to}`;
+    if (fingerprint === prevMoveFingerprintRef.current) return;
+    prevMoveFingerprintRef.current = fingerprint;
 
     soundRef.current?.tokenMove();
 
-    if (result.captured.length > 0) {
+    if (move.captured.length > 0) {
       soundRef.current?.tokenCapture();
       setBoardShaking(true);
       setTimeout(() => setBoardShaking(false), 400);
       const shell = boardShellRef.current;
       if (shell) {
         const rect = shell.getBoundingClientRect();
-        particles.emit("capture", { x: rect.width / 2, y: rect.height / 2 }, result.captured[0].color);
+        particles.emit("capture", { x: rect.width / 2, y: rect.height / 2 }, move.captured[0].color);
       }
     }
 
-    if (result.finishedToken) {
+    if (move.finished) {
       soundRef.current?.tokenFinish();
       const shell = boardShellRef.current;
       if (shell) {
         const rect = shell.getBoundingClientRect();
-        particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, active.color);
+        particles.emit("finishToken", { x: rect.width / 2, y: rect.height / 2 }, move.playerColor);
       }
     }
-  }, [controller.game, controller.lastMoveResult, controller.game?.revision, particles]);
+  }, [activeGame, particles]);
 
   useEffect(() => {
-    const state = controller.game;
+    const state = activeGame;
     if (!state || state.phase !== "finished") return;
     soundRef.current?.victory();
     const shell = boardShellRef.current;
@@ -193,13 +215,13 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
       const rect = shell.getBoundingClientRect();
       particles.emit("victory", { x: rect.width / 2, y: 0 });
     }
-  }, [controller.game, controller.game?.phase, particles]);
+  }, [activeGame, activeGame?.phase, particles]);
 
   useEffect(() => {
-    const state = controller.game;
+    const state = activeGame;
     if (!state || state.phase !== "rolling" || state.revision <= 1) return;
     soundRef.current?.turnChime();
-  }, [controller.game, controller.game?.activePlayerIndex, controller.game?.phase, controller.game?.revision]);
+  }, [activeGame, activeGame?.activePlayerIndex, activeGame?.phase, activeGame?.revision]);
 
   useEffect(() => {
     const engine = soundRef.current;
@@ -209,8 +231,6 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
   const updateName = (index: number, value: string): void => {
     setPlayerNames((names) => names.map((name, nameIndex) => (nameIndex === index ? value : name)));
   };
-
-
 
   const openMode = (mode: GameMode): void => {
     setSelectedMode(mode);
@@ -244,7 +264,13 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     const secret = generateInviteSecret();
     setRoomCode(code);
     setInviteSecret(secret);
-    setOnlineNotice("Room ready. The server will create a guest identity after your name is confirmed.");
+    setOnlineNotice("Room number reserved. Open the room to go live for friends.");
+  };
+
+  const openRoom = (): void => {
+    const name = compactName(playerNames[0], "Host");
+    peer.hostRoom(roomCode, name);
+    setOnlineNotice(null);
   };
 
   const joinRoom = (): void => {
@@ -254,7 +280,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
       return;
     }
     setRoomCode(code);
-    setOnlineNotice("Room ready. The server will create a guest identity after your name is confirmed.");
+    peer.joinRoom(code, compactName(playerNames[0], "Guest"));
   };
 
   const copyInvite = async (): Promise<void> => {
@@ -268,25 +294,14 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
     }
   };
 
-  const startRoomPreview = (): void => {
-    setIsLaunching(true);
-    setTimeout(() => {
-      const hostName = compactName(playerNames[0], "Host");
-      controller.start({
-        id: `room-${roomCode || generateRoomCode()}`,
-        mode: "online",
-        players: [
-          createPlayer(0, hostName),
-          createPlayer(1, "Friend seat"),
-        ],
-        rules: { turnDurationSeconds: 30, rankedFinish: true, blockadesEnabled: true },
-      });
-      setIsLaunching(false);
-    }, 400);
+  const leaveMatch = (): void => {
+    peer.leave();
+    controller.leave();
+    setView("home");
   };
 
-  if (controller.game) {
-    const state = controller.game;
+  if (activeGame) {
+    const state = activeGame;
     const winnerColor = state.winnerOrder[0];
     const winner = winnerColor ? state.players.find((player) => player.color === winnerColor) : null;
     const active = getActivePlayer(state);
@@ -298,12 +313,13 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
           <GameHud
             state={state}
             now={controller.now}
-            isDiceRolling={controller.isDiceRolling}
+            isDiceRolling={controller.isDiceRolling && !isOnline}
             muted={muted}
-            onRoll={controller.roll}
-            onLeave={() => { controller.leave(); setView("home"); }}
-            onSkipTurn={controller.skipTurn}
+            onRoll={isOnline ? peer.roll : controller.roll}
+            onLeave={leaveMatch}
+            onSkipTurn={isOnline ? peer.forfeit : controller.skipTurn}
             onToggleMute={() => setMuted((value) => !value)}
+            interactionLocked={(isOnline && !myTurn) || Boolean(controller.handoffPlayerName) || (!isOnline && active.isBot)}
           />
 
           <div className="ludo-board-layout">
@@ -325,8 +341,8 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
             <div ref={boardShellRef} style={{ position: "relative" }}>
               <LudoBoard
                 state={state}
-                onTokenSelect={controller.move}
-                interactionDisabled={Boolean(controller.handoffPlayerName) || active.isBot}
+                onTokenSelect={isOnline ? peer.move : controller.move}
+                interactionDisabled={(isOnline && !myTurn) || Boolean(controller.handoffPlayerName) || (!isOnline && active.isBot)}
                 boardShaking={boardShaking}
               />
               <ParticleCanvas bindCanvas={particles.bindCanvas} />
@@ -346,14 +362,125 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
                 <span className="ludo-eyebrow">CHAMPION</span>
                 <h2>{winner?.name ?? "Match complete"}</h2>
                 <p>{winner ? `${COLOR_META[winner.color].label} reached home first.` : "A brilliant game."}</p>
+                {state.winnerOrder.length > 0 && (
+                  <ol className="ludo-result-standings">
+                    {state.winnerOrder.map((color, index) => {
+                      const ranked = state.players.find((player) => player.color === color);
+                      if (!ranked) return null;
+                      return (
+                        <li key={color}>
+                          <span className="ludo-result-rank">#{index + 1}</span>
+                          <i style={{ background: COLOR_META[color].color }} />
+                          {ranked.name}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
                 <div className="ludo-result-actions">
-                  <button type="button" className="ludo-primary-button" onClick={controller.restart}><Play size={17} /> Play again</button>
-                  <button type="button" className="ludo-secondary-button" onClick={() => { controller.leave(); setView("home"); }}>Lobby</button>
+                  {isOnline && peer.role !== "host" ? (
+                    <button type="button" className="ludo-primary-button" onClick={leaveMatch}>Back to lobby</button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ludo-primary-button"
+                      onClick={() => { if (isOnline) peer.restartMatch(); else controller.restart(); }}
+                    >
+                      <Play size={17} /> {isOnline ? "Rematch" : "Play again"}
+                    </button>
+                  )}
+                  <button type="button" className="ludo-secondary-button" onClick={leaveMatch}>Lobby</button>
                 </div>
               </motion.section>
             </motion.div>
           )}
         </AnimatePresence>
+      </main>
+    );
+  }
+
+  if (peer.status === "connecting" || peer.status === "lobby") {
+    const isHost = peer.role === "host";
+    const canStart = isHost && peer.lobbyPlayers.length >= 2;
+    return (
+      <main className="ludo-arena ludo-lobby">
+        <div className="ludo-stars" aria-hidden="true" />
+        <section className="ludo-lobby-shell">
+          <header className="ludo-lobby-header">
+            <button type="button" className="ludo-back-link" onClick={() => { peer.leave(); setView("online"); }}>
+              <ChevronLeft size={18} /> Room setup
+            </button>
+            <span className="ludo-lobby-availability"><span /> ROOM {peer.status === "connecting" ? "OPENING" : "LIVE"}</span>
+          </header>
+
+          <motion.section className="ludo-online-card" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="ludo-setup-topline">
+              <span className="ludo-mode-icon is-amber"><Wifi size={23} /></span>
+              <div>
+                <span className="ludo-eyebrow">ONLINE ROOM</span>
+                <h2>{peer.status === "connecting" ? "Opening the room…" : `Room ${peer.status === "lobby" && isHost ? roomCode : "joined"}`}</h2>
+              </div>
+            </div>
+
+            {peer.status === "connecting" && (
+              <p className="ludo-online-notice"><Sparkles size={15} /> {peer.notice ?? "Establishing a direct peer connection…"}</p>
+            )}
+
+            {peer.status === "lobby" && (
+              <>
+                <div className="ludo-room-created">
+                  <span className="ludo-room-label">ROOM NUMBER</span>
+                  <strong>{roomCode}</strong>
+                  {activeRoomLink && (
+                    <>
+                      <code>{activeRoomLink}</code>
+                      <button type="button" className="ludo-copy-link" onClick={copyInvite}><Copy size={15} /> {copied ? "Copied" : "Copy invite link"}</button>
+                    </>
+                  )}
+                </div>
+
+                <div className="ludo-lobby-players">
+                  {peer.lobbyPlayers.map((seat) => (
+                    <article className="ludo-lobby-player" key={seat.seatKey} style={{ "--player-colour": COLOR_META[seat.color].color } as React.CSSProperties}>
+                      <span className="ludo-player-orb">{seat.isBot ? <Bot size={15} /> : seat.name.slice(0, 1).toUpperCase()}</span>
+                      <span className="ludo-lobby-player-name">
+                        <strong>{seat.name}{seat.seatKey === "host-seat" ? <Crown size={12} /> : null}</strong>
+                        <small>{seat.seatKey === "host-seat" ? "HOST" : seat.isBot ? "BOT" : seat.connection === "offline" ? "OFFLINE" : "READY"}</small>
+                      </span>
+                      <i className="ludo-lobby-player-dot" />
+                      {isHost && !seat.isBot && seat.seatKey !== "host-seat" && (
+                        <button type="button" className="ludo-lobby-kick" onClick={() => peer.removeSeat(seat.seatKey)} aria-label={`Remove ${seat.name}`}>
+                          <X size={14} />
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                  {Array.from({ length: Math.max(0, 2 - peer.lobbyPlayers.length) }, (_, index) => (
+                    <article className="ludo-lobby-player is-empty" key={`empty-${index}`}>
+                      <span className="ludo-player-orb">?</span>
+                      <span className="ludo-lobby-player-name"><strong>Waiting…</strong><small>SHARE THE CODE</small></span>
+                    </article>
+                  ))}
+                </div>
+
+                {peer.notice && <p className="ludo-online-notice"><Sparkles size={15} /> {peer.notice}</p>}
+
+                {isHost ? (
+                  <div className="ludo-online-actions">
+                    <button type="button" className="ludo-secondary-button" onClick={peer.addBot} disabled={peer.lobbyPlayers.length >= 4}>
+                      <UserPlus size={17} /> Fill with a bot
+                    </button>
+                    <button type="button" className="ludo-primary-button ludo-full-button" onClick={peer.startMatch} disabled={!canStart}>
+                      <Play size={18} /> {canStart ? "Start match" : "Need at least 2 players"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="ludo-online-notice"><Sparkles size={15} /> You are seated and ready. The host starts the match.</p>
+                )}
+              </>
+            )}
+          </motion.section>
+        </section>
       </main>
     );
   }
@@ -364,7 +491,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
       <section className="ludo-lobby-shell">
         <header className="ludo-lobby-header">
           {view !== "home" ? (
-            <button type="button" className="ludo-back-link" onClick={() => setView("home")}><ChevronLeft size={18} /> Game modes</button>
+            <button type="button" className="ludo-back-link" onClick={() => { peer.leave(); setView("home"); }}><ChevronLeft size={18} /> Game modes</button>
           ) : <span className="ludo-lobby-availability"><span /> LIVE GAME ROOM</span>}
           <button type="button" className="ludo-help-link"><ShieldCheck size={16} /> Fair play rules</button>
         </header>
@@ -372,8 +499,14 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
         {view === "home" && (
           <>
             <div className="ludo-hero">
+              <motion.div className="ludo-hero-dice ludo-hero-dice-one" animate={{ y: [0, -12, 0], rotate: [-8, 6, -8] }} transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }} aria-hidden="true">
+                <i /><i /><i /><i /><i /><i />
+              </motion.div>
+              <motion.div className="ludo-hero-dice ludo-hero-dice-two" animate={{ y: [0, 10, 0], rotate: [12, -4, 12] }} transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }} aria-hidden="true">
+                <i /><i /><i /><i /><i /><i />
+              </motion.div>
               <motion.div className="ludo-hero-orb" animate={{ y: [0, -8, 0], rotate: [0, 3, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                <span>✦</span>
+                <span className="ludo-hero-orb-face is-a" /><span className="ludo-hero-orb-face is-b" /><span className="ludo-hero-orb-face is-c" /><span className="ludo-hero-orb-face is-d" />
               </motion.div>
               <span className="ludo-eyebrow">A PREMIUM TABLETOP EXPERIENCE</span>
               <h1>Roll bold.<br /><em>Play brilliant.</em></h1>
@@ -395,6 +528,7 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
                     whileTap={{ scale: 0.985 }}
                   >
                     <span className="ludo-mode-icon"><Icon size={26} /></span>
+                    {card.badge && <span className="ludo-mode-badge">{card.badge}</span>}
                     <span className="ludo-mode-tag">{card.tag}</span>
                     <strong>{card.title}</strong>
                     <small>{card.description}</small>
@@ -471,10 +605,10 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
             </label>
 
             <div className="ludo-online-actions">
-              <button type="button" className="ludo-create-room" onClick={createRoom}><Plus size={18} /> Create a new room</button>
+              <button type="button" className="ludo-create-room" onClick={createRoom} disabled={!compactName(playerNames[0], "")}><Plus size={18} /> Create a new room</button>
               <div className="ludo-join-row">
                 <input inputMode="numeric" value={roomCode} onChange={(event) => setRoomCode(normaliseRoomCode(event.target.value))} placeholder="5-digit room no." aria-label="Room number" />
-                <button type="button" className="ludo-secondary-button" onClick={joinRoom}>Join</button>
+                <button type="button" className="ludo-secondary-button" onClick={joinRoom} disabled={!compactName(playerNames[0], "")}>Join</button>
               </div>
             </div>
 
@@ -485,18 +619,19 @@ export const LudoArena = ({ initialRoomCode }: LudoArenaProps) => {
                 {activeRoomLink ? (
                   <>
                     <code>{activeRoomLink}</code>
-                    <button type="button" className="ludo-copy-link" onClick={copyInvite}><Copy size={15} /> {copied ? "Copied" : "Copy secure invite"}</button>
+                    <button type="button" className="ludo-copy-link" onClick={copyInvite}><Copy size={15} /> {copied ? "Copied" : "Copy invite link"}</button>
                   </>
-                ) : <p>Paste the matching secure invite link to preserve private access.</p>}
+                ) : <p>Create a new room to generate a private invite link.</p>}
               </div>
             )}
 
             {onlineNotice && <p className="ludo-online-notice"><Sparkles size={15} /> {onlineNotice}</p>}
-            <div className="ludo-online-safety"><ShieldCheck size={16} /> New friends enter as a temporary guest after naming themselves—no sign-up wall.</div>
-            <button type="button" className="ludo-primary-button ludo-full-button" onClick={startRoomPreview} disabled={!roomCode}>
-              <Play size={18} /> Preview board locally
+
+            <div className="ludo-online-safety"><ShieldCheck size={16} /> Friends join with the room number as temporary guests — no sign-up wall. The host device referees the match.</div>
+            <button type="button" className="ludo-primary-button ludo-full-button" onClick={openRoom} disabled={!roomCode || !compactName(playerNames[0], "")}>
+              <Play size={18} /> Open room & go live
             </button>
-            <p className="ludo-preview-caption">This opens a local preview. Live online play requires the server merge. The room transport, guest protocol, and database contract are included for integration.</p>
+            {peer.error && <p className="ludo-online-error"><X size={15} /> {peer.error}</p>}
           </motion.section>
         )}
       </section>

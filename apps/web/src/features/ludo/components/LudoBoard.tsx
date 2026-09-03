@@ -10,7 +10,7 @@ import {
   stackOffset,
   tokensAtPoint,
 } from "../game/board";
-import { isSafeRingIndex } from "../game/engine";
+import { getCaptures, getDestination, isSafeRingIndex } from "../game/engine";
 import { FINISH_POSITION, type LudoGameState, type PlayerColor } from "../game/types";
 
 const SVG_SIZE = 600;
@@ -129,10 +129,10 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
                 width={4.7 * UNIT}
                 height={4.7 * UNIT}
                 rx="25"
-                fill="#071226"
-                fillOpacity="0.75"
+                fill={meta.deep}
+                fillOpacity="0.34"
                 stroke={meta.color}
-                strokeOpacity="0.23"
+                strokeOpacity="0.3"
                 strokeWidth="2"
               />
               <text x={(x + 3) * UNIT} y={(y + 1.2) * UNIT} textAnchor="middle" className="ludo-yard-label" fill={meta.color}>
@@ -164,7 +164,7 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
               {safe && (
                 <path
                   d={`M ${(cell.x + 0.5) * UNIT} ${(cell.y + 0.23) * UNIT} l 5 10 11 1 -8 7 3 11 -11 -6 -11 6 3 -11 -8 -7 11 -1 Z`}
-                  fill={meta?.deep ?? "#7592bc"}
+                  fill={meta?.deep ?? "#a8874f"}
                   opacity="0.72"
                   transform={`scale(.7) translate(${((cell.x + 0.5) * UNIT) / 0.7 * 0.3}, ${((cell.y + 0.5) * UNIT) / 0.7 * 0.3})`}
                 />
@@ -207,6 +207,31 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
           <circle cx={HALF} cy={HALF} r="17" fill="#f8fbff" fillOpacity="0.95" />
           <path d={`M${HALF} ${HALF - 13} L${HALF + 4} ${HALF - 4} L${HALF + 14} ${HALF - 4} L${HALF + 6} ${HALF + 2} L${HALF + 9} ${HALF + 12} L${HALF} ${HALF + 6} L${HALF - 9} ${HALF + 12} L${HALF - 6} ${HALF + 2} L${HALF - 14} ${HALF - 4} L${HALF - 4} ${HALF - 4} Z`} fill="#172554" />
         </g>
+
+        {state.phase === "moving" &&
+          state.diceValue !== null &&
+          !interactionDisabled &&
+          state.legalTokenIndexes.map((tokenIndex) => {
+            const from = state.tokens[activePlayer.color][tokenIndex];
+            const destination = getDestination(from, state.diceValue ?? 0, state.rules.requireSixToLeaveHome);
+            if (destination === null) return null;
+            const point = getTokenPoint(activePlayer.color, destination, tokenIndex);
+            const captures = getCaptures(state, activePlayer.color, destination).length > 0;
+            const meta = COLOR_META[activePlayer.color];
+            return (
+              <motion.g
+                key={`dest-${tokenIndex}`}
+                className={`ludo-dest-marker ${captures ? "is-capture" : ""}`}
+                initial={false}
+                animate={{ x: (point.x + 0.5) * UNIT, y: (point.y + 0.5) * UNIT }}
+                transition={{ type: "spring", stiffness: 190, damping: 18, mass: 0.65 }}
+                aria-hidden="true"
+              >
+                <circle r="24" fill="none" stroke={captures ? "#ff6b88" : meta.color} strokeWidth="3" strokeDasharray="6 7" className="ludo-dest-ring" />
+                {captures && <circle r="10" fill="#ff6b88" opacity="0.85" />}
+              </motion.g>
+            );
+          })}
 
         {state.players.flatMap((player) =>
           state.tokens[player.color].map((position, tokenIndex) => {

@@ -17,6 +17,7 @@ interface GameHudProps {
   onLeave: () => void;
   onSkipTurn: () => void;
   onToggleMute: () => void;
+  interactionLocked?: boolean;
 }
 
 const secondsRemaining = (turnEndsAt: number, now: number): number => Math.max(0, Math.ceil((turnEndsAt - now) / 1_000));
@@ -30,11 +31,14 @@ export const GameHud = ({
   onLeave,
   onSkipTurn,
   onToggleMute,
+  interactionLocked = false,
 }: GameHudProps) => {
   const active = getActivePlayer(state);
   const activeMeta = COLOR_META[active.color];
   const remaining = secondsRemaining(state.turnEndsAt, now);
-  const canRoll = state.phase === "rolling" && !active.isBot;
+  const turnTotal = Math.max(1, state.turnEndsAt - state.turnStartedAt);
+  const turnFraction = Math.max(0, Math.min(1, (state.turnEndsAt - now) / turnTotal));
+  const canRoll = state.phase === "rolling" && !active.isBot && !interactionLocked;
   const status = state.phase === "finished"
     ? "Match complete"
     : state.phase === "moving"
@@ -67,19 +71,21 @@ export const GameHud = ({
         </div>
       </header>
 
-      <section className="ludo-turn-panel" style={{ "--turn-colour": activeMeta.color } as React.CSSProperties}>
+      <section className="ludo-turn-panel" style={{ "--turn-colour": activeMeta.color, "--turn-fraction": turnFraction } as React.CSSProperties}>
         <div className="ludo-turn-avatar" style={{ backgroundColor: activeMeta.color }}>
           {active.isBot ? <Bot size={20} /> : active.name.slice(0, 1).toUpperCase()}
         </div>
         <div className="ludo-turn-copy">
           <span className="ludo-eyebrow">{state.phase === "finished" ? "GAME OVER" : "CURRENT TURN"}</span>
           <strong>{status}</strong>
-          {state.phase !== "finished" && (
-            <span className="ludo-turn-timer"><Clock3 size={14} /> {remaining}s</span>
-          )}
+          <span className="ludo-turn-timer" aria-label={`${remaining} seconds remaining`}>
+            <Clock3 size={13} />
+            <span className="ludo-turn-timer-track"><span className="ludo-turn-timer-fill" /></span>
+            <span className="ludo-turn-timer-value">{remaining}s</span>
+          </span>
         </div>
         <div className="ludo-turn-actions">
-          {state.phase !== "finished" && (
+          {state.phase !== "finished" && !interactionLocked && (
             <button type="button" className="ludo-skip-button" onClick={onSkipTurn} title="Skip this turn">
               Skip
             </button>
@@ -113,6 +119,11 @@ export const GameHud = ({
                 <small>
                   {rank >= 0 ? <><Crown size={12} /> #{rank + 1}</> : player.isBot ? "BOT" : `${finished}/4 HOME`}
                 </small>
+                <span className="ludo-player-pips" aria-hidden="true">
+                  {[0, 1, 2, 3].map((pip) => (
+                    <i key={pip} className={pip < finished ? "is-home" : ""} />
+                  ))}
+                </span>
               </span>
               {typeof player.pingMs === "number" && (
                 <span className="ludo-ping"><Gauge size={12} />{player.pingMs}ms</span>

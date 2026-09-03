@@ -321,7 +321,7 @@ export const rollDice = (state: LudoGameState, value: number, now = Date.now()):
   return { ...rolledState, phase: "moving", legalTokenIndexes };
 };
 
-const getCaptures = (
+export const getCaptures = (
   state: LudoGameState,
   playerColor: PlayerColor,
   destination: TokenPosition,

@@ -402,6 +402,23 @@ export const SettingsPage = () => {
           </div>
         </section>
         <VaultEntryPoint />
+        <Link
+          to="/sk"
+          className="group glass-card rounded-2xl border border-line p-5 flex items-center gap-4 transition-colors hover:border-brass/30 no-underline"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400 text-lg">
+            📡
+          </span>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-ink group-hover:text-brass transition-colors">
+              Ecosystem Mirror
+            </h3>
+            <p className="text-xs text-ink-muted truncate">
+              Phone bridge, live controls & sync
+            </p>
+          </div>
+          <span className="text-ink-muted group-hover:text-brass transition-colors text-sm">→</span>
+        </Link>
       </div>
     </div>
   );

@@ -184,12 +184,20 @@ const BRIDGE_DEVICE_ID_KEY = "aura-remote-bridge-device-id";
 interface BridgeConfig {
   encryptionKey: string;
   deviceId: string;
+  userId?: string;
+  serverUrl?: string;
 }
 
-function loadBridgeConfig(): BridgeConfig | null {
+function loadBridgeConfig(currentUserId?: string): BridgeConfig | null {
   try {
     const raw = localStorage.getItem(BRIDGE_CONFIG_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed: BridgeConfig = JSON.parse(raw);
+    if (parsed.userId && currentUserId && parsed.userId !== currentUserId) {
+      clearBridgeConfig();
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -237,14 +245,15 @@ const DIAL_PAD = [
 // ─── Page Component ───
 
 export function RemoteBridgePage() {
-  const [config, setConfig] = useState<BridgeConfig | null>(loadBridgeConfig);
+  const auth = authStorage.getState();
+  const currentUserId = auth.user?.id;
+  const authToken = auth.accessToken || "";
+
+  const [config, setConfig] = useState<BridgeConfig | null>(() => loadBridgeConfig(currentUserId));
   const [dialNumber, setDialNumber] = useState("");
   const [showSetup, setShowSetup] = useState(!config);
   const [activeTab, setActiveTab] = useState<"call" | "dial" | "settings" | "diag">("call");
   const [refreshing, setRefreshing] = useState(false);
-
-  const auth = authStorage.getState();
-  const authToken = auth.accessToken || "";
 
   const bridgeOptions = useMemo(() => {
     if (!config || !authToken) return null;
@@ -255,6 +264,15 @@ export function RemoteBridgePage() {
   const { status, acceptCall, rejectCall, hangupCall, toggleMute, toggleSpeaker, holdCall, unholdCall, requestStatus, getRecentCalls, dialNumber: bridgeDialNumber, setPhoneOnline } = bridge;
   const currentCall = status.currentCall;
   const callState: CallState = (currentCall?.callState as CallState) || "IDLE";
+
+  // If the logged-in account changes, invalidate previous user's bridge config
+  useEffect(() => {
+    if (config?.userId && currentUserId && config.userId !== currentUserId) {
+      clearBridgeConfig();
+      setConfig(null);
+      setShowSetup(true);
+    }
+  }, [config?.userId, currentUserId]);
 
   // Check phone status via REST API (for refresh button & initial load)
   const checkPhoneStatus = useCallback(async () => {
@@ -283,11 +301,15 @@ export function RemoteBridgePage() {
 
   // Setup calls this only after checked registration of the current session.
   const handleQrPaired = useCallback((encryptionKey: string) => {
-    const newConfig: BridgeConfig = { encryptionKey, deviceId: getOrCreateBridgeDeviceId() };
+    const newConfig: BridgeConfig = {
+      encryptionKey,
+      deviceId: getOrCreateBridgeDeviceId(),
+      ...(currentUserId ? { userId: currentUserId } : {}),
+    };
     saveBridgeConfig(newConfig);
     setConfig(newConfig);
     setShowSetup(false);
-  }, []);
+  }, [currentUserId]);
 
   // Check phone status on websocket auth + request data when phone is online
   useEffect(() => {
@@ -305,7 +327,7 @@ export function RemoteBridgePage() {
 
   useEffect(() => {
     if (!status.authError) return;
-    if (/not registered|type mismatch|not trusted/i.test(status.authError)) {
+    if (/not registered|type mismatch|not trusted|device removed|bridge revoked|revoked/i.test(status.authError)) {
       clearBridgeConfig();
       setConfig(null);
       setShowSetup(true);

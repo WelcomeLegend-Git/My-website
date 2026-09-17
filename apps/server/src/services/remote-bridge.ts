@@ -1,11 +1,15 @@
 import { type Express } from "express";
 import type http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { verifyAccessToken } from "../auth/tokens";
+import {
+  createAccessToken,
+  createRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+} from "../auth/tokens";
 import { prisma } from "../prisma";
 import { logger } from "../logger";
 import bcrypt from "bcryptjs";
-import { createAccessToken, createRefreshToken } from "../auth/tokens";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { env } from "../env";
@@ -402,7 +406,41 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     }
   });
 
-  // ═══ Personal Ecosystem (Phone Registration with Master PIN 878955) ═══
+  // ═══ Token Refresh Endpoint ═══
+
+  app.post("/api/remote-bridge/refresh", async (req, res) => {
+    try {
+      const { refreshToken } = req.body || {};
+      if (!refreshToken || typeof refreshToken !== "string" || !refreshToken.trim()) {
+        return res.status(400).json({ message: "refreshToken is required" });
+      }
+
+      let payload;
+      try {
+        payload = verifyRefreshToken(refreshToken.trim());
+      } catch {
+        return res.status(401).json({ message: "Invalid or expired refresh token" });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user) {
+        return res.status(401).json({ message: "Invalid or expired refresh token" });
+      }
+
+      const accessToken = createAccessToken({ sub: user.id, email: user.email });
+      const newRefreshToken = createRefreshToken({ sub: user.id, email: user.email });
+
+      return res.json({
+        accessToken,
+        refreshToken: newRefreshToken,
+      });
+    } catch (error) {
+      logger.error({ error }, "Remote bridge token refresh error");
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ═══ Personal Ecosystem (Phone Registration with User-Configured PIN) ═══
 
   app.post("/api/remote-bridge/personal-register", async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
@@ -410,8 +448,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       const { pin, code, deviceId, encryptionKey, deviceName, email } = req.body || {};
       const effectivePin = (pin || code || "").trim();
 
-      if (effectivePin !== "878955") {
-        return res.status(401).json({ message: "Invalid master PIN" });
+      if (!effectivePin || effectivePin.length < 6) {
+        return res.status(400).json({ message: "A master PIN of at least 6 digits is required" });
       }
 
       if (!deviceId || !encryptionKey) {
@@ -453,18 +491,8 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         } as any,
       });
 
-      const activeCode = (code && typeof code === "string" && code.trim().length === 6) ? code.trim() : "878955";
-      personalCodeSessions.set(activeCode, {
-        code: activeCode,
-        userId: user.id,
-        phoneDeviceId: deviceId,
-        encryptionKey,
-        deviceName: deviceName || "Suraj Phone",
-        createdAt: Date.now(),
-      });
-      // Always keep "878955" active as permanent master PIN
-      personalCodeSessions.set("878955", {
-        code: "878955",
+      personalCodeSessions.set(effectivePin, {
+        code: effectivePin,
         userId: user.id,
         phoneDeviceId: deviceId,
         encryptionKey,
@@ -475,11 +503,11 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       const accessToken = createAccessToken({ sub: user.id, email: user.email });
       const refreshToken = createRefreshToken({ sub: user.id, email: user.email });
 
-      await logActivity(user.id, deviceId, "personal_phone_registered", `Phone registered with master code ${activeCode} from ${ip}`, ip);
+      await logActivity(user.id, deviceId, "personal_phone_registered", `Phone registered with personal master code from ${ip}`, ip);
 
       return res.json({
         success: true,
-        code: activeCode,
+        code: effectivePin,
         userId: user.id,
         userName: user.name,
         accessToken,
@@ -504,7 +532,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         return res.status(400).json({ message: "6-Digit Master Link Code is required" });
       }
 
-      if (effectiveCode !== "878955" && !personalCodeSessions.has(effectiveCode)) {
+      if (!personalCodeSessions.has(effectiveCode)) {
         return res.status(401).json({ message: "Invalid or expired 6-digit link code" });
       }
 
@@ -678,11 +706,53 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     // Disconnect if online
     const client = connectedClients.get(deviceId);
     if (client && client.userId === userId) {
+      try {
+        client.ws.send(JSON.stringify({ type: "DEVICE_REMOVED", deviceId }));
+      } catch {
+        // ignore
+      }
       client.ws.close(1000, "Device removed");
       connectedClients.delete(deviceId);
     }
 
     return res.json({ success: true });
+  });
+
+  // ═══ Revoke All Devices (Cascade Revocation) ═══
+
+  app.post("/api/remote-bridge/devices/revoke-all", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const ip = req.ip || "unknown";
+
+    try {
+      await prisma.remoteBridgeDevice.deleteMany({
+        where: { userId },
+      });
+
+      for (const [deviceId, client] of connectedClients) {
+        if (client.userId === userId) {
+          try {
+            client.ws.send(JSON.stringify({ type: "KEY_REVOKED", reason: "Bridge disabled or reset by owner" }));
+          } catch {
+            // ignore
+          }
+          client.ws.close(1000, "All devices revoked");
+          connectedClients.delete(deviceId);
+        }
+      }
+
+      for (const [code, session] of personalCodeSessions) {
+        if (session.userId === userId) {
+          personalCodeSessions.delete(code);
+        }
+      }
+
+      await logActivity(userId, null, "revoke_all_devices", `All devices revoked from ${ip}`, ip);
+      return res.json({ success: true, message: "All devices revoked" });
+    } catch (error) {
+      logger.error({ error }, "Failed to revoke all devices");
+      return res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // ═══ Kill Switch ═══
@@ -702,8 +772,19 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
     for (const [deviceId, client] of connectedClients) {
       if (client.userId === userId) {
+        try {
+          client.ws.send(JSON.stringify({ type: "KEY_REVOKED", reason: "Kill switch activated" }));
+        } catch {
+          // ignore
+        }
         client.ws.close(1000, "Kill switch activated");
         connectedClients.delete(deviceId);
+      }
+    }
+
+    for (const [code, session] of personalCodeSessions) {
+      if (session.userId === userId) {
+        personalCodeSessions.delete(code);
       }
     }
 
@@ -1146,35 +1227,35 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
   app.post("/api/remote-bridge/call-signal", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const { callerName, callState, deviceId, callSignalId } = req.body || {};
+    const { callerName, callState, deviceId, callSignalId, hint } = req.body || {};
 
     if (callState !== "RINGING") {
       return res.json({ sent: false, reason: "Only RINGING triggers push" });
     }
 
-    const name = callerName || "Unknown";
+    const notificationBody = hint || (callerName ? `${callerName} is calling...` : "Incoming call...");
     const dedupe = shouldSendIncomingCallPush({
       userId,
       deviceId,
-      callerName: name,
+      callerName: notificationBody,
       callSignalId,
     });
     if (!dedupe.send) {
-      logger.info({ userId, callerName: name, via: "http-fallback", key: dedupe.key }, "Duplicate incoming call push suppressed");
-      diagLog(userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${name} via=HTTP_FALLBACK key=${dedupe.key}`);
+      logger.info({ userId, callerName: notificationBody, via: "http-fallback", key: dedupe.key }, "Duplicate incoming call push suppressed");
+      diagLog(userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${notificationBody} via=HTTP_FALLBACK key=${dedupe.key}`);
       return res.json({ sent: false, deduped: true });
     }
 
     await sendPushNotification(userId, {
       title: "📞 Incoming Call",
-      body: `${name} is calling...`,
+      body: notificationBody,
       tag: "incoming-call",
       url: "/remote-bridge",
       requireInteraction: true,
     });
 
-    logger.info({ userId, callerName: name, via: "http-fallback" }, "Push notification triggered via HTTP fallback");
-    diagLog(userId, "server", "CALL_SIGNAL_PUSH", `caller=${name} via=HTTP_FALLBACK`);
+    logger.info({ userId, callerName: notificationBody, via: "http-fallback" }, "Push notification triggered via HTTP fallback");
+    diagLog(userId, "server", "CALL_SIGNAL_PUSH", `caller=${notificationBody} via=HTTP_FALLBACK`);
     return res.json({ sent: true });
   });
 
@@ -1635,29 +1716,29 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
             break;
 
           case "CALL_SIGNAL":
-            // Unencrypted signal from phone for push notifications (RINGING only)
+            // Signal from phone for push notifications (RINGING only)
             if (clientInfo.deviceType === "phone" && message.callState === "RINGING") {
-              const callerName = message.callerName || "Unknown";
+              const notificationBody = message.hint || (message.callerName ? `${message.callerName} is calling...` : "Incoming call...");
               const dedupe = shouldSendIncomingCallPush({
                 userId: clientInfo.userId,
                 deviceId: message.deviceId || clientInfo.deviceId,
-                callerName,
+                callerName: notificationBody,
                 callSignalId: message.callSignalId,
               });
               if (!dedupe.send) {
-                logger.info({ userId: clientInfo.userId, callerName, key: dedupe.key }, "Duplicate incoming call push suppressed");
-                diagLog(clientInfo.userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${callerName} via=WS key=${dedupe.key}`);
+                logger.info({ userId: clientInfo.userId, callerName: notificationBody, key: dedupe.key }, "Duplicate incoming call push suppressed");
+                diagLog(clientInfo.userId, "server", "CALL_SIGNAL_DEDUPED", `caller=${notificationBody} via=WS key=${dedupe.key}`);
                 break;
               }
               sendPushNotification(clientInfo.userId, {
                 title: "📞 Incoming Call",
-                body: `${callerName} is calling...`,
+                body: notificationBody,
                 tag: "incoming-call",
                 url: "/remote-bridge",
                 requireInteraction: true,
               });
-              logger.info({ userId: clientInfo.userId, callerName }, "Push notification triggered for incoming call");
-              diagLog(clientInfo.userId, "server", "CALL_SIGNAL_PUSH", `caller=${callerName} via=WS`);
+              logger.info({ userId: clientInfo.userId, callerName: notificationBody }, "Push notification triggered for incoming call");
+              diagLog(clientInfo.userId, "server", "CALL_SIGNAL_PUSH", `caller=${notificationBody} via=WS`);
             }
             break;
 

@@ -592,6 +592,18 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
               ws.close();
               break;
 
+            case "DEVICE_REMOVED":
+            case "KEY_REVOKED":
+              shouldReconnect = false;
+              setStatus((s) => ({
+                ...s,
+                authenticated: false,
+                connected: false,
+                authError: message.reason || "Device removed or bridge revoked",
+              }));
+              ws.close();
+              break;
+
             case "EVENT":
               if (cryptoKeyRef.current) {
                 try {

@@ -26,22 +26,45 @@ const createNoise = (ctx: AudioContext, durationSec: number): AudioBuffer => {
 export class LudoSoundEngine {
   private ctx: AudioContext | null = null;
   private _muted = false;
+  private disposed = false;
+  private sources = new Set<AudioScheduledSourceNode>();
 
   get muted(): boolean { return this._muted; }
-  set muted(value: boolean) { this._muted = value; }
+  set muted(value: boolean) {
+    this._muted = value;
+    if (value) this.stop();
+  }
 
   /** Must be called from a user gesture to satisfy browser autoplay policy. */
-  private ensureContext(): AudioContext {
-    if (!this.ctx) this.ctx = new AudioContext();
-    if (this.ctx.state === "suspended") this.ctx.resume();
-    return this.ctx;
+  unlock(): void {
+    if (this.disposed || this._muted || typeof AudioContext === "undefined") return;
+    try {
+      if (!this.ctx) this.ctx = new AudioContext();
+      if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => {});
+    } catch {
+      // Audio is optional; restricted browsers must still be able to play.
+    }
+  }
+
+  private track(source: AudioScheduledSourceNode, nodes: AudioNode[]): void {
+    this.sources.add(source);
+    source.onended = () => {
+      this.sources.delete(source);
+      source.disconnect();
+      nodes.forEach((node) => node.disconnect());
+    };
+  }
+
+  stop(): void {
+    this.sources.forEach((source) => { try { source.stop(); } catch { /* Already ended. */ } });
+    this.sources.clear();
   }
 
   /* ----- helpers ----- */
 
   private tone(freq: number, type: OscillatorType, envelope: Envelope, startOffset = 0): void {
-    if (this._muted) return;
-    const ctx = this.ensureContext();
+    const ctx = this.ctx;
+    if (this._muted || this.disposed || !ctx || ctx.state !== "running") return;
     const t = ctx.currentTime + startOffset;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -49,13 +72,14 @@ export class LudoSoundEngine {
     osc.frequency.setValueAtTime(freq, t);
     osc.connect(gain).connect(ctx.destination);
     env(gain, envelope, t);
+    this.track(osc, [gain]);
     osc.start(t);
     osc.stop(t + envelope.attack + envelope.decay + envelope.release + 0.05);
   }
 
   private sweep(from: number, to: number, type: OscillatorType, envelope: Envelope, startOffset = 0): void {
-    if (this._muted) return;
-    const ctx = this.ensureContext();
+    const ctx = this.ctx;
+    if (this._muted || this.disposed || !ctx || ctx.state !== "running") return;
     const t = ctx.currentTime + startOffset;
     const total = envelope.attack + envelope.decay + envelope.release;
     const osc = ctx.createOscillator();
@@ -65,13 +89,14 @@ export class LudoSoundEngine {
     osc.frequency.exponentialRampToValueAtTime(to, t + total);
     osc.connect(gain).connect(ctx.destination);
     env(gain, envelope, t);
+    this.track(osc, [gain]);
     osc.start(t);
     osc.stop(t + total + 0.05);
   }
 
   private noise(envelope: Envelope, filterFreq: number, startOffset = 0): void {
-    if (this._muted) return;
-    const ctx = this.ensureContext();
+    const ctx = this.ctx;
+    if (this._muted || this.disposed || !ctx || ctx.state !== "running") return;
     const t = ctx.currentTime + startOffset;
     const total = envelope.attack + envelope.decay + envelope.release;
     const source = ctx.createBufferSource();
@@ -83,6 +108,7 @@ export class LudoSoundEngine {
     const gain = ctx.createGain();
     source.connect(filter).connect(gain).connect(ctx.destination);
     env(gain, envelope, t);
+    this.track(source, [filter, gain]);
     source.start(t);
     source.stop(t + total + 0.1);
   }
@@ -146,7 +172,9 @@ export class LudoSoundEngine {
   }
 
   dispose(): void {
-    this.ctx?.close();
+    this.disposed = true;
+    this.stop();
+    if (this.ctx && this.ctx.state !== "closed") void this.ctx.close().catch(() => {});
     this.ctx = null;
   }
 }

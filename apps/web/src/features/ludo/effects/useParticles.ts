@@ -1,65 +1,73 @@
-import { useCallback, useEffect, useRef } from "react";
-
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { emitParticles, renderParticle, updateParticle, type Particle, type ParticlePreset } from "./particles";
+import { useLudoReducedMotion } from "./useLudoReducedMotion";
 
 export interface ParticleAPI {
   bindCanvas: (el: HTMLCanvasElement | null) => void;
   emit: (preset: ParticlePreset, origin: { x: number; y: number }, color?: string) => void;
+  clear: () => void;
 }
 
 export const useParticles = (): ParticleAPI => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null) as React.MutableRefObject<HTMLCanvasElement | null>;
+  const reducedMotion = useLudoReducedMotion();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const rafRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(0);
+  const rafRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number | null>(null);
 
-  const bindCanvas = useCallback((el: HTMLCanvasElement | null) => {
-    canvasRef.current = el;
-  }, []);
-
-  const loop = useCallback(function loop(time: number) {
+  const clear = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    lastTimeRef.current = null;
+    particlesRef.current = [];
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dt = lastTimeRef.current ? Math.min((time - lastTimeRef.current) / 1000, 0.05) : 0.016;
-    lastTimeRef.current = time;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    particlesRef.current = particlesRef.current.filter((p) => {
-      const alive = updateParticle(p, dt);
-      if (alive) renderParticle(ctx, p);
-      return alive;
-    });
-
-    if (particlesRef.current.length > 0) {
-      rafRef.current = requestAnimationFrame(loop);
-    } else {
-      rafRef.current = 0;
+    const ctx = canvas?.getContext("2d");
+    if (canvas && ctx) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
     }
   }, []);
 
-  const emit = useCallback(
-    (preset: ParticlePreset, origin: { x: number; y: number }, color?: string) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const newParticles = emitParticles(preset, origin, { w: canvas.width, h: canvas.height }, color);
-      particlesRef.current.push(...newParticles);
-      if (!rafRef.current) {
-        lastTimeRef.current = 0;
-        rafRef.current = requestAnimationFrame(loop);
-      }
-    },
-    [loop],
-  );
+  const bindCanvas = useCallback((el: HTMLCanvasElement | null) => {
+    clear();
+    canvasRef.current = el;
+  }, [clear]);
+
+  const loop = useCallback(function frame(time: number) {
+    rafRef.current = null;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) { clear(); return; }
+    const dt = lastTimeRef.current === null ? 0.016 : Math.min((time - lastTimeRef.current) / 1000, 0.05);
+    lastTimeRef.current = time;
+    const { width, height } = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, width, height);
+    particlesRef.current = particlesRef.current.filter((particle) => {
+      const alive = updateParticle(particle, dt);
+      if (alive) renderParticle(ctx, particle);
+      return alive;
+    });
+    if (particlesRef.current.length) rafRef.current = requestAnimationFrame(frame);
+    else lastTimeRef.current = null;
+  }, [clear]);
+
+  const emit = useCallback((preset: ParticlePreset, origin: { x: number; y: number }, color?: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas || reducedMotion || document.hidden) return;
+    const { width, height } = canvas.getBoundingClientRect();
+    if (!width || !height) return;
+    particlesRef.current.push(...emitParticles(preset, origin, { w: width, h: height }, color));
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(loop);
+  }, [loop, reducedMotion]);
 
   useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
+    if (reducedMotion) clear();
+    const onVisibility = (): void => { if (document.hidden) clear(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { document.removeEventListener("visibilitychange", onVisibility); clear(); };
+  }, [clear, reducedMotion]);
 
-  return { bindCanvas, emit };
+  return useMemo(() => ({ bindCanvas, emit, clear }), [bindCanvas, emit, clear]);
 };

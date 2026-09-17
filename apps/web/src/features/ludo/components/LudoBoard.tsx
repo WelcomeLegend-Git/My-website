@@ -1,11 +1,14 @@
 import { motion } from "framer-motion";
-import type { KeyboardEvent } from "react";
+import { useId, type KeyboardEvent } from "react";
+import { useLudoReducedMotion } from "../effects/useLudoReducedMotion";
+import { useGotiAnimator, GotiCelebrationBurst } from "../effects/useGotiAnimator";
 
 import {
   BOARD_UNITS,
   COLOR_META,
   getTokenPoint,
   HOME_LANE_CELLS,
+  HOME_SLOTS,
   RING_CELLS,
   stackOffset,
   tokensAtPoint,
@@ -24,6 +27,13 @@ const colorAtStart: Record<number, PlayerColor> = {
   13: "blue",
   26: "yellow",
   39: "green",
+};
+
+const START_ARROW_ROTATION: Record<PlayerColor, number> = {
+  red: 0,      // moves right (+x)
+  blue: 90,    // moves down (+y)
+  yellow: 180, // moves left (-x)
+  green: 270,  // moves up (-y)
 };
 
 const yardShapes: Array<{ color: PlayerColor; x: number; y: number }> = [
@@ -49,24 +59,31 @@ const onTokenKeyDown = (event: KeyboardEvent<SVGGElement>, onSelect: () => void)
 
 export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, boardShaking = false }: LudoBoardProps) => {
   const activePlayer = state.players[state.activePlayerIndex];
+  const reducedMotion = useLudoReducedMotion();
+  const boardId = useId();
+  const { getTokenAnimationProps, celebrations } = useGotiAnimator({
+    state,
+    unit: UNIT,
+    reducedMotion,
+  });
 
   return (
     <div className="ludo-board-shell" aria-label="Ludo game board">
       <div className="ludo-board-aura ludo-board-aura-one" aria-hidden="true" />
       <div className="ludo-board-aura ludo-board-aura-two" aria-hidden="true" />
-      <svg className={`ludo-board ${boardShaking ? "is-shaking" : ""}`} viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="img" aria-labelledby="ludo-board-title ludo-board-description">
-        <title id="ludo-board-title">A game of Ludo in progress</title>
-        <desc id="ludo-board-description">Select one of your highlighted tokens after rolling the dice.</desc>
+      <svg className={`ludo-board ${boardShaking ? "is-shaking" : ""}`} viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="group" aria-labelledby={`${boardId}-title`} aria-describedby={`${boardId}-description`}>
+        <title id={`${boardId}-title`}>Ludo token board</title>
+        <desc id={`${boardId}-description`}>Tab to a highlighted token and press Enter or Space to move. Numbered move buttons are also available below the board.</desc>
         <defs>
           {/* Dark walnut wood grain base */}
-          <linearGradient id="wood-base" x1="0" x2="0.15" y1="0" y2="1">
+          <linearGradient id={`${boardId}-wood-base`} x1="0" x2="0.15" y1="0" y2="1">
             <stop stopColor="#2a1a0c" />
             <stop offset="0.3" stopColor="#3a2510" />
             <stop offset="0.6" stopColor="#2e1c0e" />
             <stop offset="1" stopColor="#241608" />
           </linearGradient>
-          <pattern id="wood-grain" width="600" height="600" patternUnits="userSpaceOnUse">
-            <rect width="600" height="600" fill="url(#wood-base)" />
+          <pattern id={`${boardId}-wood-grain`} width="600" height="600" patternUnits="userSpaceOnUse">
+            <rect width="600" height="600" fill={`url(#${boardId}-wood-base)`} />
             {/* Grain lines */}
             {Array.from({ length: 28 }, (_, i) => (
               <line key={`g${i}`} x1={0} y1={i * 22 + (i % 3) * 5} x2={600} y2={i * 22 + (i % 2) * 8 + 3}
@@ -77,14 +94,17 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
             <circle cx="430" cy="350" r="6" fill="#1e1008" fillOpacity="0.14" />
           </pattern>
           {/* Cell emboss filter */}
-          <filter id="cell-emboss" x="-10%" y="-10%" width="120%" height="120%">
+          <filter id={`${boardId}-cell-emboss`} x="-10%" y="-10%" width="120%" height="120%">
             <feDropShadow dx="0" dy="1" stdDeviation="0.8" floodColor="#8b7355" floodOpacity="0.35" />
             <feDropShadow dx="0" dy="-1" stdDeviation="0.5" floodColor="#000" floodOpacity="0.25" />
           </filter>
-          <filter id="token-shadow" x="-60%" y="-60%" width="220%" height="220%">
+          <filter id={`${boardId}-token-shadow`} x="-60%" y="-60%" width="220%" height="220%">
             <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#020617" floodOpacity="0.65" />
           </filter>
-          <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+          <filter id={`${boardId}-yard-inner-shadow`} x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.25" />
+          </filter>
+          <filter id={`${boardId}-glow`} x="-100%" y="-100%" width="300%" height="300%">
             <feGaussianBlur stdDeviation="9" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -92,50 +112,86 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
             </feMerge>
           </filter>
           {/* Board frame highlight */}
-          <linearGradient id="frame-highlight" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${boardId}-frame-highlight`} x1="0" y1="0" x2="0" y2="1">
             <stop stopColor="#a0855b" stopOpacity="0.5" />
             <stop offset="1" stopColor="#3a2510" stopOpacity="0.3" />
           </linearGradient>
+          {/* 3D token gradients */}
+          {(Object.keys(COLOR_META) as PlayerColor[]).map((color) => (
+            <radialGradient id={`${boardId}-token-grad-${color}`} key={color} cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+              <stop offset="25%" stopColor={COLOR_META[color].color} />
+              <stop offset="85%" stopColor={COLOR_META[color].deep} />
+              <stop offset="100%" stopColor="#080402" />
+            </radialGradient>
+          ))}
         </defs>
 
         {/* Board base — dark walnut */}
-        <rect x="0" y="0" width={SVG_SIZE} height={SVG_SIZE} rx="42" fill="url(#wood-grain)" />
+        <rect x="0" y="0" width={SVG_SIZE} height={SVG_SIZE} rx="42" fill={`url(#${boardId}-wood-grain)`} />
         {/* Carved frame border */}
         <rect x="3" y="3" width={SVG_SIZE - 6} height={SVG_SIZE - 6} rx="40" fill="none"
-          stroke="url(#frame-highlight)" strokeWidth="5" />
+          stroke={`url(#${boardId}-frame-highlight)`} strokeWidth="5" />
         <rect x="8" y="8" width={SVG_SIZE - 16} height={SVG_SIZE - 16} rx="36" fill="none"
           stroke="#1a0e06" strokeOpacity="0.5" strokeWidth="2" />
 
         {yardShapes.map(({ color, x, y }) => {
           const meta = COLOR_META[color];
+          const slots = HOME_SLOTS[color];
           return (
-            <g key={color}>
+            <g key={color} className="ludo-yard-group">
+              {/* Outer colored yard base */}
               <rect
-                x={x * UNIT + 15}
-                y={y * UNIT + 15}
-                width={6 * UNIT - 30}
-                height={6 * UNIT - 30}
-                rx="31"
+                x={x * UNIT + 8}
+                y={y * UNIT + 8}
+                width={6 * UNIT - 16}
+                height={6 * UNIT - 16}
+                rx="22"
                 fill={meta.color}
-                fillOpacity="0.12"
-                stroke={meta.color}
-                strokeOpacity="0.5"
-                strokeWidth="3"
-                filter="url(#cell-emboss)"
+                fillOpacity="0.94"
+                stroke={meta.deep}
+                strokeWidth="2.5"
+                filter={`url(#${boardId}-cell-emboss)`}
               />
+              {/* Inner white container box (Ludo King style) */}
               <rect
-                x={(x + 0.65) * UNIT}
-                y={(y + 0.65) * UNIT}
-                width={4.7 * UNIT}
-                height={4.7 * UNIT}
-                rx="25"
-                fill={meta.deep}
-                fillOpacity="0.34"
-                stroke={meta.color}
-                strokeOpacity="0.3"
+                x={(x + 0.8) * UNIT}
+                y={(y + 0.8) * UNIT}
+                width={4.4 * UNIT}
+                height={4.4 * UNIT}
+                rx="18"
+                fill="#ffffff"
+                stroke={meta.deep}
                 strokeWidth="2"
+                strokeOpacity="0.25"
+                filter={`url(#${boardId}-yard-inner-shadow)`}
               />
-              <text x={(x + 3) * UNIT} y={(y + 1.2) * UNIT} textAnchor="middle" className="ludo-yard-label" fill={meta.color}>
+              {/* 4 circular token sockets */}
+              {slots.map((slot, sIdx) => {
+                const cx = (slot.x + 0.5) * UNIT;
+                const cy = (slot.y + 0.5) * UNIT;
+                return (
+                  <g key={`socket-${color}-${sIdx}`}>
+                    {/* Outer colored bevel ring */}
+                    <circle cx={cx} cy={cy} r="25" fill={meta.pale} stroke={meta.color} strokeWidth="3" />
+                    {/* Inner dish */}
+                    <circle cx={cx} cy={cy} r="19" fill="#f8fafc" stroke={meta.deep} strokeWidth="1.5" strokeOpacity="0.4" />
+                    {/* Center decorative indent */}
+                    <circle cx={cx} cy={cy} r="6" fill={meta.color} fillOpacity="0.25" />
+                    <circle cx={cx} cy={cy} r="2.5" fill={meta.deep} fillOpacity="0.6" />
+                  </g>
+                );
+              })}
+              {/* Yard Center Label */}
+              <text
+                x={(x + 3) * UNIT}
+                y={(y + 3) * UNIT + 4}
+                textAnchor="middle"
+                className="ludo-yard-label"
+                fill={meta.deep}
+                fillOpacity="0.32"
+                style={{ fontSize: "11px", fontWeight: "900", letterSpacing: "2.5px" }}
+              >
                 {meta.label.toUpperCase()}
               </text>
             </g>
@@ -146,6 +202,9 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
           const startColor = colorAtStart[index];
           const safe = isSafeRingIndex(index);
           const meta = startColor ? COLOR_META[startColor] : null;
+          const cx = (cell.x + 0.5) * UNIT;
+          const cy = (cell.y + 0.5) * UNIT;
+
           return (
             <g key={`ring-${index}`}>
               <rect
@@ -153,22 +212,35 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
                 y={cell.y * UNIT + 2}
                 width={UNIT - 4}
                 height={UNIT - 4}
-                rx="7"
-                fill={meta?.color ?? "#f5edd6"}
-                fillOpacity={meta ? 0.88 : 0.85}
-                stroke={meta?.deep ?? "#8b7355"}
-                strokeOpacity={meta ? 0.75 : 0.4}
-                strokeWidth="1.5"
-                filter="url(#cell-emboss)"
+                rx="6"
+                fill={meta ? meta.color : "#ffffff"}
+                fillOpacity={meta ? 0.94 : 0.96}
+                stroke={meta ? meta.deep : "#dcd3c4"}
+                strokeWidth={meta ? 2 : 1.2}
+                filter={`url(#${boardId}-cell-emboss)`}
               />
-              {safe && (
-                <path
-                  d={`M ${(cell.x + 0.5) * UNIT} ${(cell.y + 0.23) * UNIT} l 5 10 11 1 -8 7 3 11 -11 -6 -11 6 3 -11 -8 -7 11 -1 Z`}
-                  fill={meta?.deep ?? "#a8874f"}
-                  opacity="0.72"
-                  transform={`scale(.7) translate(${((cell.x + 0.5) * UNIT) / 0.7 * 0.3}, ${((cell.y + 0.5) * UNIT) / 0.7 * 0.3})`}
-                />
-              )}
+              {startColor ? (
+                /* Ludo King Forward Start Arrow */
+                <g transform={`translate(${cx}, ${cy}) rotate(${START_ARROW_ROTATION[startColor]})`}>
+                  <polygon
+                    points="-9,-4 0,-4 0,-8 9,0 0,8 0,4 -9,4"
+                    fill="#ffffff"
+                    stroke={meta?.deep ?? "#000000"}
+                    strokeWidth="1"
+                    strokeOpacity="0.35"
+                  />
+                </g>
+              ) : safe ? (
+                /* Centered Golden Safe Star */
+                <g transform={`translate(${cx}, ${cy})`}>
+                  <path
+                    d="M 0 -10 L 2.6 -3.6 L 9.5 -3.1 L 4.3 1.4 L 5.9 8 L 0 4.5 L -5.9 8 L -4.3 1.4 L -9.5 -3.1 L -2.6 -3.6 Z"
+                    fill="#f59e0b"
+                    stroke="#b45309"
+                    strokeWidth="1"
+                  />
+                </g>
+              ) : null}
             </g>
           );
         })}
@@ -176,21 +248,27 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
         {(Object.keys(HOME_LANE_CELLS) as PlayerColor[]).flatMap((color) =>
           HOME_LANE_CELLS[color].map((cell, index) => {
             const meta = COLOR_META[color];
+            const cx = (cell.x + 0.5) * UNIT;
+            const cy = (cell.y + 0.5) * UNIT;
             return (
-              <rect
-                key={`${color}-lane-${index}`}
-                x={cell.x * UNIT + 2}
-                y={cell.y * UNIT + 2}
-                width={UNIT - 4}
-                height={UNIT - 4}
-                rx="7"
-                fill={meta.color}
-                fillOpacity={0.22 + index * 0.08}
-                stroke={meta.color}
-                strokeOpacity="0.65"
-                strokeWidth="1.5"
-                filter="url(#cell-emboss)"
-              />
+              <g key={`${color}-lane-${index}`}>
+                <rect
+                  x={cell.x * UNIT + 2}
+                  y={cell.y * UNIT + 2}
+                  width={UNIT - 4}
+                  height={UNIT - 4}
+                  rx="6"
+                  fill={meta.color}
+                  fillOpacity={0.45 + index * 0.11}
+                  stroke={meta.deep}
+                  strokeOpacity="0.75"
+                  strokeWidth="1.5"
+                  filter={`url(#${boardId}-cell-emboss)`}
+                />
+                <g transform={`translate(${cx}, ${cy}) rotate(${START_ARROW_ROTATION[color]})`} opacity={0.35 + index * 0.12}>
+                  <path d="M -4 -5 L 3 0 L -4 5" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+              </g>
             );
           }),
         )}
@@ -204,8 +282,13 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
           <path d={`M${HALF} ${HALF} L${STAR_OUTER} ${STAR_INNER} L${STAR_OUTER} ${STAR_OUTER} Z`} fill={COLOR_META.yellow.color} fillOpacity="0.92" />
           {/* Bottom triangle (Green) */}
           <path d={`M${HALF} ${HALF} L${STAR_INNER} ${STAR_OUTER} L${STAR_OUTER} ${STAR_OUTER} Z`} fill={COLOR_META.green.color} fillOpacity="0.92" />
-          <circle cx={HALF} cy={HALF} r="17" fill="#f8fbff" fillOpacity="0.95" />
-          <path d={`M${HALF} ${HALF - 13} L${HALF + 4} ${HALF - 4} L${HALF + 14} ${HALF - 4} L${HALF + 6} ${HALF + 2} L${HALF + 9} ${HALF + 12} L${HALF} ${HALF + 6} L${HALF - 9} ${HALF + 12} L${HALF - 6} ${HALF + 2} L${HALF - 14} ${HALF - 4} L${HALF - 4} ${HALF - 4} Z`} fill="#172554" />
+          <circle cx={HALF} cy={HALF} r="18" fill="#ffffff" stroke="#c9a86a" strokeWidth="2" />
+          <path
+            d={`M ${HALF} ${HALF - 11} L ${HALF + 2.8} ${HALF - 4} L ${HALF + 10} ${HALF - 3.4} L ${HALF + 4.5} ${HALF + 1.5} L ${HALF + 6.2} ${HALF + 8.5} L ${HALF} ${HALF + 4.8} L ${HALF - 6.2} ${HALF + 8.5} L ${HALF - 4.5} ${HALF + 1.5} L ${HALF - 10} ${HALF - 3.4} L ${HALF - 2.8} ${HALF - 4} Z`}
+            fill="#f59e0b"
+            stroke="#b45309"
+            strokeWidth="1"
+          />
         </g>
 
         {state.phase === "moving" &&
@@ -224,7 +307,7 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
                 className={`ludo-dest-marker ${captures ? "is-capture" : ""}`}
                 initial={false}
                 animate={{ x: (point.x + 0.5) * UNIT, y: (point.y + 0.5) * UNIT }}
-                transition={{ type: "spring", stiffness: 190, damping: 18, mass: 0.65 }}
+                transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 190, damping: 18, mass: 0.65 }}
                 aria-hidden="true"
               >
                 <circle r="24" fill="none" stroke={captures ? "#ff6b88" : meta.color} strokeWidth="3" strokeDasharray="6 7" className="ludo-dest-ring" />
@@ -250,7 +333,10 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
             const meta = COLOR_META[player.color];
             const centreX = (point.x + 0.5 + offset.x) * UNIT;
             const centreY = (point.y + 0.5 + offset.y) * UNIT;
-            const tokenName = `${player.name}'s ${meta.label} token ${tokenIndex + 1}`;
+            const location = position < 0 ? "in the yard" : position === FINISH_POSITION ? "home" : `at step ${position + 1}`;
+            const tokenName = `${player.name}'s ${meta.label} token ${tokenIndex + 1}, ${location}`;
+
+            const animProps = getTokenAnimationProps(player.color, tokenIndex, centreX, centreY, selectable);
 
             return (
               <motion.g
@@ -258,31 +344,49 @@ export const LudoBoard = ({ state, onTokenSelect, interactionDisabled = false, b
                 role={selectable ? "button" : "img"}
                 tabIndex={selectable ? 0 : -1}
                 aria-label={selectable ? `${tokenName}; legal move` : tokenName}
-                className={`ludo-token ${selectable ? "is-selectable" : ""} ${wasMoved ? "was-moved" : ""}`}
+                className={`ludo-token ${selectable ? "is-selectable" : ""} ${wasMoved ? "was-moved" : ""} ${animProps.isAnimating ? "is-hopping" : ""} ${animProps.isCapturedFlight ? "is-captured-flight" : ""}`}
                 initial={false}
-                animate={{ x: centreX, y: centreY, scale: selectable ? [1, 1.09, 1] : 1 }}
-                transition={{
-                  x: { type: "spring", stiffness: 190, damping: 18, mass: 0.65 },
-                  y: { type: "spring", stiffness: 190, damping: 18, mass: 0.65 },
-                  scale: selectable ? { duration: 1.05, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 },
+                animate={{
+                  x: animProps.x,
+                  y: animProps.y,
+                  scale: animProps.scale ?? (selectable && !reducedMotion ? [1, 1.09, 1] : 1),
+                  scaleX: animProps.scaleX,
+                  scaleY: animProps.scaleY,
+                  rotate: animProps.rotate,
                 }}
+                transition={animProps.transition}
                 onClick={() => selectable && onTokenSelect(tokenIndex)}
                 onKeyDown={(event) => selectable && onTokenKeyDown(event, () => onTokenSelect(tokenIndex))}
-                filter="url(#token-shadow)"
+                filter={`url(#${boardId}-token-shadow)`}
               >
-                {selectable && <circle r="23" fill={meta.color} opacity="0.4" filter="url(#glow)" />}
-                <circle r="17" fill="#0a0500" stroke={meta.color} strokeWidth="3.5" />
-                <circle r="14" fill={meta.color} />
-                <circle r="14" fill="url(#frame-highlight)" opacity="0.3" />
-                <circle cx="-3" cy="-5" r="5" fill="#ffffff" fillOpacity="0.55" />
-                <circle cy="-1" r="9" fill={meta.deep} fillOpacity="0.35" />
-                <text x="0" y="5" textAnchor="middle" className="ludo-token-symbol" fill="#fff" fillOpacity="0.9">
-                  {meta.symbol}
+                {/* Selectable pulsing halo */}
+                {selectable && <circle r="23" fill={meta.color} opacity="0.45" filter={`url(#${boardId}-glow)`} />}
+                {/* 3D Goti Base Tier / Rim */}
+                <circle r="18" fill={meta.deep} stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.45" />
+                {/* 3D Domed Body with radial gradient */}
+                <circle r="15" fill={`url(#${boardId}-token-grad-${player.color})`} />
+                {/* Glossy specular highlight arc */}
+                <ellipse cx="-4" cy="-5" rx="6" ry="3.5" transform="rotate(-25 -4 -5)" fill="#ffffff" fillOpacity="0.75" />
+                {/* Inner center disc for number contrast */}
+                <circle r="9.5" fill={meta.deep} fillOpacity="0.35" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.5" />
+                {/* Number */}
+                <text x="0" y="4.5" textAnchor="middle" className="ludo-token-symbol" fill="#ffffff" fontWeight="900" fontSize="13px">
+                  {tokenIndex + 1}
                 </text>
               </motion.g>
             );
           }),
         )}
+
+        {celebrations.map((c) => (
+          <GotiCelebrationBurst
+            key={c.id}
+            cx={(c.point.x + 0.5) * UNIT}
+            cy={(c.point.y + 0.5) * UNIT}
+            color={c.color}
+            boardId={boardId}
+          />
+        ))}
 
         <rect x="5" y="5" width={SVG_SIZE - 10} height={SVG_SIZE - 10} rx="40" fill="none" stroke="#a0855b" strokeOpacity="0.12" strokeWidth="1.5" />
       </svg>

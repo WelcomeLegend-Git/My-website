@@ -7,7 +7,8 @@ export type PlayerConnection = "ready" | "waiting" | "reconnecting" | "offline" 
 export type TokenPosition = -1 | number;
 
 export const HOME_POSITION = -1;
-export const FINISH_POSITION = 57;
+// Progress is zero-based: 0–50 on the ring, 51–55 in the private lane.
+export const FINISH_POSITION = 56;
 export const TOKENS_PER_PLAYER = 4;
 
 export interface LudoRules {
@@ -27,8 +28,8 @@ export interface LudoPlayer {
   color: PlayerColor;
   isBot: boolean;
   connection: PlayerConnection;
-  pingMs?: number;
-  avatarSeed?: string;
+  pingMs?: number | null;
+  avatarSeed?: string | null;
 }
 
 export interface LastMove {
@@ -94,7 +95,7 @@ export const DEFAULT_LUDO_RULES: LudoRules = {
   threeSixesLoseTurn: true,
   captureGrantsExtraTurn: true,
   finishGrantsExtraTurn: true,
-  blockadesEnabled: true,
+  blockadesEnabled: false,
   moveLogLimit: 64,
   rankedFinish: true,
 };

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bot, Clock3, Crown, Gauge, Sparkles, Volume2, VolumeX, Wifi } from "lucide-react";
+import { ArrowLeft, Bot, Clock3, Crown, Sparkles, Volume2, VolumeX, Wifi } from "lucide-react";
 
 
 import { COLOR_META } from "../game/board";
@@ -38,11 +38,15 @@ export const GameHud = ({
   const remaining = secondsRemaining(state.turnEndsAt, now);
   const turnTotal = Math.max(1, state.turnEndsAt - state.turnStartedAt);
   const turnFraction = Math.max(0, Math.min(1, (state.turnEndsAt - now) / turnTotal));
-  const canRoll = state.phase === "rolling" && !active.isBot && !interactionLocked;
+  const canRoll = state.phase === "rolling" && !active.isBot && !interactionLocked && !isDiceRolling;
   const status = state.phase === "finished"
     ? "Match complete"
-    : state.phase === "moving"
-      ? `Move one ${activeMeta.label} token`
+    : isDiceRolling
+      ? "Rolling the dice…"
+      : interactionLocked && !active.isBot
+        ? `Waiting for ${active.name}`
+        : state.phase === "moving"
+      ? `${active.name}, choose a ${activeMeta.label} token`
       : active.isBot
         ? `${active.name} is thinking\u2026`
         : `${active.name}, roll the dice`;
@@ -65,7 +69,7 @@ export const GameHud = ({
             <Wifi size={15} />
             <span>{state.mode === "online" ? "ROOM" : "LOCAL"}</span>
           </span>
-          <button type="button" className="ludo-icon-button" onClick={onToggleMute} aria-label={muted ? "Enable game sound" : "Mute game sound"}>
+          <button type="button" className="ludo-icon-button" onClick={onToggleMute} aria-label={muted ? "Enable game sound" : "Mute game sound"} aria-pressed={!muted}>
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
         </div>
@@ -77,16 +81,16 @@ export const GameHud = ({
         </div>
         <div className="ludo-turn-copy">
           <span className="ludo-eyebrow">{state.phase === "finished" ? "GAME OVER" : "CURRENT TURN"}</span>
-          <strong>{status}</strong>
-          <span className="ludo-turn-timer" aria-label={`${remaining} seconds remaining`}>
+          <strong role="status" aria-live="polite" aria-atomic="true">{status}</strong>
+          {state.phase !== "finished" && state.rules.turnDurationSeconds > 0 && <span className={`ludo-turn-timer ${remaining <= 5 ? "is-urgent" : ""}`} role="timer" aria-label={`${remaining} seconds remaining`}>
             <Clock3 size={13} />
             <span className="ludo-turn-timer-track"><span className="ludo-turn-timer-fill" /></span>
             <span className="ludo-turn-timer-value">{remaining}s</span>
-          </span>
+          </span>}
         </div>
         <div className="ludo-turn-actions">
           {state.phase !== "finished" && !interactionLocked && (
-            <button type="button" className="ludo-skip-button" onClick={onSkipTurn} title="Skip this turn">
+            <button type="button" className="ludo-skip-button" onClick={onSkipTurn} disabled={isDiceRolling} aria-label="Skip this turn">
               Skip
             </button>
           )}
@@ -117,7 +121,7 @@ export const GameHud = ({
               <span className="ludo-player-details">
                 <strong>{player.name}</strong>
                 <small>
-                  {rank >= 0 ? <><Crown size={12} /> #{rank + 1}</> : player.isBot ? "BOT" : `${finished}/4 HOME`}
+                  {rank >= 0 ? <><Crown size={12} /> #{rank + 1} · </> : null}{meta.label} · {finished}/4 home{player.isBot ? " · Bot" : ""}
                 </small>
                 <span className="ludo-player-pips" aria-hidden="true">
                   {[0, 1, 2, 3].map((pip) => (
@@ -125,8 +129,8 @@ export const GameHud = ({
                   ))}
                 </span>
               </span>
-              {typeof player.pingMs === "number" && (
-                <span className="ludo-ping"><Gauge size={12} />{player.pingMs}ms</span>
+              {state.mode === "online" && !player.isBot && player.connection !== "ready" && (
+                <span className="ludo-seat-status">{player.connection}</span>
               )}
               <span className="ludo-player-colour" aria-label={`${meta.label} player`} />
             </article>

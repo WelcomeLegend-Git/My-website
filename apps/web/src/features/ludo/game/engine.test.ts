@@ -32,7 +32,7 @@ const fourPlayers: LudoPlayer[] = [
 ];
 
 const freshGame = (players = twoPlayers, rules?: Partial<LudoRules>): LudoGameState =>
-  createGame({ id: "test", mode: "single", players, now: 1_000, rules });
+  createGame({ id: "test", mode: "single", players, now: 1_000, rules: { blockadesEnabled: true, ...rules } });
 
 /** Immutable helper: return a new state with a specific token position set. */
 const withToken = (state: LudoGameState, color: keyof LudoGameState["tokens"], index: number, position: number): LudoGameState => ({
@@ -91,7 +91,7 @@ describe("Ludo engine — basics", () => {
 
   it("requires an exact roll to finish", () => {
     let state = freshGame();
-    state = withToken(state, "red", 0, 56);
+    state = withToken(state, "red", 0, FINISH_POSITION - 1);
     expect(getLegalTokenIndexes({ ...state, diceValue: 2 })).not.toContain(0);
 
     const rolled = rollDice(state, 1, 2_000);
@@ -118,7 +118,7 @@ describe("Ludo engine — basics", () => {
         p.color === "red" ? { ...p, isBot: true, connection: "bot" as const } : p,
       ),
     };
-    state = withToken(state, "red", 0, 56);
+    state = withToken(state, "red", 0, FINISH_POSITION - 1);
     state = withToken(state, "red", 1, 12);
     const rolled = rollDice(state, 1, 2_000);
     expect(chooseBotMove(rolled)).toBe(0);
@@ -207,6 +207,21 @@ describe("Ludo engine — blockades", () => {
     const rolled = rollDice(state, 6, 2_000);
     expect(rolled.legalTokenIndexes).toContain(0);
   });
+
+  it("does not form a blockade on safe squares or opponent start squares", () => {
+    let state = freshGame(twoPlayers, { blockadesEnabled: true });
+    // Blue has two tokens on its starting square (ring index 13, which is safe)
+    state = withToken(state, "blue", 0, 0);
+    state = withToken(state, "blue", 1, 0);
+    expect(getBlockadeRingIndexes(state)).not.toContain(13);
+
+    // Red approaching ring index 13 can pass or land on it
+    state = withToken(state, "red", 0, 11);
+    const rolled = rollDice(state, 2, 2_000); // lands on 13
+    expect(rolled.legalTokenIndexes).toContain(0);
+    const rolledPass = rollDice(state, 4, 2_000); // passes 13
+    expect(rolledPass.legalTokenIndexes).toContain(0);
+  });
 });
 
 /* ================================================================
@@ -216,11 +231,11 @@ describe("Ludo engine — blockades", () => {
 describe("Ludo engine — finish & ranking", () => {
   it("awards rank to a player when all four tokens reach FINISH_POSITION", () => {
     let state = freshGame();
-    // Place 3 red tokens at finish and 1 at position 56 (one away)
+    // Place three tokens at finish and one a single step away.
     state = withToken(state, "red", 0, FINISH_POSITION);
     state = withToken(state, "red", 1, FINISH_POSITION);
     state = withToken(state, "red", 2, FINISH_POSITION);
-    state = withToken(state, "red", 3, 56);
+    state = withToken(state, "red", 3, FINISH_POSITION - 1);
 
     const rolled = rollDice(state, 1, 2_000);
     const moved = moveToken(rolled, 3, 2_100);
@@ -259,7 +274,7 @@ describe("Ludo engine — finish & ranking", () => {
     state = withToken(state, "red", 0, FINISH_POSITION);
     state = withToken(state, "red", 1, FINISH_POSITION);
     state = withToken(state, "red", 2, FINISH_POSITION);
-    state = withToken(state, "red", 3, 56);
+    state = withToken(state, "red", 3, FINISH_POSITION - 1);
 
     const rolled = rollDice(state, 1, 2_000);
     const moved = moveToken(rolled, 3, 2_100);
@@ -269,7 +284,7 @@ describe("Ludo engine — finish & ranking", () => {
 
   it("grants extra turn on finishing a token (not the last one)", () => {
     let state = freshGame();
-    state = withToken(state, "red", 0, 56);
+    state = withToken(state, "red", 0, FINISH_POSITION - 1);
     state = withToken(state, "red", 1, 10); // Not all at finish
 
     const rolled = rollDice(state, 1, 2_000);

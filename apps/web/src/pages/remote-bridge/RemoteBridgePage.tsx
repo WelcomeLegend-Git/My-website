@@ -4,6 +4,7 @@ import { useRemoteBridge, type CallState, type RecentCall } from "../../lib/use-
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 import { authenticatedFetch } from "../../lib/auth-fetch";
+import { BRIDGE_REGISTRATION_ERROR, getBridgePairingBase, registerBridgeTablet, validateBridgeEncryptionKey, validatePairingSession } from "../../lib/bridge-pairing";
 import { BridgeDiagnosticsPanel } from "./BridgeDiagnosticsPanel";
 
 // Inject animations and premium responsive styles
@@ -195,6 +196,7 @@ function loadBridgeConfig(): BridgeConfig | null {
 }
 
 function saveBridgeConfig(config: BridgeConfig) {
+  validateBridgeEncryptionKey(config.encryptionKey);
   localStorage.setItem(BRIDGE_CONFIG_KEY, JSON.stringify(config));
 }
 
@@ -279,49 +281,9 @@ export function RemoteBridgePage() {
     setRefreshing(false);
   }, [authToken, requestStatus, getRecentCalls, setPhoneOnline]);
 
-  // QR pairing confirmed callback — register tablet device on server first
-  const handleQrPaired = useCallback(async (encryptionKey: string) => {
-    const deviceId = getOrCreateBridgeDeviceId();
-
-    // Derive a user-friendly device name from the browser
-    const deviceName = (() => {
-      try {
-        const ua = navigator.userAgent;
-        if (/iPad/i.test(ua)) return "iPad";
-        if (/iPhone/i.test(ua)) return "iPhone";
-        if (/Android/i.test(ua)) return "Android Tablet";
-        if (/Mac/i.test(ua)) return "Mac Browser";
-        if (/Windows/i.test(ua)) return "Windows Browser";
-        if (/Linux/i.test(ua)) return "Linux Browser";
-        return "Web Browser";
-      } catch { return "Web Browser"; }
-    })();
-
-    // Register the tablet device on the server before WebSocket connects
-    try {
-      const base = getApiBaseUrl();
-      const registerRes = await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          deviceId,
-          deviceType: "tablet",
-          deviceName,
-          encryptionKey,
-        }),
-      });
-      if (!registerRes.ok) {
-        throw new Error(await getBridgeErrorMessage(registerRes, "Failed to register this browser"));
-      }
-    } catch (err) {
-      console.error("[RemoteBridge] Failed to register tablet device:", err);
-      alert(err instanceof Error ? err.message : "Failed to register this browser. Please try pairing again.");
-      return;
-    }
-
-    const newConfig: BridgeConfig = { encryptionKey, deviceId };
+  // Setup calls this only after checked registration of the current session.
+  const handleQrPaired = useCallback((encryptionKey: string) => {
+    const newConfig: BridgeConfig = { encryptionKey, deviceId: getOrCreateBridgeDeviceId() };
     saveBridgeConfig(newConfig);
     setConfig(newConfig);
     setShowSetup(false);
@@ -1052,7 +1014,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 // ─── Setup Screen (WhatsApp-style QR + Manual) ───
 
-function SetupScreen({
+export function SetupScreen({
   onQrPaired,
 }: {
   onQrPaired: (encryptionKey: string) => void;
@@ -1062,20 +1024,103 @@ function SetupScreen({
   const [qrLoading, setQrLoading] = useState(true);
   const [qrError, setQrError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(60);
-  const pairingIdRef = useRef<string | null>(null);
-  const encryptionKeyRef = useRef<string | null>(null);
+  const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const sessionVersion = useRef(0);
+  const sessionBase = useRef("");
+  const registrationInFlight = useRef(false);
+  const paired = useRef(false);
+  const onQrPairedRef = useRef(onQrPaired);
+  onQrPairedRef.current = onQrPaired;
   const pollIntervalRef = useRef<ReturnType<typeof setInterval>>();
   const countdownRef = useRef<ReturnType<typeof setInterval>>();
 
+  const registerDevice = useCallback(async (encryptionKey: string, version: number) => {
+    if (version !== sessionVersion.current || registrationInFlight.current || paired.current) return;
+    registrationInFlight.current = true;
+    setRegistering(true);
+    setQrError(null);
+    try {
+      const deviceName = (() => {
+        const ua = navigator.userAgent;
+        if (/iPad/i.test(ua)) return "iPad";
+        if (/iPhone/i.test(ua)) return "iPhone";
+        if (/Android/i.test(ua)) return "Android Tablet";
+        if (/Mac/i.test(ua)) return "Mac Browser";
+        if (/Windows/i.test(ua)) return "Windows Browser";
+        if (/Linux/i.test(ua)) return "Linux Browser";
+        return "Web Browser";
+      })();
+      await registerBridgeTablet(sessionBase.current, encryptionKey, getOrCreateBridgeDeviceId(), deviceName);
+      if (version !== sessionVersion.current) return;
+      paired.current = true;
+      onQrPairedRef.current(encryptionKey);
+    } catch {
+      if (version === sessionVersion.current) setQrError(BRIDGE_REGISTRATION_ERROR);
+    } finally {
+      if (version === sessionVersion.current) {
+        registrationInFlight.current = false;
+        setRegistering(false);
+      }
+    }
+  }, []);
+
+  // Poll server for pairing confirmation
+  const startPolling = useCallback((base: string, pairingId: string, encryptionKey: string, version: number) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    let polling = false;
+    let stopped = false;
+    pollIntervalRef.current = setInterval(async () => {
+      if (polling || stopped || version !== sessionVersion.current) return;
+      polling = true;
+      try {
+        const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/${pairingId}/status`);
+        if (res.ok) {
+          const data = await res.json();
+          if (version !== sessionVersion.current) return;
+          if (data.status === "confirmed") {
+            stopped = true;
+            clearInterval(pollIntervalRef.current);
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            let key: string;
+            try {
+              key = validateBridgeEncryptionKey(data.encryptionKey ?? encryptionKey);
+            } catch {
+              setQrError("Invalid pairing encryption key. Generate a new pairing session.");
+              return;
+            }
+            setConfirmedKey(key);
+            await registerDevice(key, version);
+          } else if (data.status === "expired") {
+            stopped = true;
+            clearInterval(pollIntervalRef.current);
+            // Do NOT auto-refresh. Let user click 'Refresh' manually.
+          }
+        }
+      } catch {
+        // Transient status failures are retried on the next poll.
+      } finally {
+        polling = false;
+      }
+    }, 2000);
+  }, [registerDevice]);
+
   // Create pairing session & generate QR
   const createPairingSession = useCallback(async (type: "qr" | "manual" = setupTab) => {
+    const version = ++sessionVersion.current;
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    registrationInFlight.current = false;
+    paired.current = false;
+    setConfirmedKey(null);
+    setRegistering(false);
+    setQrData(null);
     setQrLoading(true);
     setQrError(null);
     setTimeLeft(type === "manual" ? 120 : 60);
 
-    const base = getApiBaseUrl();
-
     try {
+      const base = getBridgePairingBase();
       const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/create`, {
         method: "POST",
         headers: {
@@ -1088,24 +1133,16 @@ function SetupScreen({
         throw new Error(await getBridgeErrorMessage(res, "Failed to create pairing session"));
       }
 
-      const data = await res.json();
-      pairingIdRef.current = data.pairingId;
-      encryptionKeyRef.current = data.encryptionKey;
+      const raw = await res.json();
+      if (version !== sessionVersion.current) return;
+      const data = validatePairingSession(base, raw);
+      sessionBase.current = base;
       setTimeLeft(Number(data.expiresInSeconds) || (type === "manual" ? 120 : 60));
-
-      // QR payload: compact JSON
-      const qrPayload = JSON.stringify({
-        s: base,                   // server URL
-        p: data.pairingId,         // pairing ID
-        t: data.pairingToken,      // one-time pairing token
-        k: data.encryptionKey,     // E2E encryption key
-      });
-
-      setQrData(qrPayload);
+      setQrData(data.qrPayload);
       setQrLoading(false);
 
       // Start polling for confirmation
-      startPolling(data.pairingId, data.encryptionKey);
+      startPolling(base, data.pairingId, data.encryptionKey, version);
 
       // Start countdown
       if (countdownRef.current) clearInterval(countdownRef.current);
@@ -1120,38 +1157,13 @@ function SetupScreen({
         });
       }, 1000);
     } catch (err) {
-      setQrError(err instanceof Error ? err.message : "Failed to generate code. Check your connection.");
-      setQrLoading(false);
-    }
-  }, [setupTab]);
-
-  // Poll server for pairing confirmation
-  const startPolling = useCallback((pairingId: string, encryptionKey: string) => {
-    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-
-    pollIntervalRef.current = setInterval(async () => {
-      const base = getApiBaseUrl();
-
-      try {
-        const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/${pairingId}/status`);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === "confirmed") {
-            // Phone scanned the QR! 🎉
-            clearInterval(pollIntervalRef.current);
-            if (countdownRef.current) clearInterval(countdownRef.current);
-            onQrPaired(encryptionKey);
-          } else if (data.status === "expired") {
-            clearInterval(pollIntervalRef.current);
-            // Do NOT auto-refresh. Let user click 'Refresh' manually
-          }
-        }
-      } catch {
-        // Ignore polling errors
+      if (version === sessionVersion.current) {
+        setQrError(err instanceof Error ? err.message : "Failed to generate code. Check your connection.");
+        setQrLoading(false);
       }
-    }, 2000); // Poll every 2 seconds
-  }, [onQrPaired]);
+    }
+  }, [setupTab, startPolling]);
+
 
   // Initialize on mount
   useEffect(() => {
@@ -1162,6 +1174,7 @@ function SetupScreen({
     }
 
     return () => {
+      ++sessionVersion.current;
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
@@ -1185,6 +1198,7 @@ function SetupScreen({
       <div style={styles.setupTabs}>
         <button
           onClick={() => setSetupTab("qr")}
+          disabled={!!confirmedKey}
           style={{
             ...styles.setupTabBtn,
             ...(setupTab === "qr" ? styles.setupTabBtnActive : {}),
@@ -1194,17 +1208,30 @@ function SetupScreen({
         </button>
         <button
           onClick={() => setSetupTab("manual")}
+          disabled={!!confirmedKey}
           style={{
             ...styles.setupTabBtn,
             ...(setupTab === "manual" ? styles.setupTabBtnActive : {}),
           }}
         >
-          ⌨️ Enter Key
+          ⌨️ Manual Connection Code
         </button>
       </div>
 
+      {confirmedKey && (
+        <div>
+          <p>Phone confirmed.</p>
+          {qrError && <p role="alert" style={{ color: "#FF3B30" }}>{qrError}</p>}
+          {!paired.current && (
+            <button onClick={() => registerDevice(confirmedKey, sessionVersion.current)} disabled={registering} style={styles.primaryBtn}>
+              {registering ? "Registering device..." : "Retry registration"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* QR Tab */}
-      {setupTab === "qr" && (
+      {!confirmedKey && setupTab === "qr" && (
         <div style={styles.qrContainer}>
           {qrLoading ? (
             <div style={styles.qrPlaceholder}>
@@ -1215,7 +1242,7 @@ function SetupScreen({
             </div>
           ) : qrError ? (
             <div style={styles.qrPlaceholder}>
-              <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
+              <p role="alert" style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
               <button onClick={() => createPairingSession()} style={styles.refreshBtn}>
                 🔄 Retry
               </button>
@@ -1266,10 +1293,10 @@ function SetupScreen({
       )}
 
       {/* Manual Tab */}
-      {setupTab === "manual" && (
+      {!confirmedKey && setupTab === "manual" && (
         <div style={{ marginTop: 20 }}>
           <p style={{ ...styles.setupDesc, marginBottom: 16 }}>
-            Copy this connection code and paste it into the <strong>Manual Login</strong> section of the AuraRing app.
+            Copy this Base64-encoded JSON connection code into <strong>AuraRing → Remote Bridge → Manual Login</strong>. It is not the 6-digit Personal Ecosystem code or a raw encryption key.
           </p>
           
           {qrLoading ? (
@@ -1286,12 +1313,13 @@ function SetupScreen({
              </div>
           ) : qrError ? (
              <div style={styles.qrPlaceholder}>
-               <p style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
+               <p role="alert" style={{ color: "#FF3B30", fontSize: 14, marginBottom: 16 }}>{qrError}</p>
                <button onClick={() => createPairingSession()} style={styles.refreshBtn}>🔄 Retry</button>
              </div>
           ) : (
             <>
-              <div 
+              <div
+                aria-label="Base64 connection code"
                 style={{
                   background: "var(--line)",
                   padding: 16,

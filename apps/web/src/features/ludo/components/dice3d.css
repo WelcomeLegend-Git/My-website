@@ -1,121 +1,40 @@
-/* 3D CSS dice cube */
-
-.dice3d-scene {
-  width: 72px;
-  height: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  perspective: 500px;
-  cursor: default;
+/* The bounce shell never changes the cube's final face rotation. */
+.ludo-arena .dice3d-scene { position: relative; width: 60px; min-width: 60px; padding: 0; border: 0; background: none; perspective: 500px; cursor: default; }
+.ludo-arena .dice3d-scene:disabled { opacity: 1; }
+.ludo-arena .dice3d-scene.is-ready { cursor: pointer; }
+.ludo-arena .dice3d-bounce-shell { transform-style: preserve-3d; }
+.ludo-arena .dice3d-cube { position: relative; width: 60px; height: 60px; transform-style: preserve-3d; transition: transform .12s ease-out; }
+.ludo-arena .dice3d-cube.is-rolling { animation: ludo-dice3d-tumble .56s ease-in-out; }
+.ludo-arena .dice3d-bounce-shell.just-landed { animation: ludo-dice3d-bounce .32s ease-out; }
+.ludo-arena .dice3d-face { position: absolute; box-sizing: border-box; width: 60px; height: 60px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 9px; border-radius: 11px; border: 1px solid #ad8e50; background: linear-gradient(145deg, #fff8e6, #e6c988); box-shadow: inset 0 2px 4px #fff9, inset 0 -1px 3px #0002; backface-visibility: hidden; }
+.ludo-arena .dice3d-face-1 { transform: rotateY(0deg) translateZ(30px); }
+.ludo-arena .dice3d-face-2 { transform: rotateX(90deg) translateZ(30px); }
+.ludo-arena .dice3d-face-3 { transform: rotateY(90deg) translateZ(30px); }
+.ludo-arena .dice3d-face-4 { transform: rotateY(-90deg) translateZ(30px); }
+.ludo-arena .dice3d-face-5 { transform: rotateX(-90deg) translateZ(30px); }
+.ludo-arena .dice3d-face-6 { transform: rotateY(180deg) translateZ(30px); }
+.ludo-arena .dice3d-pip { align-self: center; justify-self: center; width: 8px; height: 8px; border-radius: 50%; background: #493315; box-shadow: inset 0 1px #fff3, 0 1px 2px #0003; }
+.ludo-arena .dice3d-pip-0 { grid-area: 1 / 1; }
+.ludo-arena .dice3d-pip-2 { grid-area: 1 / 3; }
+.ludo-arena .dice3d-pip-3 { grid-area: 2 / 1; }
+.ludo-arena .dice3d-pip-4 { grid-area: 2 / 2; }
+.ludo-arena .dice3d-pip-5 { grid-area: 2 / 3; }
+.ludo-arena .dice3d-pip-6 { grid-area: 3 / 1; }
+.ludo-arena .dice3d-pip-8 { grid-area: 3 / 3; }
+.ludo-arena .dice3d-scene.is-ready .dice3d-face { box-shadow: inset 0 2px 4px #fff9, 0 0 0 2px var(--dice-glow-color), 0 0 14px color-mix(in srgb, var(--dice-glow-color), transparent 65%); }
+.ludo-arena .dice3d-shadow { width: 42px; height: 6px; margin: 6px auto 0; border-radius: 50%; background: #0005; filter: blur(3px); }
+.ludo-arena .dice3d-label { display: block; margin-top: 4px; color: #f2dbac; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-align: center; }
+@keyframes ludo-dice3d-tumble {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  35% { transform: rotateX(180deg) rotateY(100deg); }
+  70% { transform: rotateX(430deg) rotateY(240deg); }
+  100% { transform: rotateX(720deg) rotateY(360deg); }
 }
-.dice3d-scene.is-ready { cursor: pointer; }
-
-.dice3d-cube {
-  position: relative;
-  width: 100%;
-  height: 72px;
-  transform-style: preserve-3d;
-  transition: transform 0.1s ease-out;
+@keyframes ludo-dice3d-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+  70% { transform: translateY(1px); }
 }
-
-/* Rolling tumble */
-.dice3d-cube.is-rolling {
-  animation: dice3d-tumble 0.62s cubic-bezier(0.22, 0.68, 0.35, 1);
-}
-
-/* Bounce on land */
-.dice3d-cube.just-landed {
-  animation: dice3d-bounce 0.32s ease-out;
-}
-
-/* Each face of the cube */
-.dice3d-face {
-  position: absolute;
-  width: 72px;
-  height: 72px;
-  display: grid;
-  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
-  padding: 10px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(140, 96, 20, 0.45);
-  background: linear-gradient(145deg, #fffaf0, #ecd9a8);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 -1px 3px rgba(0, 0, 0, 0.12);
-  backface-visibility: hidden;
-}
-
-/* Face positions */
-.dice3d-face-1 { transform: rotateY(0deg) translateZ(36px); }
-.dice3d-face-2 { transform: rotateX(90deg) translateZ(36px); }
-.dice3d-face-3 { transform: rotateY(90deg) translateZ(36px); }
-.dice3d-face-4 { transform: rotateY(-90deg) translateZ(36px); }
-.dice3d-face-5 { transform: rotateX(-90deg) translateZ(36px); }
-.dice3d-face-6 { transform: rotateY(180deg) translateZ(36px); }
-
-/* Pip dot */
-.dice3d-pip {
-  align-self: center;
-  justify-self: center;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #4a3008;
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-
-/* Pip positions (same grid slots as original) */
-.dice3d-pip-0 { grid-area: 1 / 1; }
-.dice3d-pip-2 { grid-area: 1 / 3; }
-.dice3d-pip-3 { grid-area: 2 / 1; }
-.dice3d-pip-4 { grid-area: 2 / 2; }
-.dice3d-pip-5 { grid-area: 2 / 3; }
-.dice3d-pip-6 { grid-area: 3 / 1; }
-.dice3d-pip-8 { grid-area: 3 / 3; }
-
-/* Ready glow ring */
-.dice3d-scene.is-ready .dice3d-face {
-  box-shadow:
-    inset 0 2px 4px rgba(255, 255, 255, 0.9),
-    0 0 0 3px var(--dice-glow-color, rgba(227, 179, 61, 0.55)),
-    0 0 20px var(--dice-glow-color, rgba(227, 179, 61, 0.32));
-}
-
-/* Shadow under dice */
-.dice3d-shadow {
-  width: 54px;
-  height: 10px;
-  margin: 3px auto 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
-  filter: blur(3px);
-  transition: opacity 0.2s;
-}
-.dice3d-cube.is-rolling ~ .dice3d-shadow { opacity: 0.15; }
-
-/* Label below */
-.dice3d-label {
-  display: block;
-  margin-top: 2px;
-  color: var(--dice-glow-color, #e3b33d);
-  font-size: 0.53rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-align: center;
-}
-
-/* ----- Keyframes ----- */
-
-@keyframes dice3d-tumble {
-  0%   { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
-  20%  { transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.08); }
-  50%  { transform: rotateX(400deg) rotateY(200deg) rotateZ(120deg) scale(0.95); }
-  75%  { transform: rotateX(600deg) rotateY(320deg) rotateZ(180deg) scale(1.04); }
-  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(0deg) scale(1); }
-}
-
-@keyframes dice3d-bounce {
-  0%   { transform: translateY(0) scale(1); }
-  40%  { transform: translateY(-6px) scale(1.05, 0.95); }
-  70%  { transform: translateY(0) scale(0.97, 1.03); }
-  100% { transform: translateY(0) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .ludo-arena .dice3d-cube, .ludo-arena .dice3d-bounce-shell { animation: none; transition: none; }
 }

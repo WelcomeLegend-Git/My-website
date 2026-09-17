@@ -18,6 +18,7 @@ import {
 import { getApiBaseUrl } from "../../lib/env";
 import { authStorage } from "../../lib/auth-storage";
 import { authenticatedFetch } from "../../lib/auth-fetch";
+import { BRIDGE_REGISTRATION_ERROR, getBridgePairingBase, registerBridgeTablet, validateBridgeEncryptionKey, validatePairingSession } from "../../lib/bridge-pairing";
 import { BridgeDiagnosticsPanel } from "./BridgeDiagnosticsPanel";
 
 // ─── Animations and Styles ───
@@ -58,6 +59,7 @@ function loadBridgeConfig(): BridgeConfig | null {
 }
 
 function saveBridgeConfig(config: BridgeConfig) {
+  validateBridgeEncryptionKey(config.encryptionKey);
   localStorage.setItem(BRIDGE_CONFIG_KEY, JSON.stringify(config));
 }
 
@@ -1290,12 +1292,12 @@ function PrivateVaultPanel({
           <div style={{ fontSize: 44, marginBottom: 12 }}>🔒</div>
           <h3 style={{ fontSize: 20, fontWeight: 700 }}>Private Vault Locked</h3>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
-            Enter your master passcode (878955) to view hidden calls & private contacts.
+            Enter the password/PIN configured on your phone to view hidden calls & private contacts.
           </p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 20 }}>
             <input
               type="password"
-              placeholder="Enter 6-digit PIN"
+              placeholder="Password/PIN"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               style={styles.pinInput}
@@ -2407,7 +2409,7 @@ function NotificationCenterPanel({
 
 // ─── Setup Screen (Dynamic 6-Digit Code & QR) ───
 
-function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boolean) => void }) {
+export function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boolean) => void }) {
   const [tab, setTab] = useState<"code" | "qr">("code");
   const [pairingData, setPairingData] = useState<{
     pairingId: string;
@@ -2419,12 +2421,48 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
   const [timeLeft, setTimeLeft] = useState(300);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const sessionVersion = useRef(0);
+  const sessionBase = useRef("");
+  const registrationInFlight = useRef(false);
+  const paired = useRef(false);
+  const onPairedRef = useRef(onPaired);
+  onPairedRef.current = onPaired;
+
+  const registerDevice = useCallback(async (encryptionKey: string, version: number) => {
+    if (version !== sessionVersion.current || registrationInFlight.current || paired.current) return;
+    registrationInFlight.current = true;
+    setRegistering(true);
+    setError("");
+    try {
+      await registerBridgeTablet(sessionBase.current, encryptionKey, getOrCreateBridgeDeviceId(), "Web Mirror Hub");
+      if (version !== sessionVersion.current) return;
+      paired.current = true;
+      onPairedRef.current(encryptionKey, true);
+    } catch {
+      if (version === sessionVersion.current) {
+        setError(BRIDGE_REGISTRATION_ERROR);
+      }
+    } finally {
+      if (version === sessionVersion.current) {
+        registrationInFlight.current = false;
+        setRegistering(false);
+      }
+    }
+  }, []);
 
   const createSession = useCallback(async () => {
+    const version = ++sessionVersion.current;
+    registrationInFlight.current = false;
+    paired.current = false;
+    setPairingData(null);
+    setConfirmedKey(null);
+    setRegistering(false);
     setLoading(true);
     setError("");
     try {
-      const base = getApiBaseUrl();
+      const base = getBridgePairingBase();
       const res = await authenticatedFetch(`${base}/api/remote-bridge/pairing/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2434,16 +2472,23 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
         throw new Error("Failed to generate pairing session");
       }
       const data = await res.json();
-      setPairingData(data);
-      setTimeLeft(data.expiresInSeconds || 300);
+      if (version !== sessionVersion.current) return;
+      const session = validatePairingSession(base, data);
+      sessionBase.current = base;
+      setPairingData(session);
+      setTimeLeft(session.expiresInSeconds || 300);
     } catch (e: any) {
-      setError(e.message || "Failed to generate pairing session");
+      if (version === sessionVersion.current) {
+        setError(e.message || "Failed to generate pairing session");
+      }
+    } finally {
+      if (version === sessionVersion.current) setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     createSession();
+    return () => { ++sessionVersion.current; };
   }, [createSession]);
 
   // Countdown timer
@@ -2460,44 +2505,44 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
     if (!pairingData?.pairingId) return;
 
     let stopped = false;
+    let polling = false;
+    const version = sessionVersion.current;
     const interval = setInterval(async () => {
-      if (stopped) return;
+      if (stopped || polling || version !== sessionVersion.current) return;
+      polling = true;
       try {
-        const base = getApiBaseUrl();
+        const base = sessionBase.current;
         const res = await authenticatedFetch(
           `${base}/api/remote-bridge/pairing/${pairingData.pairingId}/status`
         );
         if (res.ok) {
           const data = await res.json();
-          if (data.status === "confirmed" && !stopped) {
+          if (data.status === "confirmed" && !stopped && version === sessionVersion.current) {
             stopped = true;
             clearInterval(interval);
-            const encryptionKey = data.encryptionKey || pairingData.encryptionKey;
-            const tabletDeviceId = getOrCreateBridgeDeviceId();
-
-            // Register tablet device
-            await authenticatedFetch(`${base}/api/remote-bridge/devices/register`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                deviceId: tabletDeviceId,
-                deviceType: "tablet",
-                deviceName: "Web Mirror Hub",
-                encryptionKey,
-              }),
-            }).catch(() => {});
-
-            onPaired(encryptionKey, true);
+            let encryptionKey: string;
+            try {
+              encryptionKey = validateBridgeEncryptionKey(data.encryptionKey ?? pairingData.encryptionKey);
+            } catch {
+              setError("Invalid pairing encryption key. Generate a new pairing session.");
+              return;
+            }
+            setConfirmedKey(encryptionKey);
+            await registerDevice(encryptionKey, version);
           }
         }
-      } catch {}
+      } catch {
+        // Transient status failures are retried on the next poll.
+      } finally {
+        polling = false;
+      }
     }, 1500);
 
     return () => {
       stopped = true;
       clearInterval(interval);
     };
-  }, [pairingData?.pairingId, pairingData?.encryptionKey, onPaired]);
+  }, [pairingData?.pairingId, pairingData?.encryptionKey, registerDevice]);
 
   const formatTimer = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -2531,7 +2576,7 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
       {tab === "code" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", margin: 0 }}>
-            Enter this 6-digit code in <strong>AuraRing → Settings → Personal Ecosystem</strong>:
+            Enter this one-time 6-digit code in <strong>AuraRing → Settings → Personal Ecosystem</strong>. This is not the Base64 connection code used by Remote Bridge Manual Login:
           </p>
 
           {loading ? (
@@ -2558,7 +2603,7 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: timeLeft < 30 ? "#EF4444" : "rgba(255,255,255,0.5)" }}>
                 <span>⏱️ Code expires in {formatTimer(timeLeft)}</span>
-                {timeLeft === 0 && (
+                {timeLeft === 0 && !confirmedKey && (
                   <button onClick={createSession} style={styles.iconBtn}>
                     🔄 Refresh Code
                   </button>
@@ -2567,11 +2612,10 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
             </div>
           ) : null}
 
-          {error && <p style={{ color: "#EF4444", fontSize: 13, margin: 0 }}>{error}</p>}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34D399", animation: "pulse 1.5s infinite" }} />
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Waiting for phone connection...</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{confirmedKey ? "Phone confirmed." : "Waiting for phone connection..."}</span>
           </div>
         </div>
       ) : (
@@ -2587,6 +2631,16 @@ function SetupScreen({ onPaired }: { onPaired: (key: string, isPermanent?: boole
             In AuraRing app, tap <strong>Scan Website QR Code</strong>
           </p>
         </div>
+      )}
+      {error && <p role="alert" style={{ color: "#EF4444", fontSize: 13 }}>{error}</p>}
+      {confirmedKey && !paired.current && (
+        <button
+          onClick={() => registerDevice(confirmedKey, sessionVersion.current)}
+          disabled={registering}
+          style={styles.primaryBtn}
+        >
+          {registering ? "Registering device..." : "Retry registration"}
+        </button>
       )}
     </div>
   );

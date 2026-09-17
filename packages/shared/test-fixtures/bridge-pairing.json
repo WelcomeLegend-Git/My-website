@@ -1,0 +1,34 @@
+{
+  "description": "Synthetic Stage 1 bridge contract. Android resource copy must remain byte-identical. Never use these values as real credentials.",
+  "serverBase": "https://bridge.example.invalid/deployment",
+  "pairingId": "00000000-0000-4000-8000-000000000001",
+  "pairingToken": "synthetic-pairing-token-not-a-credential",
+  "code": "123456",
+  "encryptionKey": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+  "differentEncryptionKey": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=",
+  "phoneDeviceId": "phone_fixture",
+  "tabletDeviceId": "tablet_fixture",
+  "userId": "fixture-user",
+  "accessToken": "synthetic-access-not-a-jwt",
+  "refreshToken": "synthetic-refresh-not-a-jwt",
+  "expiresInSeconds": 300,
+  "validServerBases": [
+    "https://bridge.example.invalid",
+    "https://bridge.example.invalid/",
+    "https://bridge.example.invalid/deployment",
+    "https://bridge.example.invalid/deployment/",
+    "https://bridge.example.invalid:8443/deployment"
+  ],
+  "invalidServerBases": [
+    "", " ", "bridge.example.invalid", "//bridge.example.invalid", "https:bridge.example.invalid",
+    "https:/bridge.example.invalid", "https:///bridge.example.invalid", "https://", "https://:443",
+    "http://bridge.example.invalid", "http://localhost:3000", "ws://bridge.example.invalid", "wss://bridge.example.invalid",
+    "https://user:password@bridge.example.invalid", "https://@bridge.example.invalid", "https://bridge.example.invalid:",
+    "https://bridge.example.invalid?query=1", "https://bridge.example.invalid?", "https://bridge.example.invalid#fragment", "https://bridge.example.invalid#",
+    "https://bridge.example.invalid//deployment", "https://bridge.example.invalid/a/../b", "https://bridge.example.invalid/a/./b",
+    "https://bridge.example.invalid/%2e%2e/b", "https://bridge.example.invalid/a%2fb", "https://bridge.example.invalid/a%5cb",
+    "https://bridge.example.invalid/%252f", "https://bridge.example.invalid/%00", "https://bridge.example.invalid/%7f",
+    " https://bridge.example.invalid", "https://bridge.example.invalid ", "https://bridge.example.invalid\\path"
+  ],
+  "invalidEncryptionKeys": ["", "!!!!", "Ag==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
+}

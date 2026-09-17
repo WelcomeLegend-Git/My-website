@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLudoReducedMotion } from "../effects/useLudoReducedMotion";
 import "./dice3d.css";
 
 const PIP_MAP: Record<number, number[]> = {
@@ -38,8 +39,9 @@ const DiceFace = ({ faceValue, faceIndex }: { faceValue: number; faceIndex: numb
 );
 
 export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel }: Dice3DProps) => {
+  const reducedMotion = useLudoReducedMotion();
   const [justLanded, setJustLanded] = useState(false);
-  const [displayValue, setDisplayValue] = useState(1);
+  const [displayValue, setDisplayValue] = useState(value ?? 1);
   const prevRolling = useRef(isRolling);
 
   useEffect(() => {
@@ -48,15 +50,16 @@ export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel
 
   // Detect roll → land transition for bounce
   useEffect(() => {
-    if (prevRolling.current && !isRolling) {
-      setJustLanded(true);
-      const t = setTimeout(() => setJustLanded(false), 320);
-      return () => clearTimeout(t);
-    }
+    const landed = prevRolling.current && !isRolling;
     prevRolling.current = isRolling;
-  }, [isRolling]);
+    setJustLanded(landed && !reducedMotion);
+    if (landed && !reducedMotion) {
+      const timer = setTimeout(() => setJustLanded(false), 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isRolling, reducedMotion]);
 
-  const cubeTransform = isRolling ? undefined : FACE_ROTATION[displayValue];
+  const cubeTransform = FACE_ROTATION[value ?? displayValue] ?? FACE_ROTATION[1];
 
   return (
     <button
@@ -67,9 +70,10 @@ export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel
       disabled={!isReady || isRolling}
       aria-label={ariaLabel}
     >
+      <div className={`dice3d-bounce-shell ${justLanded ? "just-landed" : ""}`} aria-hidden="true">
       <div
-        className={`dice3d-cube ${isRolling ? "is-rolling" : ""} ${justLanded ? "just-landed" : ""}`}
-        style={cubeTransform ? { transform: cubeTransform } : undefined}
+        className={`dice3d-cube ${isRolling && !reducedMotion ? "is-rolling" : ""}`}
+        style={{ transform: cubeTransform }}
       >
         <DiceFace faceValue={1} faceIndex={1} />
         <DiceFace faceValue={2} faceIndex={2} />
@@ -78,8 +82,9 @@ export const Dice3D = ({ value, isRolling, isReady, glowColor, onRoll, ariaLabel
         <DiceFace faceValue={5} faceIndex={5} />
         <DiceFace faceValue={6} faceIndex={6} />
       </div>
-      <div className="dice3d-shadow" />
-      {isReady && <span className="dice3d-label">ROLL</span>}
+      </div>
+      <div className="dice3d-shadow" aria-hidden="true" />
+      <span className="dice3d-label" aria-hidden="true">{isRolling ? "ROLLING" : isReady ? "ROLL" : value ?? "—"}</span>
     </button>
   );
 };

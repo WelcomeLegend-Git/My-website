@@ -16,7 +16,8 @@ import {
 } from "./types";
 
 export const RING_LENGTH = 52;
-export const HOME_LANE_START = 52;
+// Leave the ring at the junction before the square behind the starting square.
+export const HOME_LANE_START = 51;
 export const SAFE_RING_INDICES = [0, 8, 13, 21, 26, 34, 39, 47] as const;
 
 export const START_RING_INDEX: Record<PlayerColor, number> = {
@@ -41,8 +42,9 @@ const makeLog = (
   playerColor: PlayerColor,
   text: string,
   at: number,
+  sequence: number | string,
 ): MoveLogEntry => ({
-  id: `${at}-${kind}-${playerColor}-${Math.random().toString(36).slice(2, 9)}`,
+  id: `${sequence}-${at}-${kind}-${playerColor}`,
   at,
   kind,
   playerColor,
@@ -74,7 +76,7 @@ const remainingPlayers = (state: LudoGameState): number =>
 export const getActivePlayer = (state: LudoGameState): LudoPlayer => state.players[state.activePlayerIndex];
 
 export const getRingIndex = (color: PlayerColor, position: TokenPosition): number | null => {
-  if (position < 0 || position >= HOME_LANE_START) return null;
+  if (!Number.isInteger(position) || position < 0 || position >= HOME_LANE_START) return null;
   return (START_RING_INDEX[color] + position) % RING_LENGTH;
 };
 
@@ -86,7 +88,7 @@ export const getDestination = (
   roll: number,
   requireSixToLeaveHome = true,
 ): TokenPosition | null => {
-  if (position === FINISH_POSITION) return null;
+  if (!isDieValue(roll) || !Number.isInteger(position) || position < HOME_POSITION || position >= FINISH_POSITION) return null;
   if (position === HOME_POSITION) return !requireSixToLeaveHome || roll === 6 ? 0 : null;
 
   const destination = position + roll;
@@ -107,12 +109,16 @@ const tokensOnRingIndex = (
 };
 
 export const getBlockadeRingIndexes = (state: LudoGameState): number[] => {
+  if (!state.rules.blockadesEnabled) return [];
+
   const result = new Set<number>();
   for (const color of PLAYER_COLORS) {
     const counts = new Map<number, number>();
     for (const position of state.tokens[color]) {
       const ringIndex = getRingIndex(color, position);
-      if (ringIndex !== null) counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
+      if (ringIndex !== null && !isSafeRingIndex(ringIndex)) {
+        counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
+      }
     }
     for (const [ringIndex, count] of counts) {
       if (count >= 2) result.add(ringIndex);
@@ -128,7 +134,9 @@ const getOpponentBlockadeRingIndexes = (state: LudoGameState, playerColor: Playe
     const counts = new Map<number, number>();
     for (const position of state.tokens[color]) {
       const ringIndex = getRingIndex(color, position);
-      if (ringIndex !== null) counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
+      if (ringIndex !== null && !isSafeRingIndex(ringIndex)) {
+        counts.set(ringIndex, (counts.get(ringIndex) ?? 0) + 1);
+      }
     }
     for (const [ringIndex, count] of counts) {
       if (count >= 2) blocked.add(ringIndex);
@@ -146,11 +154,12 @@ const wouldCrossBlockade = (
   if (!state.rules.blockadesEnabled || position === HOME_POSITION) return false;
 
   const blockades = getOpponentBlockadeRingIndexes(state, color);
+  if (blockades.size === 0) return false;
   const startProgress = Math.max(position + 1, 0);
-  const endProgress = Math.min(destination, HOME_LANE_START - 1);
+  const endProgress = Math.min(destination - 1, HOME_LANE_START - 1);
   for (let progress = startProgress; progress <= endProgress; progress += 1) {
     const ringIndex = getRingIndex(color, progress);
-    if (ringIndex !== null && blockades.has(ringIndex)) return true;
+    if (ringIndex !== null && !isSafeRingIndex(ringIndex) && blockades.has(ringIndex)) return true;
   }
   return false;
 };
@@ -161,7 +170,7 @@ const isBlockedLanding = (
   destination: TokenPosition,
 ): boolean => {
   const ringIndex = getRingIndex(color, destination);
-  if (ringIndex === null || !state.rules.blockadesEnabled) return false;
+  if (ringIndex === null || !state.rules.blockadesEnabled || isSafeRingIndex(ringIndex)) return false;
   for (const opponentColor of PLAYER_COLORS) {
     if (opponentColor === color) continue;
     let count = 0;
@@ -193,15 +202,39 @@ export const isPlayerFinished = (state: LudoGameState, color: PlayerColor): bool
   state.tokens[color].every((position) => position === FINISH_POSITION);
 
 export const isGameFinished = (state: LudoGameState): boolean =>
-  remainingPlayers(state) <= 1 || state.winnerOrder.length >= state.players.length - 1;
+  state.phase === "finished" ||
+  (state.rules.rankedFinish ? remainingPlayers(state) <= 1 : state.winnerOrder.length > 0);
 
 export const createGame = ({ id, mode, players, rules, now = Date.now() }: GameSetup): LudoGameState => {
   if (players.length < 2 || players.length > PLAYER_COLORS.length) {
     throw new LudoRuleError("Ludo needs between two and four players.");
   }
 
+  if (players.some((player) => !PLAYER_COLORS.includes(player.color))) {
+    throw new LudoRuleError("Every player needs a valid colour.");
+  }
+  if (new Set(players.map((player) => player.id)).size !== players.length) {
+    throw new LudoRuleError("Every player needs a different id.");
+  }
   const colors = new Set(players.map((player) => player.color));
   if (colors.size !== players.length) throw new LudoRuleError("Every player needs a different colour.");
+
+  const normalizedRules = { ...DEFAULT_LUDO_RULES };
+  for (const key of Object.keys(DEFAULT_LUDO_RULES) as Array<keyof typeof normalizedRules>) {
+    const value = rules?.[key];
+    if (value === undefined) continue;
+    if (typeof DEFAULT_LUDO_RULES[key] === "boolean" && typeof value !== "boolean") {
+      throw new LudoRuleError(`Invalid rule: ${key}.`);
+    }
+    Object.assign(normalizedRules, { [key]: value });
+  }
+  if (!Number.isFinite(normalizedRules.turnDurationSeconds) || normalizedRules.turnDurationSeconds < 0 ||
+      !Number.isFinite(now) || (normalizedRules.turnDurationSeconds > 0 && !Number.isFinite(now + normalizedRules.turnDurationSeconds * 1_000))) {
+    throw new LudoRuleError("Turn duration and start time must define a valid duration.");
+  }
+  if (!Number.isSafeInteger(normalizedRules.moveLogLimit) || normalizedRules.moveLogLimit < 1) {
+    throw new LudoRuleError("Move log limit must be a positive integer.");
+  }
 
   const normalizedPlayers = players.map((player) => ({
     ...player,
@@ -225,11 +258,11 @@ export const createGame = ({ id, mode, players, rules, now = Date.now() }: GameS
     consecutiveSixes: 0,
     winnerOrder: [],
     lastMove: null,
-    moveLog: [makeLog("roll", normalizedPlayers[0].color, `${normalizedPlayers[0].name} starts the match.`, now)],
+    moveLog: [makeLog("roll", normalizedPlayers[0].color, `${normalizedPlayers[0].name} starts the match.`, now, 0)],
     turnStartedAt: now,
-    turnEndsAt: now + (rules?.turnDurationSeconds ?? DEFAULT_LUDO_RULES.turnDurationSeconds) * 1_000,
+    turnEndsAt: normalizedRules.turnDurationSeconds === 0 ? Number.MAX_SAFE_INTEGER : now + normalizedRules.turnDurationSeconds * 1_000,
     revision: 0,
-    rules: { ...DEFAULT_LUDO_RULES, ...rules },
+    rules: normalizedRules,
   };
 };
 
@@ -240,6 +273,7 @@ export const advanceTurn = (
   now = Date.now(),
   reason?: "timeout" | "three-sixes" | "no-move" | "manual",
 ): LudoGameState => {
+  if (state.phase === "finished") return state;
   if (isGameFinished(state)) {
     return withRevision({
       ...state,
@@ -269,6 +303,7 @@ export const advanceTurn = (
                 ? `${getActivePlayer(state).name} had no legal move.`
                 : `${getActivePlayer(state).name} ended their turn.`,
           now,
+          state.revision + 1,
         ),
       ]
     : state.moveLog;
@@ -281,7 +316,7 @@ export const advanceTurn = (
     legalTokenIndexes: [],
     consecutiveSixes: 0,
     turnStartedAt: now,
-    turnEndsAt: now + state.rules.turnDurationSeconds * 1_000,
+    turnEndsAt: state.rules.turnDurationSeconds === 0 ? Number.MAX_SAFE_INTEGER : now + state.rules.turnDurationSeconds * 1_000,
     moveLog: log.slice(-state.rules.moveLogLimit),
   });
 };
@@ -292,7 +327,7 @@ export const rollDice = (state: LudoGameState, value: number, now = Date.now()):
 
   const active = getActivePlayer(state);
   const consecutiveSixes = value === 6 ? state.consecutiveSixes + 1 : 0;
-  const rollLog = makeLog("roll", active.color, `${active.name} rolled a ${value}.`, now);
+  const rollLog = makeLog("roll", active.color, `${active.name} rolled a ${value}.`, now, state.revision + 1);
 
   if (state.rules.threeSixesLoseTurn && consecutiveSixes >= 3) {
     return advanceTurn(
@@ -316,7 +351,18 @@ export const rollDice = (state: LudoGameState, value: number, now = Date.now()):
   });
   const legalTokenIndexes = getLegalTokenIndexes(rolledState);
 
-  if (legalTokenIndexes.length === 0) return advanceTurn(rolledState, now, "no-move");
+  if (legalTokenIndexes.length === 0) {
+    // A six still earns another roll even when all remaining tokens would overshoot.
+    if (value === 6) {
+      return {
+        ...rolledState,
+        diceValue: null,
+        turnStartedAt: now,
+        turnEndsAt: state.rules.turnDurationSeconds === 0 ? Number.MAX_SAFE_INTEGER : now + state.rules.turnDurationSeconds * 1_000,
+      };
+    }
+    return advanceTurn(rolledState, now, "no-move");
+  }
 
   return { ...rolledState, phase: "moving", legalTokenIndexes };
 };
@@ -328,30 +374,47 @@ export const getCaptures = (
 ): Array<{ color: PlayerColor; tokenIndex: number }> => {
   const ringIndex = getRingIndex(playerColor, destination);
   if (ringIndex === null || isSafeRingIndex(ringIndex)) return [];
-  const opponents = tokensOnRingIndex(state, ringIndex).filter((token) => token.color !== playerColor);
+
+  const opponents: Array<{ color: PlayerColor; tokenIndex: number }> = [];
+  for (const color of PLAYER_COLORS) {
+    if (color === playerColor) continue;
+    state.tokens[color].forEach((pos, tokenIndex) => {
+      if (getRingIndex(color, pos) === ringIndex) opponents.push({ color, tokenIndex });
+    });
+  }
+
+  if (!state.rules.blockadesEnabled) return opponents;
   return opponents.length === 1 ? opponents : [];
 };
 
-export const moveToken = (state: LudoGameState, tokenIndex: number, now = Date.now()): MoveResult => {
+export const moveToken = (
+  state: LudoGameState,
+  tokenIndex: number,
+  now = Date.now(),
+): MoveResult => {
   if (state.phase !== "moving" || state.diceValue === null) {
-    throw new LudoRuleError("Roll the dice before moving a token.");
-  }
-  if (!state.legalTokenIndexes.includes(tokenIndex)) {
-    throw new LudoRuleError("That token cannot use this dice roll.");
+    throw new LudoRuleError("A move can only happen after rolling the dice.");
   }
 
   const active = getActivePlayer(state);
+  const legalTokens = state.legalTokenIndexes.length > 0 ? state.legalTokenIndexes : getLegalTokenIndexes(state);
+  if (!legalTokens.includes(tokenIndex)) {
+    throw new LudoRuleError(`Token ${tokenIndex + 1} cannot use this dice roll.`);
+  }
+
   const from = state.tokens[active.color][tokenIndex];
   const destination = getDestination(from, state.diceValue, state.rules.requireSixToLeaveHome);
-  if (destination === null) throw new LudoRuleError("That token cannot move there.");
+  if (destination === null) {
+    throw new LudoRuleError("The selected move goes beyond the board limits.");
+  }
 
-  const captured = getCaptures(state, active.color, destination);
   const tokens = cloneTokens(state.tokens);
   tokens[active.color][tokenIndex] = destination;
-  for (const capturedToken of captured) tokens[capturedToken.color][capturedToken.tokenIndex] = HOME_POSITION;
+  const captured = getCaptures(state, active.color, destination);
+  for (const item of captured) tokens[item.color][item.tokenIndex] = HOME_POSITION;
 
   const finishedToken = destination === FINISH_POSITION;
-  const playerFinished = tokens[active.color].every((position) => position === FINISH_POSITION);
+  const playerFinished = tokens[active.color].every((pos) => pos === FINISH_POSITION);
   const winnerOrder = playerFinished && !state.winnerOrder.includes(active.color)
     ? [...state.winnerOrder, active.color]
     : state.winnerOrder;
@@ -367,11 +430,11 @@ export const moveToken = (state: LudoGameState, tokenIndex: number, now = Date.n
 
   const moveLog: MoveLogEntry[] = [
     ...state.moveLog,
-    makeLog("move", active.color, `${active.name} moved a token ${state.diceValue} spaces.`, now),
-    ...captured.map((capturedToken) =>
-      makeLog("capture", active.color, `${active.name} sent ${capturedToken.color} home.`, now),
+    makeLog("move", active.color, `${active.name} moved a token ${state.diceValue} spaces.`, now, state.revision + 1),
+    ...captured.map((capturedToken, index) =>
+      makeLog("capture", active.color, `${active.name} sent ${capturedToken.color} home.`, now, `${state.revision + 1}-${index}`),
     ),
-    ...(finishedToken ? [makeLog("finish", active.color, `${active.name} brought a token home.`, now)] : []),
+    ...(finishedToken ? [makeLog("finish", active.color, `${active.name} brought a token home.`, now, state.revision + 1)] : []),
   ].slice(-state.rules.moveLogLimit);
 
   const movedState = withRevision({
@@ -405,7 +468,7 @@ export const moveToken = (state: LudoGameState, tokenIndex: number, now = Date.n
         ...movedState,
         phase: "rolling",
         turnStartedAt: now,
-        turnEndsAt: now + state.rules.turnDurationSeconds * 1_000,
+        turnEndsAt: state.rules.turnDurationSeconds === 0 ? Number.MAX_SAFE_INTEGER : now + state.rules.turnDurationSeconds * 1_000,
       }),
       captured,
       finishedToken,
@@ -428,6 +491,27 @@ export const forfeitTurn = (
 ): LudoGameState => {
   if (state.phase === "finished") return state;
   return advanceTurn(state, now, reason);
+};
+
+export const autoPlayTurn = (state: LudoGameState, now = Date.now()): LudoGameState => {
+  if (state.phase === "finished") return state;
+  if (state.phase === "rolling") {
+    const rolled = rollDice(state, rollLocalDice(), now);
+    if (rolled.phase === "moving" && rolled.legalTokenIndexes.length > 0) {
+      const bestMove = chooseBotMove(rolled);
+      if (bestMove !== null) {
+        return moveToken(rolled, bestMove, now).state;
+      }
+    }
+    return rolled;
+  }
+  if (state.phase === "moving" && state.legalTokenIndexes.length > 0) {
+    const bestMove = chooseBotMove(state);
+    if (bestMove !== null) {
+      return moveToken(state, bestMove, now).state;
+    }
+  }
+  return advanceTurn(state, now, "timeout");
 };
 
 export const applyGameIntent = (state: LudoGameState, intent: GameIntent): LudoGameState => {

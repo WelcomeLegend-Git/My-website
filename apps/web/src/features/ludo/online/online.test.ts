@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { LudoGameState, LudoPlayer } from "../game/types";
+import { createGame } from "../game/engine";
+import type { LudoPlayer } from "../game/types";
 import { encodeLudoMessage, decodeLudoMessage } from "./protocol";
 import type { LudoClientMessage, LudoServerMessage } from "./protocol";
 import { generateRoomCode, generateInviteSecret, normaliseRoomCode, createRoomLink } from "./roomCode";
+
+const players: LudoPlayer[] = [
+  { id: "host-seat", name: "Host", color: "red", isBot: false, connection: "ready" },
+  { id: "guest-seat", name: "Guest", color: "blue", isBot: false, connection: "ready" },
+];
 
 /* ================================================================
  *  PROTOCOL CODEC TESTS
@@ -22,7 +28,7 @@ describe("Ludo protocol codec", () => {
   it("decodeLudoMessage roundtrips a SNAPSHOT message", () => {
     const serverMsg: LudoServerMessage = {
       type: "SNAPSHOT",
-      state: {} as unknown as LudoGameState,
+      state: createGame({ mode: "online", players }),
       serverTime: Date.now(),
     };
     const json = JSON.stringify(serverMsg);
@@ -48,7 +54,7 @@ describe("Ludo protocol codec", () => {
   it("decodeLudoMessage accepts AUTHENTICATED messages", () => {
     const serverMsg: LudoServerMessage = {
       type: "AUTHENTICATED",
-      player: {} as unknown as LudoPlayer,
+      player: players[0],
       roomCode: "12345",
       serverTime: 100,
     };

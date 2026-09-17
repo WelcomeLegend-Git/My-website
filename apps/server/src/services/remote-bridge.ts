@@ -13,6 +13,11 @@ import webpush from "web-push";
 import admin from "firebase-admin";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  buildBridgeQrPayload,
+  validateBridgeEncryptionKey,
+  validateBridgeServerBase,
+} from "../../../../packages/shared/src/bridge-pairing";
 
 // ─── Firebase Admin SDK (FCM for phone push commands) ───
 // Loads credentials from FIREBASE_SERVICE_ACCOUNT env var (Render)
@@ -260,6 +265,7 @@ const connectedClients = new Map<string, AuthenticatedSocket>();
 // ─── Active Pairing Sessions (short-lived, in-memory) ───
 
 interface PairingSession {
+  serverUrl: string;
   userId: string;
   pairingToken: string;
   encryptionKey: string;
@@ -746,6 +752,16 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     const ip = req.ip || "unknown";
     const pairingType = (req.body?.type === "manual") ? "manual" : "qr";
 
+    let serverUrl: string;
+    try {
+      // Behind TLS termination, configure the public base explicitly; do not infer it from forwarded headers.
+      serverUrl = validateBridgeServerBase(
+        env.PUBLIC_BRIDGE_BASE_URL ?? `${req.protocol}://${req.get("host") || ""}`,
+      );
+    } catch {
+      return res.status(400).json({ message: "Invalid bridge server URL" });
+    }
+
     // Generate pairing data
     const pairingId = crypto.randomUUID();
     const pairingToken = crypto.randomBytes(32).toString("hex");
@@ -762,6 +778,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
     pairingCodeToSessionId.set(code, pairingId);
 
     activePairingSessions.set(pairingId, {
+      serverUrl,
       userId,
       pairingToken,
       encryptionKey,
@@ -780,16 +797,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       pairingCodeToSessionId.delete(code);
     }, expiryMs + 5000);
 
-    const backendServerUrl = (req.protocol + "://" + req.get("host")).includes("localhost")
-      ? (req.protocol + "://" + req.get("host"))
-      : "https://jee-study-backend.onrender.com";
-
-    const qrPayload = JSON.stringify({
-      s: backendServerUrl,
-      p: pairingId,
-      t: pairingToken,
-      k: encryptionKey,
-    });
+    const qrPayload = buildBridgeQrPayload(serverUrl, { pairingId, pairingToken, encryptionKey });
 
     await logActivity(userId, null, "pairing_created", `${pairingType} pairing created (code: ${code}, expires in 5m)`, ip);
 
@@ -890,7 +898,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         refreshToken,
         userId: user.id,
         encryptionKey: session.encryptionKey,
-        serverUrl: req.protocol + "://" + req.get("host"),
+        serverUrl: session.serverUrl,
       });
     } catch (error) {
       logger.error({ error }, "Pairing confirm-code error");
@@ -991,7 +999,7 @@ export function setupRemoteBridgeRoutes(app: Express): void {
         refreshToken,
         userId: user.id,
         encryptionKey: session.encryptionKey,
-        serverUrl: req.protocol + "://" + req.get("host"),
+        serverUrl: session.serverUrl,
       });
     } catch (error) {
       logger.error({ error }, "Pairing confirm error");
@@ -1010,7 +1018,14 @@ export function setupRemoteBridgeRoutes(app: Express): void {
       deviceId: z.string().min(1),
       deviceType: z.enum(["phone", "tablet"]).default("tablet"),
       deviceName: z.string().max(50).optional(),
-      encryptionKey: z.string().optional(),
+      encryptionKey: z.string().refine((value) => {
+        try {
+          validateBridgeEncryptionKey(value);
+          return true;
+        } catch {
+          return false;
+        }
+      }).optional(),
     });
 
     const parsed = schema.safeParse(req.body);

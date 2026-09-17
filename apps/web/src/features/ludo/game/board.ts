@@ -39,26 +39,26 @@ export const HOME_LANE_CELLS: Record<PlayerColor, BoardPoint[]> = {
   ],
 };
 
-const HOME_SLOTS: Record<PlayerColor, BoardPoint[]> = {
+export const HOME_SLOTS: Record<PlayerColor, BoardPoint[]> = {
   red: [
-    { x: 2.2, y: 2.2 }, { x: 4.8, y: 2.2 }, { x: 2.2, y: 4.8 }, { x: 4.8, y: 4.8 },
+    { x: 1.25, y: 1.25 }, { x: 3.75, y: 1.25 }, { x: 1.25, y: 3.75 }, { x: 3.75, y: 3.75 },
   ],
   blue: [
-    { x: 10.2, y: 2.2 }, { x: 12.8, y: 2.2 }, { x: 10.2, y: 4.8 }, { x: 12.8, y: 4.8 },
+    { x: 10.25, y: 1.25 }, { x: 12.75, y: 1.25 }, { x: 10.25, y: 3.75 }, { x: 12.75, y: 3.75 },
   ],
   yellow: [
-    { x: 10.2, y: 10.2 }, { x: 12.8, y: 10.2 }, { x: 10.2, y: 12.8 }, { x: 12.8, y: 12.8 },
+    { x: 10.25, y: 10.25 }, { x: 12.75, y: 10.25 }, { x: 10.25, y: 12.75 }, { x: 12.75, y: 12.75 },
   ],
   green: [
-    { x: 2.2, y: 10.2 }, { x: 4.8, y: 10.2 }, { x: 2.2, y: 12.8 }, { x: 4.8, y: 12.8 },
+    { x: 1.25, y: 10.25 }, { x: 3.75, y: 10.25 }, { x: 1.25, y: 12.75 }, { x: 3.75, y: 12.75 },
   ],
 };
 
-const FINISH_SLOTS: Record<PlayerColor, BoardPoint> = {
-  red: { x: 6.35, y: 7.5 },
-  blue: { x: 7.5, y: 6.35 },
-  yellow: { x: 8.65, y: 7.5 },
-  green: { x: 7.5, y: 8.65 },
+export const FINISH_SLOTS: Record<PlayerColor, BoardPoint> = {
+  red: { x: 6.35, y: 7.0 },
+  blue: { x: 7.0, y: 6.35 },
+  yellow: { x: 7.65, y: 7.0 },
+  green: { x: 7.0, y: 7.65 },
 };
 
 export const COLOR_META: Record<PlayerColor, { label: string; color: string; deep: string; pale: string; symbol: string }> = {

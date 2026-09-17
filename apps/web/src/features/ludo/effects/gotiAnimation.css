@@ -1,0 +1,100 @@
+/**
+ * Goti (Token) Animation & Visual Effects
+ */
+
+/* Finish / Home Triangle Celebratory FX */
+.goti-celebration-group {
+  pointer-events: none;
+}
+
+.goti-finish-shockwave {
+  transform-origin: center;
+  animation: goti-shockwave-burst 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.goti-finish-halo {
+  transform-origin: center;
+  animation: goti-halo-fade 1.2s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+
+.goti-sparkle-star {
+  transform-origin: center;
+  animation: goti-sparkle-fly 1s cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+}
+
+@keyframes goti-shockwave-burst {
+  0% {
+    r: 10px;
+    opacity: 0.95;
+    stroke-width: 4px;
+  }
+  50% {
+    opacity: 0.8;
+    stroke-width: 3px;
+  }
+  100% {
+    r: 68px;
+    opacity: 0;
+    stroke-width: 1px;
+  }
+}
+
+@keyframes goti-halo-fade {
+  0% {
+    r: 12px;
+    opacity: 0.9;
+  }
+  30% {
+    r: 32px;
+    opacity: 0.7;
+  }
+  100% {
+    r: 52px;
+    opacity: 0;
+  }
+}
+
+@keyframes goti-sparkle-fly {
+  0% {
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+    transform: translate(calc(var(--sparkle-dx, 0px) * 0.4), calc(var(--sparkle-dy, 0px) * 0.4)) scale(1.3) rotate(90deg);
+  }
+  80% {
+    opacity: 0.85;
+    transform: translate(calc(var(--sparkle-dx, 0px) * 0.95), calc(var(--sparkle-dy, 0px) * 0.95)) scale(0.9) rotate(220deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sparkle-dx, 0px), var(--sparkle-dy, 0px)) scale(0.1) rotate(360deg);
+  }
+}
+
+/* Hopping token visual enhancements */
+.ludo-token.is-hopping {
+  pointer-events: none;
+  filter: drop-shadow(0 14px 10px rgba(0, 0, 0, 0.45));
+}
+
+.ludo-token.is-captured-flight {
+  pointer-events: none;
+  filter: drop-shadow(0 20px 16px rgba(0, 0, 0, 0.55));
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  .goti-finish-shockwave,
+  .goti-finish-halo,
+  .goti-sparkle-star {
+    animation: none !important;
+    display: none !important;
+  }
+
+  .ludo-token.is-hopping,
+  .ludo-token.is-captured-flight {
+    filter: none !important;
+  }
+}

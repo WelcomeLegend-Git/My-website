@@ -1699,12 +1699,12 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
         }
 
         if (!clientInfo) return;
+        const client = connectedClients.get(clientInfo.deviceId);
+        if (client) client.lastPing = Date.now();
 
         switch (message.type) {
           case "PING":
             ws.send(JSON.stringify({ type: "PONG", ts: Date.now() }));
-            const client = connectedClients.get(clientInfo.deviceId);
-            if (client) client.lastPing = Date.now();
             break;
 
           case "EVENT":
@@ -1794,6 +1794,13 @@ export function setupRemoteBridgeWebSocket(server: http.Server): void {
           logger.info({ deviceId: clientInfo.deviceId }, "Stale WS close ignored — device already re-authenticated on new socket");
           diagLog(clientInfo.userId, "server", "WS_STALE_CLOSE_IGNORED", `${clientInfo.deviceType} ${clientInfo.deviceId}`);
         }
+      }
+    });
+
+    ws.on("ping", () => {
+      if (clientInfo) {
+        const client = connectedClients.get(clientInfo.deviceId);
+        if (client) client.lastPing = Date.now();
       }
     });
 

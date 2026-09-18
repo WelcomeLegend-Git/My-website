@@ -51,6 +51,8 @@ export interface CallRecordingItem {
 
 export interface RecordingAudioData {
   recordingId: number;
+  chunkIndex?: number;
+  totalChunks?: number;
   mimeType: string;
   fileName: string;
   audioData: string;
@@ -431,6 +433,7 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const reconnectAttempts = useRef(0);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const audioChunkBufferRef = useRef<Record<string | number, string[]>>({});
 
   // ─── Send command ───
 
@@ -628,9 +631,42 @@ export function useRemoteBridge(options: UseBridgeOptions | null) {
                     if (callEvent.recordings) {
                       setStatus((s) => ({ ...s, phoneOnline: true, recordings: callEvent.recordings! }));
                     }
+                  } else if (callEvent.eventType === "RECORDING_AUDIO_CHUNK") {
+                    const chunk = callEvent.audioChunk;
+                    if (chunk) {
+                      const recId = chunk.recordingId;
+                      if (!audioChunkBufferRef.current[recId]) {
+                        audioChunkBufferRef.current[recId] = [];
+                      }
+                      audioChunkBufferRef.current[recId].push(chunk.audioData);
+                      if (
+                        chunk.chunkIndex !== undefined &&
+                        chunk.totalChunks !== undefined &&
+                        chunk.chunkIndex === chunk.totalChunks - 1
+                      ) {
+                        const fullAudio = audioChunkBufferRef.current[recId].join("");
+                        delete audioChunkBufferRef.current[recId];
+                        setStatus((s) => ({
+                          ...s,
+                          phoneOnline: true,
+                          currentAudio: { ...chunk, audioData: fullAudio },
+                        }));
+                      }
+                    }
                   } else if (callEvent.eventType === "RECORDING_AUDIO_COMPLETE") {
                     if (callEvent.audioChunk) {
-                      setStatus((s) => ({ ...s, phoneOnline: true, currentAudio: callEvent.audioChunk! }));
+                      const recId = callEvent.audioChunk.recordingId;
+                      if (audioChunkBufferRef.current[recId] && audioChunkBufferRef.current[recId].length > 0) {
+                        const fullAudio = audioChunkBufferRef.current[recId].join("");
+                        delete audioChunkBufferRef.current[recId];
+                        setStatus((s) => ({
+                          ...s,
+                          phoneOnline: true,
+                          currentAudio: { ...callEvent.audioChunk!, audioData: fullAudio },
+                        }));
+                      } else {
+                        setStatus((s) => ({ ...s, phoneOnline: true, currentAudio: callEvent.audioChunk! }));
+                      }
                     }
                   } else if (callEvent.eventType === "PRIVATE_VAULT_RESPONSE") {
                     const vaultData = (callEvent.settings as any) || {

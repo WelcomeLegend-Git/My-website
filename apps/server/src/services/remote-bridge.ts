@@ -835,10 +835,25 @@ export function setupRemoteBridgeRoutes(app: Express): void {
 
     let serverUrl: string;
     try {
-      // Behind TLS termination, configure the public base explicitly; do not infer it from forwarded headers.
-      serverUrl = validateBridgeServerBase(
-        env.PUBLIC_BRIDGE_BASE_URL ?? `${req.protocol}://${req.get("host") || ""}`,
-      );
+      // =========================================================================
+      // INTENT & RATIONALE:
+      // - Why this exists: Dynamic pairing QR payloads and confirmation endpoints
+      //   require a canonical HTTPS base URL. In production, this can come from
+      //   explicit configuration (`env.PUBLIC_BRIDGE_BASE_URL`), the hosting
+      //   platform's environment (`process.env.RENDER_EXTERNAL_URL`), or the
+      //   incoming TLS-terminated request (`req.protocol === 'https'` or
+      //   `X-Forwarded-Proto === 'https'`).
+      // - Trade-off / Context: In local test fixtures (e.g. supertest), direct plain
+      //   HTTP requests without an explicit base must still be rejected (HTTP 400)
+      //   to prevent publishing insecure 'http://' endpoints.
+      // - Invariant: The resolved base URL MUST always be validated via
+      //   `validateBridgeServerBase` and reject non-HTTPS URLs.
+      // =========================================================================
+      const isHttps = req.secure || req.protocol === "https" || req.get("x-forwarded-proto") === "https";
+      const host = req.get("host") || "";
+      const computedBase = `${isHttps ? "https" : req.protocol}://${host}`;
+      const rawBase = env.PUBLIC_BRIDGE_BASE_URL || process.env.RENDER_EXTERNAL_URL || computedBase;
+      serverUrl = validateBridgeServerBase(rawBase);
     } catch {
       return res.status(400).json({ message: "Invalid bridge server URL" });
     }

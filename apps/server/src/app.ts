@@ -16,6 +16,19 @@ import { appRouter } from "./trpc/root";
 export const createApp = () => {
   const app = express();
 
+  // =========================================================================
+  // INTENT & RATIONALE:
+  // - Why this exists: On Render (and reverse proxies), TLS is terminated at the
+  //   edge proxy. Enabling `trust proxy` (hop 1) allows Express to accurately
+  //   read `X-Forwarded-Proto` (yielding `req.protocol === 'https'` and
+  //   `req.secure === true`) and `X-Forwarded-For` (yielding the true client IP).
+  // - Trade-off / Context: Without `trust proxy`, Express defaults `req.protocol`
+  //   to 'http', breaking canonical HTTPS pairing base resolution for Remote
+  //   Bridge and corrupting per-client pairing rate-limiting.
+  // - Invariant: Must trust 1 hop (the immediate reverse proxy) in production.
+  // =========================================================================
+  app.set("trust proxy", 1);
+
   const isVercel = process.env.VERCEL === '1';
   const isProduction = process.env.NODE_ENV === 'production';
 

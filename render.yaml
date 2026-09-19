@@ -28,6 +28,8 @@ services:
         sync: false
       - key: UPLOAD_DIR
         value: /tmp/uploads
+      - key: PUBLIC_BRIDGE_BASE_URL
+        value: https://jee-study-backend.onrender.com
 
   - type: static
     name: jee-study-web
